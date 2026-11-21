@@ -24,7 +24,7 @@ fail() { echo "FAIL: $*"; exit 1; }
 # ---- 1. playback: click, text, a held key, scroll, right click
 mkdir -p "$WORK/play"
 cat > "$WORK/play/settings.json" <<'EOF'
-{"countdown": false, "stop_on_user_input": false, "restore_mouse": false, "typing": "instant",
+{"countdown": false, "stop_on_key": false, "stop_on_mouse": false, "restore_mouse": false, "typing": "instant",
  "hotkey_record": "", "hotkey_play": "", "hotkey_stop": "Esc"}
 EOF
 cat > "$WORK/play/test.macro" <<'EOF'

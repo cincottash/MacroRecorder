@@ -28,18 +28,32 @@ void fields(Settings& s, F&& f)
     f("typing", s.typing);
     f("countdown", s.countdown);
     f("countdown_seconds", s.countdownSeconds);
-    f("stop_on_user_input", s.stopOnUserInput);
+    f("stop_on_key", s.stopOnKey);
+    f("stop_on_mouse", s.stopOnMouse);
+    f("block_keyboard", s.blockKeyboard);
     f("restore_mouse", s.restoreMouse);
     f("hide_while_playing", s.hideWhilePlaying);
+    f("show_notifications", s.showNotifications);
+    f("after_playback", s.afterPlayback);
     f("record_moves", s.recordMoves);
     f("min_move_px", s.minMovePx);
     f("record_keyboard", s.recordKeyboard);
     f("merge_typing", s.mergeTyping);
     f("shortest_pause_ms", s.shortestPauseMs);
     f("hide_while_recording", s.hideWhileRecording);
+    f("relative_positions", s.relativePositions);
+    f("path_detail", s.pathDetail);
     f("hotkey_record", s.hkRecord);
     f("hotkey_play", s.hkPlay);
     f("hotkey_stop", s.hkStop);
+    f("hotkey_new_recording", s.hkNewRecording);
+    f("hotkey_play_from", s.hkPlayFrom);
+    f("hotkey_play_selection", s.hkPlaySelection);
+    f("hotkey_capture", s.hkCapture);
+    f("confirm_delete", s.confirmDelete);
+    f("start_minimized", s.startMinimized);
+    f("show_position", s.showPosition);
+    f("scan_codes", s.scanCodes);
     f("recent", s.recent);
     f("last_folder", s.lastFolder);
 }
@@ -71,6 +85,8 @@ bool Settings::load(const QString& path)
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) return false;
     const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
+    // Before version 0.2 one setting covered both; it still applies when the newer ones aren't there.
+    if (o.value(QLatin1String("stop_on_user_input")).isBool()) stopOnKey = stopOnMouse = o.value(QLatin1String("stop_on_user_input")).toBool();
     fields(*this, [&](const char* k, auto& v) { get(o, k, v); });
     // Keep values sane even if the file was edited by hand.
     speedPct = qBound(10, speedPct, 1000);
@@ -79,6 +95,10 @@ bool Settings::load(const QString& path)
     countdownSeconds = qBound(1, countdownSeconds, 60);
     minMovePx = qBound(1, minMovePx, 100);
     shortestPauseMs = qBound(0, shortestPauseMs, 60000);
+    pathDetail = qBound(0, pathDetail, 100);
+    static const QStringList kAfter = {QStringLiteral("nothing"), QStringLiteral("quit"), QStringLiteral("lock"), QStringLiteral("sleep"),
+                                       QStringLiteral("logoff"), QStringLiteral("restart"), QStringLiteral("shutdown")};
+    if (!kAfter.contains(afterPlayback)) afterPlayback = QStringLiteral("nothing");
     while (recent.size() > 10) recent.removeLast();
     return true;
 }

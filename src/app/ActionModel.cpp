@@ -29,6 +29,10 @@ QString ActionModel::glyph(ActionType t)
     case ActionType::Goto: return QStringLiteral("↪");
     case ActionType::RunProgram: return QStringLiteral("▶");
     case ActionType::Notify: return QStringLiteral("✉");
+    case ActionType::WaitFile: return QStringLiteral("▤");
+    case ActionType::MessageBox: return QStringLiteral("□");
+    case ActionType::Beep: return QStringLiteral("♪");
+    case ActionType::RunMacro: return QStringLiteral("⧉");
     }
     return {};
 }

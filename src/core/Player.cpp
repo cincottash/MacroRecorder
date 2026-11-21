@@ -1,7 +1,9 @@
 #include "Player.h"
 
 #include <QColor>
+#include <QDateTime>
 #include <QElapsedTimer>
+#include <QFileInfo>
 #include <QHash>
 #include <QProcess>
 
@@ -15,6 +17,7 @@ constexpr int kKeyHoldMs = 30;
 constexpr int kWheelGapMs = 40;
 constexpr int kPollMs = 40;          // waits that watch the screen or keyboard
 constexpr int kWindowFallbackMs = 1500;
+constexpr int kMaxMacroDepth = 5;    // "Run macro" inside "Run macro"...: stops a macro that runs itself
 
 bool colorClose(const QString& a, const QString& b, int tolerancePct)
 {
@@ -113,8 +116,12 @@ bool Player::playAction(const Action& a, int index)
     case ActionType::MouseMove: {
         const QPoint to = target(a);
         const QPoint from = m_inj->cursor();
-        const auto pts = makePath(m_o.path, from, to, int(a.ms / sp),
-                                  m_o.path == PathStyle::AsRecorded ? a.path : QVector<PathPoint>(), quint32(index * 7919 + 1));
+        QVector<PathPoint> recorded = m_o.path == PathStyle::AsRecorded ? a.path : QVector<PathPoint>();
+        if (a.relativeToWindow && !recorded.isEmpty()) {   // the path was recorded relative to the window too
+            const QPoint off = to - a.pos;
+            for (PathPoint& p : recorded) { p.x += off.x(); p.y += off.y(); }
+        }
+        const auto pts = makePath(m_o.path, from, to, int(a.ms / sp), recorded, quint32(index * 7919 + 1));
         QElapsedTimer t;
         t.start();
         const double scale = (m_o.path == PathStyle::AsRecorded && a.path.size() >= 2) ? 1.0 / sp : 1.0;
@@ -249,8 +256,109 @@ bool Player::playAction(const Action& a, int index)
         break;
     }
     case ActionType::Notify: emit notify(a.message); break;
+    case ActionType::MessageBox:
+        m_boxOpen = true;
+        emit messageBox(a.message);
+        while (m_boxOpen)
+            if (!waitMs(20)) { m_boxOpen = false; return false; }
+        break;
+    case ActionType::Beep: emit beep(); break;
+    case ActionType::WaitFile: {
+        QElapsedTimer t;
+        t.start();
+        const QFileInfo start(a.file);
+        const bool existed = start.exists();
+        const QDateTime startTime = existed ? start.lastModified() : QDateTime();
+        const qint64 startSize = existed ? start.size() : -1;
+        auto met = [&] {
+            const QFileInfo f(a.file);
+            switch (a.fileWhen) {
+            case FileCondition::Exists: return f.exists();
+            case FileCondition::Gone: return !f.exists();
+            case FileCondition::Changed:
+                return f.exists() != existed || (f.exists() && (f.lastModified() != startTime || f.size() != startSize));
+            }
+            return true;
+        };
+        while (!met()) {
+            if (a.ms > 0 && t.elapsed() >= a.ms) {
+                const QString what = a.fileWhen == FileCondition::Exists ? QStringLiteral("appear")
+                                     : a.fileWhen == FileCondition::Gone ? QStringLiteral("go away") : QStringLiteral("change");
+                emit message(QStringLiteral("“%1” didn't %2 within %3 s; continuing.").arg(a.file, what).arg(a.ms / 1000.0, 0, 'f', 1), true);
+                break;
+            }
+            if (!waitMs(100)) return false;
+        }
+        break;
+    }
+    case ActionType::RunMacro: {
+        if (m_depth >= kMaxMacroDepth) {
+            emit message(QStringLiteral("“Run macro” steps are nested more than %1 deep (a macro that runs itself?); skipped.")
+                             .arg(kMaxMacroDepth), true);
+            break;
+        }
+        Macro inner;
+        QString err;
+        if (!Macro::load(a.file, &inner, &err)) {
+            emit message(QStringLiteral("Couldn't run the macro “%1”: %2").arg(a.file, err), true);
+            break;
+        }
+        if (!err.isEmpty()) emit message(err, true);
+        ++m_depth;
+        const bool ok = playList(inner.actions, 0, int(inner.actions.size()) - 1, 1, 1, m_depth);
+        --m_depth;
+        if (!ok) return false;
+        break;
+    }
     case ActionType::Repeat:
-    case ActionType::Goto: break;  // handled by run()
+    case ActionType::Goto: break;  // handled by playList()
+    }
+    return true;
+}
+
+bool Player::playList(const QList<Action>& acts, int first, int last, int round, int rounds, int depth)
+{
+    QHash<QString, int> labels;
+    for (int i = first; i <= last; ++i)
+        if (!acts[i].label.isEmpty() && !labels.contains(acts[i].label)) labels.insert(acts[i].label, i);
+    QHash<int, int> repeatsDone;          // Repeat action index -> jumps made this round
+    QHash<int, qint64> repeatStarted;     // Repeat action index -> when its timed repeat began
+    QElapsedTimer roundTimer;
+    roundTimer.start();
+    int pc = first;
+    while (pc <= last) {
+        if (m_stop) return false;
+        const Action& a = acts[pc];
+        if (!a.enabled) { ++pc; continue; }
+        if (depth == 0) emit step(pc, round, rounds);   // steps of a macro run from this one aren't rows in the list
+        if (a.type == ActionType::Goto || a.type == ActionType::Repeat) {
+            const int to = labels.value(a.target, -1);
+            if (to < 0) {
+                emit message(QStringLiteral("No action has the label “%1”; skipping the %2.")
+                                 .arg(a.target, a.type == ActionType::Goto ? QStringLiteral("go-to") : QStringLiteral("repeat")), true);
+                ++pc;
+                continue;
+            }
+            bool jump = true;
+            if (a.type == ActionType::Repeat) {
+                if (a.repeatMode == RepeatMode::Times) {
+                    const int done = repeatsDone.value(pc);
+                    jump = done + 1 < a.count;  // "3 times" = the section plays 3 times in total
+                    if (jump) repeatsDone[pc] = done + 1; else repeatsDone.remove(pc);
+                } else if (a.repeatMode == RepeatMode::Seconds) {
+                    if (!repeatStarted.contains(pc)) repeatStarted[pc] = roundTimer.elapsed();
+                    jump = roundTimer.elapsed() - repeatStarted[pc] < qint64(a.count) * 1000;
+                    if (!jump) repeatStarted.remove(pc);
+                }
+            }
+            if (jump && !waitMs(1)) return false;  // never spin without yielding
+            pc = jump ? to : pc + 1;
+            continue;
+        }
+        if (!playAction(a, pc)) return false;
+        const QString problem = m_inj->takeProblem();
+        if (!problem.isEmpty() && !m_problemShown) { m_problemShown = true; emit message(problem, true); }
+        ++pc;
     }
     return true;
 }
@@ -270,10 +378,7 @@ void Player::run()
     const int first = qBound(0, m_o.first, int(acts.size()));
     const int last = m_o.last < 0 ? int(acts.size()) - 1 : qMin(m_o.last, int(acts.size()) - 1);
 
-    QHash<QString, int> labels;
-    for (int i = first; i <= last; ++i)
-        if (!acts[i].label.isEmpty() && !labels.contains(acts[i].label)) labels.insert(acts[i].label, i);
-
+    m_depth = 0;
     QElapsedTimer total;
     total.start();
     const int rounds = m_o.repeatMode == RepeatMode::Times ? qMax(1, m_o.repeatCount) : 0;
@@ -281,45 +386,7 @@ void Player::run()
     for (int round = 1; !stopped; ++round) {
         if (m_o.repeatMode == RepeatMode::Times && round > rounds) break;
         if (m_o.repeatMode == RepeatMode::Seconds && round > 1 && total.elapsed() >= qint64(m_o.repeatCount) * 1000) break;
-        QHash<int, int> repeatsDone;          // Repeat action index -> jumps made this round
-        QHash<int, qint64> repeatStarted;     // Repeat action index -> when its timed repeat began
-        QElapsedTimer roundTimer;
-        roundTimer.start();
-        int pc = first;
-        while (pc <= last) {
-            if (m_stop) { stopped = true; break; }
-            const Action& a = acts[pc];
-            if (!a.enabled) { ++pc; continue; }
-            emit step(pc, round, rounds);
-            if (a.type == ActionType::Goto || a.type == ActionType::Repeat) {
-                const int to = labels.value(a.target, -1);
-                if (to < 0) {
-                    emit message(QStringLiteral("No action has the label “%1”; skipping the %2.")
-                                     .arg(a.target, a.type == ActionType::Goto ? QStringLiteral("go-to") : QStringLiteral("repeat")), true);
-                    ++pc;
-                    continue;
-                }
-                bool jump = true;
-                if (a.type == ActionType::Repeat) {
-                    if (a.repeatMode == RepeatMode::Times) {
-                        const int done = repeatsDone.value(pc);
-                        jump = done + 1 < a.count;  // "3 times" = the section plays 3 times in total
-                        if (jump) repeatsDone[pc] = done + 1; else repeatsDone.remove(pc);
-                    } else if (a.repeatMode == RepeatMode::Seconds) {
-                        if (!repeatStarted.contains(pc)) repeatStarted[pc] = roundTimer.elapsed();
-                        jump = roundTimer.elapsed() - repeatStarted[pc] < qint64(a.count) * 1000;
-                        if (!jump) repeatStarted.remove(pc);
-                    }
-                }
-                if (jump && !waitMs(1)) { stopped = true; break; }  // never spin without yielding
-                pc = jump ? to : pc + 1;
-                continue;
-            }
-            if (!playAction(a, pc)) { stopped = true; break; }
-            const QString problem = m_inj->takeProblem();
-            if (!problem.isEmpty() && !m_problemShown) { m_problemShown = true; emit message(problem, true); }
-            ++pc;
-        }
+        if (!playList(acts, first, last, round, rounds, 0)) stopped = true;
     }
     // Never leave buttons or modifier keys held down.
     for (int b : std::as_const(m_held)) m_inj->button(MouseButton(b), false);

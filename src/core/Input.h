@@ -5,6 +5,8 @@
 #include "Action.h"
 
 #include <QMetaType>
+
+#include <climits>
 #include <QPoint>
 #include <QString>
 
@@ -23,6 +25,9 @@ struct RawEvent {
     quint64 windowId = 0;      // foreground window (Down / KeyDown only)
     QString exe;               // its program file name
     QString title;             // its title
+    // Top-left of the window this event belongs to (the window under the pointer for button presses and
+    // releases, the active window otherwise), for "positions relative to the window". Unset: not known.
+    QPoint windowOrigin{INT_MIN, INT_MIN};
 };
 
 class Injector {
@@ -43,6 +48,8 @@ public:
     virtual QString takeProblem() { return {}; }
     // A real keyboard repeats a held key: first after delayMs, then every intervalMs (the user's system settings).
     virtual void keyRepeat(int* delayMs, int* intervalMs) { *delayMs = 500; *intervalMs = 33; }
+    // Windows: send keys as hardware scan codes only (some games read nothing else). Ignored elsewhere.
+    virtual void setScanCodesOnly(bool on) { Q_UNUSED(on) }
 };
 
 }  // namespace core

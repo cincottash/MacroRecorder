@@ -20,12 +20,15 @@ constexpr TypeInfo kTypes[] = {
     {ActionType::WindowFocus, "window_focus"}, {ActionType::WaitPixel, "wait_pixel"},
     {ActionType::WaitKey, "wait_key"},         {ActionType::Repeat, "repeat"},
     {ActionType::Goto, "goto"},                {ActionType::RunProgram, "run_program"},
-    {ActionType::Notify, "notify"},
+    {ActionType::Notify, "notify"},           {ActionType::WaitFile, "wait_file"},
+    {ActionType::MessageBox, "message_box"},  {ActionType::Beep, "beep"},
+    {ActionType::RunMacro, "run_macro"},
 };
 
 const char* const kButtons[] = {"left", "right", "middle", "x1", "x2"};
 const char* const kMatches[] = {"exact", "starts_with", "contains", "any"};
 const char* const kRepeat[] = {"times", "seconds", "forever"};
+const char* const kFileWhen[] = {"exists", "gone", "changed"};
 
 template <typename E, size_t N>
 E enumFrom(const QString& s, const char* const (&names)[N], E fallback)
@@ -101,6 +104,10 @@ QString Action::typeName() const
     case ActionType::Goto: return QStringLiteral("Go to");
     case ActionType::RunProgram: return QStringLiteral("Run program");
     case ActionType::Notify: return QStringLiteral("Notification");
+    case ActionType::WaitFile: return QStringLiteral("Wait for file");
+    case ActionType::MessageBox: return QStringLiteral("Message box");
+    case ActionType::Beep: return QStringLiteral("Beep");
+    case ActionType::RunMacro: return QStringLiteral("Run macro");
     }
     return {};
 }
@@ -145,7 +152,15 @@ QString Action::valueText() const
     }
     case ActionType::Goto: return QStringLiteral("“%1”").arg(target);
     case ActionType::RunProgram: return arguments.isEmpty() ? program : program + QLatin1Char(' ') + arguments;
-    case ActionType::Notify: return message;
+    case ActionType::Notify:
+    case ActionType::MessageBox: return message;
+    case ActionType::WaitFile: {
+        static const char* const kWhen[] = {"exists", "is gone", "changes"};
+        return QStringLiteral("%1 %2").arg(file, QLatin1String(kWhen[int(fileWhen)]))
+               + (ms > 0 ? QStringLiteral(" · give up after ") + msText(ms) : QString());
+    }
+    case ActionType::Beep: return {};
+    case ActionType::RunMacro: return file;
     }
     return {};
 }
@@ -235,7 +250,15 @@ QJsonObject Action::toJson() const
         o[QStringLiteral("program")] = program;
         if (!arguments.isEmpty()) o[QStringLiteral("arguments")] = arguments;
         break;
-    case ActionType::Notify: o[QStringLiteral("message")] = message; break;
+    case ActionType::Notify:
+    case ActionType::MessageBox: o[QStringLiteral("message")] = message; break;
+    case ActionType::WaitFile:
+        o[QStringLiteral("file")] = file;
+        o[QStringLiteral("when")] = QString::fromLatin1(kFileWhen[int(fileWhen)]);
+        o[QStringLiteral("timeout_ms")] = ms;
+        break;
+    case ActionType::Beep: break;
+    case ActionType::RunMacro: o[QStringLiteral("file")] = file; break;
     }
     if (relativeToWindow) o[QStringLiteral("relative_to_window")] = true;
     return o;
@@ -291,6 +314,8 @@ Action Action::fromJson(const QJsonObject& o, bool* ok)
     a.program = o.value(QStringLiteral("program")).toString();
     a.arguments = o.value(QStringLiteral("arguments")).toString();
     a.message = o.value(QStringLiteral("message")).toString();
+    a.file = o.value(QStringLiteral("file")).toString();
+    a.fileWhen = enumFrom(o.value(QStringLiteral("when")).toString(), kFileWhen, FileCondition::Exists);
     return a;
 }
 

@@ -6,6 +6,7 @@
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -43,6 +44,10 @@ QString describe(ActionType t)
     case ActionType::Goto: return QStringLiteral("Jumps to a labeled step.");
     case ActionType::RunProgram: return QStringLiteral("Starts a program or opens a file.");
     case ActionType::Notify: return QStringLiteral("Shows a notification.");
+    case ActionType::WaitFile: return QStringLiteral("Waits until a file appears, disappears or changes (for example, a download or an export finishing).");
+    case ActionType::MessageBox: return QStringLiteral("Shows a message and waits until you press OK.");
+    case ActionType::Beep: return QStringLiteral("Plays the system sound.");
+    case ActionType::RunMacro: return QStringLiteral("Plays another macro file at this point, then carries on with this one.");
     }
     return {};
 }
@@ -121,7 +126,8 @@ void ActionDialog::build()
         m_x = spin(-100000, 100000, m_a.pos.x(), QStringLiteral("px"));
         m_y = spin(-100000, 100000, m_a.pos.y(), QStringLiteral("px"));
         auto* pick = new QPushButton(t == ActionType::WaitPixel ? QStringLiteral("Pick point and color…") : QStringLiteral("Use mouse position…"));
-        pick->setToolTip(QStringLiteral("After 3 seconds, takes the mouse pointer's position%1. Point at the spot meanwhile.")
+        pick->setToolTip(QStringLiteral("After 3 seconds, takes the mouse pointer's position%1. Point at the spot meanwhile. "
+                                        "Or point at it and press the Capture position hotkey (F8 unless you changed it).")
                              .arg(t == ActionType::WaitPixel ? QStringLiteral(" and the color under it") : QString()));
         connect(pick, &QPushButton::clicked, this, [this, t] { pickPosition(t == ActionType::WaitPixel); });
         m_form->addRow(t == ActionType::MouseMove ? QStringLiteral("To X, Y:") : QStringLiteral("X, Y:"), hrow({m_x, m_y, pick}));
@@ -245,9 +251,36 @@ void ActionDialog::build()
         m_form->addRow(QStringLiteral("Program:"), w);
         m_form->addRow(QStringLiteral("Arguments:"), m_args);
     }
-    if (t == ActionType::Notify) {
+    if (t == ActionType::Notify || t == ActionType::MessageBox) {
         m_message = new QLineEdit(m_a.message);
         m_form->addRow(QStringLiteral("Message:"), m_message);
+    }
+    if (t == ActionType::WaitFile || t == ActionType::RunMacro) {
+        m_file = new QLineEdit(QDir::toNativeSeparators(m_a.file));
+        m_file->setMinimumWidth(260);
+        auto* browse = new QPushButton(QStringLiteral("Browse…"));
+        connect(browse, &QPushButton::clicked, this, [this, t] {
+            const QString f = t == ActionType::RunMacro
+                                  ? QFileDialog::getOpenFileName(this, QStringLiteral("Choose a macro"), m_file->text(), QStringLiteral("Macros (*.macro)"))
+                                  : QFileDialog::getSaveFileName(this, QStringLiteral("Choose the file to watch"), m_file->text(), QString(), nullptr,
+                                                                 QFileDialog::DontConfirmOverwrite);
+            if (!f.isEmpty()) m_file->setText(QDir::toNativeSeparators(f));
+        });
+        auto* w = new QWidget;
+        auto* h = new QHBoxLayout(w);
+        h->setContentsMargins(0, 0, 0, 0);
+        h->addWidget(m_file, 1);
+        h->addWidget(browse);
+        m_form->addRow(t == ActionType::RunMacro ? QStringLiteral("Macro file:") : QStringLiteral("File:"), w);
+    }
+    if (t == ActionType::WaitFile) {
+        m_fileWhen = new QComboBox;
+        m_fileWhen->addItems({QStringLiteral("Exists"), QStringLiteral("Is gone"), QStringLiteral("Changes")});
+        m_fileWhen->setCurrentIndex(int(m_a.fileWhen));
+        m_form->addRow(QStringLiteral("Continue when it:"), m_fileWhen);
+        m_ms = spin(0, 86400, m_a.ms / 1000, QStringLiteral("s"));
+        m_ms->setToolTip(QStringLiteral("0 = wait as long as it takes. On timeout, playback continues."));
+        m_form->addRow(QStringLiteral("Give up after:"), m_ms);
     }
 
     // Fields every action has
@@ -273,6 +306,18 @@ void ActionDialog::build()
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     lay->addWidget(buttons);
     setMinimumWidth(520);
+}
+
+void ActionDialog::captureNow()
+{
+    if (!m_x || !m_inj) return;
+    const QPoint p = m_inj->cursor();
+    m_x->setValue(p.x());
+    m_y->setValue(p.y());
+    if (m_color) {
+        const QString c = m_inj->pixelColor(p);
+        if (!c.isEmpty()) m_color->setText(c);
+    }
 }
 
 void ActionDialog::pickPosition(bool withColor)
@@ -337,7 +382,7 @@ void ActionDialog::accept()
         a.text = s;
     }
     if (m_ms) {
-        const bool seconds = t == ActionType::WindowFocus || t == ActionType::WaitPixel || t == ActionType::WaitKey;
+        const bool seconds = t == ActionType::WindowFocus || t == ActionType::WaitPixel || t == ActionType::WaitKey || t == ActionType::WaitFile;
         a.ms = seconds ? m_ms->value() * 1000 : m_ms->value();
         if (t == ActionType::MouseMove && a.ms != m_a.ms) a.path.clear();  // a new duration can't keep the recorded path
     }
@@ -372,8 +417,14 @@ void ActionDialog::accept()
     }
     if (m_message) {
         a.message = m_message->text().trimmed();
-        if (a.message.isEmpty()) return fail(QStringLiteral("Enter the notification text."));
+        if (a.message.isEmpty()) return fail(QStringLiteral("Enter the message to show."));
     }
+    if (m_file) {
+        a.file = QDir::fromNativeSeparators(m_file->text().trimmed());
+        if (a.file.isEmpty()) return fail(t == ActionType::RunMacro ? QStringLiteral("Choose the macro file to play.") : QStringLiteral("Enter the file to watch."));
+        if (t == ActionType::RunMacro && !QFileInfo::exists(a.file)) return fail(QStringLiteral("“%1” doesn't exist.").arg(m_file->text().trimmed()));
+    }
+    if (m_fileWhen) a.fileWhen = core::FileCondition(m_fileWhen->currentIndex());
     a.label = m_label->text().trimmed();
     a.comment = m_comment->text().trimmed();
     a.delayMs = m_delay->value();
