@@ -33,8 +33,32 @@ Get the latest version from the [Releases page](https://github.com/cincottash/Ma
 Windows may warn that the app is from an unknown publisher (it isn't code-signed). Choose **More info → Run
 anyway**. Programs that watch the keyboard and mouse sometimes get flagged by antivirus tools for the same reason.
 
-> **Linux status:** recording and playback on Linux (X11 and Wayland) are being built. The Linux version can open,
-> edit and save macros now. The app detects your session type and tells you what's available.
+On Linux the app checks your session when it starts and uses the best method available; the Activity log says
+which one. See [Linux setup](#linux-setup).
+
+## Linux setup
+
+| Session | Recording | Playback |
+|---|---|---|
+| **X11** ("Xorg" at the login screen) | every program | every program |
+| **Wayland**, with access to `/dev/uinput` | programs running through XWayland | every program |
+| **Wayland**, without that access | programs running through XWayland | programs running through XWayland |
+
+Wayland doesn't let one program watch the mouse and keyboard of others, so **for recording, log in with an X11
+session** (most distributions offer "Xorg" or "X11" on the login screen's settings button).
+
+To play back into every program on Wayland, give your user access to `/dev/uinput` once, then log out and back in:
+
+```
+echo 'KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"' | sudo tee /etc/udev/rules.d/60-macrorecorder-uinput.rules
+sudo usermod -aG input "$USER"
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+The first line lets members of the `input` group use `/dev/uinput`; the second adds you to that group. On Wayland,
+playback through `/dev/uinput` types plain US-keyboard characters, and "Window focus", "Wait for pixel color",
+"Wait for key" and positions relative to a window aren't available (Wayland keeps that information private); the
+Activity log says when a step was skipped.
 
 ## First run
 
@@ -107,6 +131,7 @@ MacroRecorder.exe [file] [--play] [--repeat N] [--quit] [--minimized] [--data-fo
 | `--repeat N` | Plays it N times (with `--play`). |
 | `--quit` | Closes the app when playback ends (with `--play`). Handy for Windows Task Scheduler. |
 | `--minimized` | Starts minimized. |
+| `--record FILE` | Starts recording at once; when you stop (Stop hotkey, Esc by default), saves to FILE and quits. |
 | `--data-folder FOLDER` | Keeps settings in FOLDER for this run, for example to run from a USB stick. |
 | `--screenshot FILE.png` | Saves a picture of the window and exits (used by the automatic build checks). |
 
@@ -134,7 +159,8 @@ For the single self-contained exe, also install `mingw-w64-ucrt-x86_64-qt6-stati
 `mingw-w64-ucrt-x86_64-libtiff` and `mingw-w64-ucrt-x86_64-libwebp`, and configure with
 `-DSTATIC_BUILD=ON -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static`.
 
-**Linux:** install Qt 6 (with the SVG module), CMake and Ninja, then run the same two `cmake` commands.
+**Linux:** install Qt 6 (with the SVG module), CMake, Ninja and the X11 development files (`libx11-dev
+libxtst-dev` on Debian and Ubuntu), then run the same two `cmake` commands.
 
 ### Changing the icon
 Edit `resources/icon.svg`, then rebuild `packaging/icon.ico` with the small tool in `packaging/make_icon.cpp`
@@ -143,7 +169,7 @@ Edit `resources/icon.svg`, then rebuild `packaging/icon.ico` with the small tool
 ## Automatic releases
 
 GitHub Actions (`.github/workflows/build-apps.yml`) builds the Windows exe and the Linux AppImage and checks that
-both start.
+both start. On Linux it also records and plays back for real on a virtual X11 display (`.github/ci/x11_check.sh`).
 
 - **Pull requests:** the built files are kept with the run for 14 days (open the run, then **Artifacts**).
 - **Every merge into `main`:** a new release is published with both files, numbered automatically
@@ -154,7 +180,7 @@ both start.
 | Folder | What's there |
 |---|---|
 | `src/core` | Macro steps and file format (`Action`), recording logic (`Recorder`), playback (`Player`), mouse paths (`Paths`). No operating-system code. |
-| `src/platform` | The operating-system layer: `win/` (hooks, input, hotkeys, windows), `linux/` (X11 / Wayland, in progress). |
+| `src/platform` | The operating-system layer: `win/` (hooks, input, hotkeys, windows), `linux/` (X11 with XRecord and XTest, `/dev/uinput` for Wayland, and the choice between them). |
 | `src/app` | The window, cards, menus, step editor, themes, settings and app data folder. |
 | `resources` | Icon and small images used by the themes. |
 | `packaging` | Windows icon and version info, the icon tool, the Linux desktop entry. |

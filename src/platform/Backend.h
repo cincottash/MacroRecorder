@@ -24,13 +24,16 @@ public:
     static void setFactoryForTests(Backend* (*factory)(QObject* parent));
 
     virtual QString name() const = 0;                       // e.g. "Windows", "X11", "Wayland (uinput)"
-    virtual QString unavailableReason() const { return {}; } // non-empty: recording/playback can't work here
+    virtual QString unavailableReason() const { return {}; } // non-empty: playback (and recording) can't work here
+    virtual QString recordUnavailableReason() const { return unavailableReason(); }  // non-empty: recording can't work
+    virtual QString notes() const { return {}; }             // limitations worth telling the user at start-up
     virtual void setCapture(CaptureMode m) = 0;
     virtual core::Injector* injector() = 0;
     // Register a global hotkey (empty sequence clears it). False with a reason if another program has it.
     virtual bool setHotkey(int id, const QKeySequence& seq, QString* error) = 0;
     virtual int doubleClickMs() const { return 500; }
     static qint64 now();                                     // ms on the same clock as RawEvent::t
+    static void earlyInit();                                 // call first thing in main(), before QApplication
 
 signals:
     void rawEvent(const core::RawEvent& e);

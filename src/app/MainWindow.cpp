@@ -5,6 +5,7 @@
 #include "Themes.h"
 
 #include <QActionGroup>
+#include <cstdio>
 #include <QApplication>
 #include <QButtonGroup>
 #include <QCheckBox>
@@ -182,6 +183,8 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
     registerHotkeys();
     const QString why = m_backend->unavailableReason();
     log(why.isEmpty() ? QStringLiteral("Ready. Input method: %1.").arg(m_backend->name()) : why);
+    if (why.isEmpty() && !m_backend->recordUnavailableReason().isEmpty()) log(m_backend->recordUnavailableReason());
+    if (!m_backend->notes().isEmpty()) log(m_backend->notes());
     setState(State::Idle);
 }
 
@@ -855,7 +858,11 @@ void MainWindow::setState(State s)
     m_state = s;
     const QString why = m_backend->unavailableReason();
     switch (s) {
-    case State::Idle: setPill(why.isEmpty() ? QStringLiteral("● Ready") : QStringLiteral("● Can't record here"), why.isEmpty() ? QStringLiteral("idle") : QStringLiteral("warn")); break;
+    case State::Idle:
+        if (!why.isEmpty()) setPill(QStringLiteral("● Can't record here"), QStringLiteral("warn"));
+        else if (!m_backend->recordUnavailableReason().isEmpty()) setPill(QStringLiteral("● Ready (playback only)"), QStringLiteral("warn"));
+        else setPill(QStringLiteral("● Ready"), QStringLiteral("idle"));
+        break;
     case State::Countdown: break;
     case State::Recording: setPill(QStringLiteral("● Recording"), QStringLiteral("err")); break;
     case State::Playing: setPill(QStringLiteral("▶ Playing"), QStringLiteral("ok")); break;
@@ -868,13 +875,15 @@ void MainWindow::updateUi()
     const bool idle = m_state == State::Idle;
     const bool busy = m_state == State::Playing || m_state == State::Countdown;
     const QString why = m_backend->unavailableReason();
+    const QString recWhy = m_backend->recordUnavailableReason();
     const bool canRun = why.isEmpty();
+    const bool canRecord = recWhy.isEmpty();
     const bool hasActions = m_model.rowCount() > 0;
     const bool hasSel = !selectedRows().isEmpty();
 
     m_recordBtn->setText(m_state == State::Recording ? QStringLiteral("■ Stop recording") : QStringLiteral("● Record"));
-    m_recordBtn->setEnabled(canRun && (idle || m_state == State::Recording));
-    m_recordBtn->setToolTip(!canRun ? why
+    m_recordBtn->setEnabled(canRecord && (idle || m_state == State::Recording));
+    m_recordBtn->setToolTip(!canRecord ? recWhy
                             : m_state == State::Recording ? QStringLiteral("Stop recording (%1)").arg(m_s.hkStop)
                             : busy ? QStringLiteral("Stop playback first.")
                                    : QStringLiteral("Record your mouse and keyboard, added to the end of the list (%1).").arg(m_s.hkRecord));
@@ -1394,7 +1403,7 @@ void MainWindow::onHotkey(int id)
 void MainWindow::startRecording()
 {
     if (m_state != State::Idle) return;
-    const QString why = m_backend->unavailableReason();
+    const QString why = m_backend->recordUnavailableReason();
     if (!why.isEmpty()) { QMessageBox::information(this, QStringLiteral("Can't record"), why); return; }
     m_beforeRecording = m_model.actions();
     m_recordInsert = m_model.rowCount();
@@ -1424,6 +1433,14 @@ void MainWindow::stopRecording()
     core::Macro m;
     m.actions = m_model.actions().mid(m_beforeRecording.size());
     log(QStringLiteral("Recording stopped · %1 action%2 · %3.").arg(added).arg(added == 1 ? QString() : QStringLiteral("s")).arg(seconds(m.totalMs())));
+    if (!m_recordTo.isEmpty()) {   // --record FILE: save and quit
+        core::Macro all;
+        all.actions = m_model.actions();
+        QString err;
+        if (!all.save(m_recordTo, &err)) { fprintf(stderr, "Couldn't save %s: %s\n", qPrintable(m_recordTo), qPrintable(err)); QApplication::exit(1); }
+        else { setDirty(false); QApplication::exit(0); }
+        return;
+    }
     if (isMinimized()) showNormal();
     raise();
     activateWindow();
@@ -1502,6 +1519,13 @@ void MainWindow::stopAll(const QString& why)
         break;  // finished() resets the state
     case State::Idle: break;
     }
+}
+
+void MainWindow::recordToFileAndQuit(const QString& path)
+{
+    m_recordTo = path;
+    startRecording();
+    if (m_state != State::Recording) { fprintf(stderr, "Can't record: %s\n", qPrintable(m_backend->recordUnavailableReason())); QApplication::exit(1); }
 }
 
 void MainWindow::playFromCommandLine(int repeat, bool quitWhenDone)

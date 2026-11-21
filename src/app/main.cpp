@@ -1,6 +1,7 @@
 #include "AppData.h"
 #include "MainWindow.h"
 #include "Settings.h"
+#include "platform/Backend.h"
 
 #include <QApplication>
 #include <QCommandLineParser>
@@ -16,6 +17,7 @@
 
 int main(int argc, char* argv[])
 {
+    platform::Backend::earlyInit();
 #ifdef Q_OS_WIN
     // Started from a command prompt: let --help and errors print there.
     if (AttachConsole(ATTACH_PARENT_PROCESS)) {
@@ -43,10 +45,13 @@ int main(int argc, char* argv[])
     const QCommandLineOption dataFolder(QStringLiteral("data-folder"),
                                         QStringLiteral("Keep settings in this folder for this run (portable use) instead of the usual one."),
                                         QStringLiteral("folder"));
+    const QCommandLineOption record(QStringLiteral("record"),
+                                    QStringLiteral("Start recording at once; when you stop (Stop hotkey), save to this file and quit."),
+                                    QStringLiteral("file"));
     const QCommandLineOption screenshot(QStringLiteral("screenshot"),
                                         QStringLiteral("Save a picture of the window to this PNG file and exit (for testing; "
                                                        "uses throwaway settings and no hotkeys)."), QStringLiteral("png"));
-    cli.addOptions({play, repeat, minimized, quit, dataFolder, screenshot});
+    cli.addOptions({play, repeat, minimized, quit, dataFolder, screenshot, record});
     cli.process(app);
 
     if (cli.isSet(screenshot)) {
@@ -77,6 +82,10 @@ int main(int argc, char* argv[])
     const QStringList files = cli.positionalArguments();
     if (!files.isEmpty()) w.openFile(QDir::current().absoluteFilePath(files.first()));
     if (cli.isSet(minimized)) w.showMinimized(); else w.show();
+    if (cli.isSet(record)) {
+        const QString out = QDir::current().absoluteFilePath(cli.value(record));
+        QTimer::singleShot(300, &w, [&w, out] { w.recordToFileAndQuit(out); });
+    }
     if (cli.isSet(play)) {
         if (files.isEmpty()) {
             QMessageBox::warning(&w, QStringLiteral(APP_NAME), QStringLiteral("--play needs a macro file to play."));

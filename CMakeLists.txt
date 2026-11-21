@@ -58,7 +58,8 @@ list(REMOVE_DUPLICATES SOURCES)
 if(WIN32)
     list(APPEND SOURCES src/platform/win/WinBackend.cpp src/platform/win/WinKeys.cpp packaging/app.rc)
 else()
-    list(APPEND SOURCES src/platform/linux/LinuxBackend.cpp)
+    list(APPEND SOURCES src/platform/linux/LinuxBackend.cpp src/platform/linux/X11Backend.cpp
+                        src/platform/linux/UinputInjector.cpp src/platform/linux/LinuxKeys.cpp)
 endif()
 
 qt_add_executable(app WIN32 ${SOURCES})
@@ -91,6 +92,15 @@ if(WIN32)
         # No compiler runtime DLLs next to the exe; strip debug symbols from release builds.
         target_link_options(app PRIVATE -static-libgcc -static-libstdc++ $<$<CONFIG:Release>:-s>)
     endif()
+endif()
+
+if(UNIX AND NOT APPLE)
+    # X11 (XRecord + XTest, both in libXtst) for X11 sessions and XWayland; /dev/uinput needs only kernel headers.
+    find_package(X11 REQUIRED)
+    if(NOT X11_Xtst_FOUND)
+        message(FATAL_ERROR "libXtst (XTest/XRecord) development files are missing: install libxtst-dev")
+    endif()
+    target_link_libraries(app PRIVATE X11::X11 X11::Xtst)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

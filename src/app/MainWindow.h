@@ -37,6 +37,8 @@ public:
     bool openFile(const QString& path);
     // Command line: play the open macro now (optionally a number of times), then quit if asked.
     void playFromCommandLine(int repeat, bool quitWhenDone);
+    // Command line: record now; when recording stops, save to `path` and quit.
+    void recordToFileAndQuit(const QString& path);
 
 protected:
     void closeEvent(QCloseEvent* e) override;
@@ -128,6 +130,7 @@ private:
     QTimer m_countdown;
     bool m_quitWhenDone = false;
     bool m_hotkeysEnabled = true;
+    QString m_recordTo;
 
     // widgets
     QLabel *m_fileLabel = nullptr, *m_pill = nullptr;

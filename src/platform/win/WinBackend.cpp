@@ -21,6 +21,8 @@
 
 namespace platform {
 
+void Backend::earlyInit() {}
+
 qint64 Backend::now()
 {
     using namespace std::chrono;
