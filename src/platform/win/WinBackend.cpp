@@ -67,6 +67,13 @@ bool isOwnProcess(HWND hwnd)
     return pid == GetCurrentProcessId();
 }
 
+std::atomic<int> g_blocked{0};   // SendInput calls Windows refused (e.g. a window running as administrator)
+
+void sendInputs(UINT n, INPUT* in)
+{
+    if (SendInput(n, in, sizeof(INPUT)) != n) ++g_blocked;
+}
+
 void sendKey(WORD vk, bool down)
 {
     INPUT in{};
@@ -75,7 +82,7 @@ void sendKey(WORD vk, bool down)
     in.ki.wScan = WORD(MapVirtualKeyW(vk, MAPVK_VK_TO_VSC));
     in.ki.dwFlags = (down ? 0 : KEYEVENTF_KEYUP) | (platform::win::isExtendedKey(vk) ? KEYEVENTF_EXTENDEDKEY : 0);
     in.ki.dwExtraInfo = kMagic;
-    SendInput(1, &in, sizeof(INPUT));
+    sendInputs(1, &in);
 }
 
 class WinInjector : public core::Injector {
@@ -109,7 +116,7 @@ public:
             in.mi.mouseData = b == core::MouseButton::X1 ? XBUTTON1 : XBUTTON2;
             break;
         }
-        SendInput(1, &in, sizeof(INPUT));
+        sendInputs(1, &in);
     }
     void wheel(int notches, bool horizontal) override
     {
@@ -118,7 +125,7 @@ public:
         in.mi.dwFlags = horizontal ? MOUSEEVENTF_HWHEEL : MOUSEEVENTF_WHEEL;
         in.mi.mouseData = DWORD(notches * WHEEL_DELTA);
         in.mi.dwExtraInfo = kMagic;
-        SendInput(1, &in, sizeof(INPUT));
+        sendInputs(1, &in);
     }
     bool key(const QString& name, bool down) override
     {
@@ -159,7 +166,7 @@ public:
                 in[i].ki.dwFlags = KEYEVENTF_UNICODE | (i ? KEYEVENTF_KEYUP : 0);
                 in[i].ki.dwExtraInfo = kMagic;
             }
-            SendInput(2, in, sizeof(INPUT));
+            sendInputs(2, in);
         }
     }
     bool focusWindow(const QString& exe, const QString& title, core::TitleMatch match) override
@@ -216,6 +223,21 @@ public:
     void setPreciseTiming(bool on) override
     {
         if (on) timeBeginPeriod(1); else timeEndPeriod(1);
+    }
+    void keyRepeat(int* delayMs, int* intervalMs) override
+    {
+        // Control Panel > Keyboard: delay 0-3 = 250-1000 ms; speed 0-31 = about 2.5-30 repeats per second.
+        int delay = 1, speed = 31;
+        SystemParametersInfoW(SPI_GETKEYBOARDDELAY, 0, &delay, 0);
+        SystemParametersInfoW(SPI_GETKEYBOARDSPEED, 0, &speed, 0);
+        *delayMs = (delay + 1) * 250;
+        *intervalMs = int(1000.0 / (2.5 + speed * (30.0 - 2.5) / 31.0));
+    }
+    QString takeProblem() override
+    {
+        if (g_blocked.exchange(0) == 0) return {};
+        return QStringLiteral("Windows blocked some of the clicks or keys. This happens when the window in front runs as "
+                              "administrator: run " APP_NAME " as administrator too to control it.");
     }
 
     static QString exeOfAnyThread(HWND h)

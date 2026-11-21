@@ -74,7 +74,21 @@ bool Player::waitMs(double ms)
             continue;
         }
         const double left = ms - double(t.nsecsElapsed()) / 1e6 + double(pausedFor);
+        // Keys held down repeat like on a real keyboard (Windows doesn't do this for simulated keys).
+        double nextRepeat = 1e18;
+        if (!m_heldKeys.isEmpty()) {
+            const double now = double(m_clock.nsecsElapsed()) / 1e6;
+            for (auto it = m_heldKeys.begin(); it != m_heldKeys.end(); ++it) {
+                if (now >= it.value()) {
+                    m_inj->key(it.key(), true);
+                    it.value() += m_repeatInterval;                              // a steady rhythm: lateness doesn't add up
+                    if (it.value() < now) it.value() = now + m_repeatInterval;   // but never a burst after a long pause
+                }
+                nextRepeat = qMin(nextRepeat, it.value() - now);
+            }
+        }
         if (left <= 0) return true;
+        if (nextRepeat < left && nextRepeat > 0) { QThread::usleep(qint64(nextRepeat * 1000)); continue; }
         if (left > 2) QThread::usleep(qMin<qint64>(qint64((left - 1) * 1000), 10000));
         else QThread::yieldCurrentThread();
     }
@@ -149,6 +163,10 @@ bool Player::playAction(const Action& a, int index)
         if (down) for (const QString& m : a.mods) m_inj->key(m, true);
         bool ok = true;
         if (down) ok = m_inj->key(a.key, true);
+        static const QStringList kModifiers = {QStringLiteral("Shift"), QStringLiteral("Ctrl"), QStringLiteral("Alt"), QStringLiteral("Win")};
+        if (a.type == ActionType::KeyDown && ok && !kModifiers.contains(a.key))
+            m_heldKeys.insert(a.key, double(m_clock.nsecsElapsed()) / 1e6 + m_repeatDelay);
+        if (up) m_heldKeys.remove(a.key);
         if (down && up && !waitMs(a.holdMs > 0 ? qMax(8.0, a.holdMs / sp) : kKeyHoldMs)) { m_inj->key(a.key, false); return false; }
         if (up) ok = m_inj->key(a.key, false) && ok;
         if (up) for (auto it = a.mods.crbegin(); it != a.mods.crend(); ++it) m_inj->key(*it, false);
@@ -240,6 +258,13 @@ bool Player::playAction(const Action& a, int index)
 void Player::run()
 {
     m_inj->setPreciseTiming(true);
+    m_problemShown = false;
+    m_heldKeys.clear();
+    m_clock.start();
+    m_inj->keyRepeat(&m_repeatDelay, &m_repeatInterval);
+    m_repeatDelay = qBound(100, m_repeatDelay, 2000);
+    m_repeatInterval = qBound(10, m_repeatInterval, 1000);
+    m_inj->takeProblem();   // forget anything from before this playback
     const QPoint startCursor = m_inj->cursor();
     const auto& acts = m_macro.actions;
     const int first = qBound(0, m_o.first, int(acts.size()));
@@ -291,12 +316,16 @@ void Player::run()
                 continue;
             }
             if (!playAction(a, pc)) { stopped = true; break; }
+            const QString problem = m_inj->takeProblem();
+            if (!problem.isEmpty() && !m_problemShown) { m_problemShown = true; emit message(problem, true); }
             ++pc;
         }
     }
     // Never leave buttons or modifier keys held down.
     for (int b : std::as_const(m_held)) m_inj->button(MouseButton(b), false);
     m_held.clear();
+    for (auto it = m_heldKeys.cbegin(); it != m_heldKeys.cend(); ++it) m_inj->key(it.key(), false);   // never leave a key stuck
+    m_heldKeys.clear();
     for (const QString& m : {QStringLiteral("Shift"), QStringLiteral("Ctrl"), QStringLiteral("Alt"), QStringLiteral("Win")})
         if (m_inj->isKeyDown(m)) m_inj->key(m, false);
     if (m_o.restoreMouse && !m_stopWhy.size()) m_inj->moveTo(startCursor);

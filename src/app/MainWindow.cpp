@@ -6,6 +6,7 @@
 
 #include <QActionGroup>
 #include <QApplication>
+#include <QButtonGroup>
 #include <QCheckBox>
 #include <QClipboard>
 #include <QCloseEvent>
@@ -146,6 +147,7 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
         if (!why.isEmpty()) log(QStringLiteral("Stopped: %1").arg(why));
         else log(stopped ? QStringLiteral("Playback stopped.") : QStringLiteral("Playback finished."));
         setState(State::Idle);
+        registerHotkeys();   // releases the Stop hotkey (Esc) so it works normally in other programs again
         if (isMinimized() && m_s.hideWhilePlaying) showNormal();
         if (m_quitWhenDone) qApp->quit();
     });
@@ -214,8 +216,9 @@ void MainWindow::buildMenus()
             return;
         m_s.resetOptions();
         m_s.save(appdata::settingsFile());
-        log(QStringLiteral("Settings reset to defaults. Restart the app to see every default."));
+        syncWidgetsFromSettings();
         registerHotkeys();
+        log(QStringLiteral("Settings reset to defaults."));
     });
     file->addSeparator();
     file->addAction(QStringLiteral("&Quit"), QKeySequence::Quit, this, &QWidget::close);
@@ -519,6 +522,21 @@ void MainWindow::buildUi()
     connect(m_pauseBtn, &QPushButton::clicked, this, [this] { togglePause(); });
     connect(m_stopBtn, &QPushButton::clicked, this, [this] { stopAll(); });
 
+    // Hidden names so automated tests can find each control (not shown anywhere).
+    const QList<QPair<QObject*, const char*>> ids = {
+        {m_recordBtn, "record"}, {m_playBtn, "play"}, {m_pauseBtn, "pause"}, {m_stopBtn, "stop"}, {m_playSelBtn, "playSel"},
+        {m_addBtn, "add"}, {m_editBtn, "edit"}, {m_deleteBtn, "delete"}, {m_upBtn, "up"}, {m_downBtn, "down"},
+        {m_speed, "speed"}, {m_rTimes, "rTimes"}, {m_rSecs, "rSecs"}, {m_rForever, "rForever"}, {m_repeatTimes, "repeatTimes"},
+        {m_repeatSecs, "repeatSecs"}, {m_pathStyle, "pathStyle"}, {m_typing, "typing"}, {m_countdownCheck, "countdown"},
+        {m_countdownSecs, "countdownSecs"}, {m_stopOnInput, "stopOnInput"}, {m_restoreMouse, "restoreMouse"},
+        {m_hidePlay, "hidePlay"}, {m_recMoves, "recMoves"}, {m_minMove, "minMove"}, {m_recKeys, "recKeys"},
+        {m_mergeTyping, "mergeTyping"}, {m_shortestPause, "shortestPause"}, {m_hideRec, "hideRec"},
+        {m_hkRecord, "hkRecord"}, {m_hkPlay, "hkPlay"}, {m_hkStop, "hkStop"}, {m_hkError, "hkError"},
+        {m_table, "table"}, {m_log, "log"}, {m_pill, "pill"}, {m_fileLabel, "fileLabel"}};
+    for (const auto& [o, id] : ids) o->setProperty("testId", QString::fromLatin1(id));
+    for (auto it = m_filters.cbegin(); it != m_filters.cend(); ++it) it.value()->setProperty("testId", QStringLiteral("filter_") + it.key());
+    for (auto it = m_cards.cbegin(); it != m_cards.cend(); ++it) it.value().toggle->setProperty("testId", QStringLiteral("fold_") + it.key());
+
     for (const QString& name : std::as_const(m_s.foldedCards)) setCardOpen(name, false, false);
     if (!m_s.showLog) setCardOpen(QStringLiteral("ACTIVITY"), false, false);
     updateStretch();
@@ -562,6 +580,8 @@ QWidget* MainWindow::buildPlaybackCard()
         h->addStretch();
         return x;
     };
+    auto* repeatGroup = new QButtonGroup(card);   // one choice, even though each option sits in its own row
+    for (QRadioButton* rb : {m_rTimes, m_rSecs, m_rForever}) repeatGroup->addButton(rb);
     grid->addWidget(new QLabel(QStringLiteral("Repeat")), r, 0);
     grid->addWidget(radioRow(m_rTimes, m_repeatTimes), r++, 1);
     grid->addWidget(radioRow(m_rSecs, m_repeatSecs), r++, 1);
@@ -604,8 +624,11 @@ QWidget* MainWindow::buildPlaybackCard()
     m_stopOnInput->setChecked(m_s.stopOnUserInput);
     m_restoreMouse = new QCheckBox(QStringLiteral("Put the mouse back where it was afterwards"));
     m_restoreMouse->setChecked(m_s.restoreMouse);
+    m_hidePlay = new QCheckBox(QStringLiteral("Minimize this window while playing"));
+    m_hidePlay->setChecked(m_s.hideWhilePlaying);
     b->addWidget(m_stopOnInput);
     b->addWidget(m_restoreMouse);
+    b->addWidget(m_hidePlay);
 
     auto changed = [this] {
         m_s.speedPct = m_speed->value();
@@ -618,13 +641,14 @@ QWidget* MainWindow::buildPlaybackCard()
         m_s.countdownSeconds = m_countdownSecs->value();
         m_s.stopOnUserInput = m_stopOnInput->isChecked();
         m_s.restoreMouse = m_restoreMouse->isChecked();
+        m_s.hideWhilePlaying = m_hidePlay->isChecked();
         m_countdownSecs->setEnabled(m_s.countdown);
         saveSettingsSoon();
     };
     for (QSpinBox* s : {m_speed, m_repeatTimes, m_repeatSecs, m_countdownSecs}) connect(s, &QSpinBox::valueChanged, this, changed);
     for (QRadioButton* rb : {m_rTimes, m_rSecs, m_rForever}) connect(rb, &QRadioButton::toggled, this, changed);
     for (QComboBox* c : {m_pathStyle, m_typing}) connect(c, &QComboBox::currentIndexChanged, this, changed);
-    for (QCheckBox* c : {m_countdownCheck, m_stopOnInput, m_restoreMouse}) connect(c, &QCheckBox::toggled, this, changed);
+    for (QCheckBox* c : {m_countdownCheck, m_stopOnInput, m_restoreMouse, m_hidePlay}) connect(c, &QCheckBox::toggled, this, changed);
     // Typing a number selects its repeat option.
     connect(m_repeatTimes, &QSpinBox::valueChanged, this, [this](int v) {
         m_rTimes->setChecked(true);
@@ -1300,6 +1324,38 @@ core::PlayOptions MainWindow::playOptions() const
     return o;
 }
 
+void MainWindow::syncWidgetsFromSettings()
+{
+    const QList<QWidget*> all = {m_speed, m_repeatTimes, m_repeatSecs, m_countdownSecs, m_rTimes, m_rSecs, m_rForever, m_pathStyle,
+                                 m_typing, m_countdownCheck, m_stopOnInput, m_restoreMouse, m_hidePlay, m_recMoves, m_minMove,
+                                 m_recKeys, m_mergeTyping, m_shortestPause, m_hideRec, m_hkRecord, m_hkPlay, m_hkStop};
+    for (QWidget* w : all) w->blockSignals(true);
+    m_speed->setValue(m_s.speedPct);
+    m_repeatTimes->setValue(m_s.repeatTimes);
+    m_repeatTimes->setSuffix(m_s.repeatTimes == 1 ? QStringLiteral(" time") : QStringLiteral(" times"));
+    m_repeatSecs->setValue(m_s.repeatSeconds);
+    (m_s.repeatMode == QLatin1String("seconds") ? m_rSecs : m_s.repeatMode == QLatin1String("forever") ? m_rForever : m_rTimes)->setChecked(true);
+    m_pathStyle->setCurrentIndex(qMax(0, m_pathStyle->findData(m_s.pathStyle)));
+    m_typing->setCurrentIndex(qMax(0, m_typing->findData(m_s.typing)));
+    m_countdownCheck->setChecked(m_s.countdown);
+    m_countdownSecs->setValue(m_s.countdownSeconds);
+    m_countdownSecs->setEnabled(m_s.countdown);
+    m_stopOnInput->setChecked(m_s.stopOnUserInput);
+    m_restoreMouse->setChecked(m_s.restoreMouse);
+    m_hidePlay->setChecked(m_s.hideWhilePlaying);
+    m_recMoves->setChecked(m_s.recordMoves);
+    m_minMove->setValue(m_s.minMovePx);
+    m_recKeys->setChecked(m_s.recordKeyboard);
+    m_mergeTyping->setChecked(m_s.mergeTyping);
+    m_mergeTyping->setEnabled(m_s.recordKeyboard);
+    m_shortestPause->setValue(m_s.shortestPauseMs);
+    m_hideRec->setChecked(m_s.hideWhileRecording);
+    m_hkRecord->setKeySequence(QKeySequence(m_s.hkRecord));
+    m_hkPlay->setKeySequence(QKeySequence(m_s.hkPlay));
+    m_hkStop->setKeySequence(QKeySequence(m_s.hkStop));
+    for (QWidget* w : all) w->blockSignals(false);
+}
+
 void MainWindow::registerHotkeys()
 {
     if (!m_hotkeysEnabled) return;   // screenshot / test mode: show the hotkeys, never register them
@@ -1342,7 +1398,7 @@ void MainWindow::startRecording()
     if (!why.isEmpty()) { QMessageBox::information(this, QStringLiteral("Can't record"), why); return; }
     m_beforeRecording = m_model.actions();
     m_recordInsert = m_model.rowCount();
-    m_recorder.start(recordOptions(), platform::Backend::now());
+    m_recorder.start(recordOptions(), platform::Backend::now(), m_backend->injector()->cursor());
     m_backend->setCapture(platform::CaptureMode::Record);
     setState(State::Recording);
     registerHotkeys();
@@ -1422,6 +1478,7 @@ void MainWindow::togglePause()
         log(QStringLiteral("Paused. Press %1 or Resume to continue.").arg(m_s.hkPlay));
     } else {
         if (m_s.stopOnUserInput) m_backend->setCapture(platform::CaptureMode::Watch);
+        setPill(QStringLiteral("▶ Playing"), QStringLiteral("ok"));
         log(QStringLiteral("Resumed."));
     }
     updateUi();

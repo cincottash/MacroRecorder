@@ -39,6 +39,10 @@ public:
     virtual QString pixelColor(QPoint p) = 0;             // "#RRGGBB"
     virtual bool isKeyDown(const QString& name) = 0;
     virtual void setPreciseTiming(bool on) { Q_UNUSED(on) }  // e.g. 1 ms timer resolution on Windows during playback
+    // A problem the system reported since the last call (e.g. input blocked), or empty. Reported once per playback.
+    virtual QString takeProblem() { return {}; }
+    // A real keyboard repeats a held key: first after delayMs, then every intervalMs (the user's system settings).
+    virtual void keyRepeat(int* delayMs, int* intervalMs) { *delayMs = 500; *intervalMs = 33; }
 };
 
 }  // namespace core

@@ -104,6 +104,7 @@ private:
     void stopAll(const QString& why = {});
     void togglePause();
     void registerHotkeys();
+    void syncWidgetsFromSettings();   // after Reset settings: show the defaults right away
     void onHotkey(int id);
     core::PlayOptions playOptions() const;
     core::RecordOptions recordOptions() const;
@@ -141,7 +142,7 @@ private:
     QSpinBox *m_speed = nullptr, *m_repeatTimes = nullptr, *m_repeatSecs = nullptr, *m_countdownSecs = nullptr;
     QRadioButton *m_rTimes = nullptr, *m_rSecs = nullptr, *m_rForever = nullptr;
     QComboBox *m_pathStyle = nullptr, *m_typing = nullptr;
-    QCheckBox *m_countdownCheck = nullptr, *m_stopOnInput = nullptr, *m_restoreMouse = nullptr;
+    QCheckBox *m_countdownCheck = nullptr, *m_stopOnInput = nullptr, *m_restoreMouse = nullptr, *m_hidePlay = nullptr;
     QCheckBox *m_recMoves = nullptr, *m_recKeys = nullptr, *m_mergeTyping = nullptr, *m_hideRec = nullptr;
     QSpinBox *m_minMove = nullptr, *m_shortestPause = nullptr;
     QKeySequenceEdit *m_hkRecord = nullptr, *m_hkPlay = nullptr, *m_hkStop = nullptr;

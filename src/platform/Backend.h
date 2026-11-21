@@ -20,6 +20,8 @@ class Backend : public QObject {
 public:
     using QObject::QObject;
     static Backend* create(QObject* parent);
+    // Tests only: make create() return a simulated backend instead of the real one.
+    static void setFactoryForTests(Backend* (*factory)(QObject* parent));
 
     virtual QString name() const = 0;                       // e.g. "Windows", "X11", "Wayland (uinput)"
     virtual QString unavailableReason() const { return {}; } // non-empty: recording/playback can't work here

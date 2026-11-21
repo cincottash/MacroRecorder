@@ -8,8 +8,12 @@ Backend* createWindowsBackend(QObject* parent);
 Backend* createLinuxBackend(QObject* parent);
 #endif
 
+static Backend* (*g_testFactory)(QObject*) = nullptr;
+void Backend::setFactoryForTests(Backend* (*factory)(QObject*)) { g_testFactory = factory; }
+
 Backend* Backend::create(QObject* parent)
 {
+    if (g_testFactory) return g_testFactory(parent);
 #ifdef Q_OS_WIN
     return createWindowsBackend(parent);
 #else

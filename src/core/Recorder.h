@@ -8,6 +8,8 @@
 #include <QHash>
 #include <QSet>
 
+#include <climits>
+
 namespace core {
 
 struct RecordOptions {
@@ -23,7 +25,7 @@ class Recorder : public QObject {
     Q_OBJECT
 public:
     explicit Recorder(QObject* parent = nullptr) : QObject(parent) {}
-    void start(const RecordOptions& o, qint64 t);
+    void start(const RecordOptions& o, qint64 t, QPoint cursor = QPoint(INT_MIN, INT_MIN));
     void feed(const RawEvent& e);
     void finish();            // flush anything pending
     bool active() const { return m_active; }
@@ -44,6 +46,7 @@ private:
     bool m_active = false;
     qint64 m_lastEnd = 0;         // when the previous action finished
     QPoint m_cursor;              // last known cursor position
+    bool m_haveCursor = false;
 
     // pending mouse move
     bool m_moving = false;

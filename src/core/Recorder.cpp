@@ -20,9 +20,11 @@ bool isTextBreakingKey(const QString& k)
 
 }  // namespace
 
-void Recorder::start(const RecordOptions& o, qint64 t)
+void Recorder::start(const RecordOptions& o, qint64 t, QPoint cursor)
 {
     m_o = o;
+    m_haveCursor = cursor.x() != INT_MIN;   // where the mouse really is now, not where the last recording ended
+    m_cursor = m_haveCursor ? cursor : QPoint();
     m_active = true;
     m_lastEnd = t;
     m_moving = m_typing = m_hasLast = false;
@@ -39,7 +41,7 @@ void Recorder::start(const RecordOptions& o, qint64 t)
 void Recorder::pauseBefore(Action& a, qint64 start)
 {
     const qint64 gap = qMax<qint64>(0, start - m_lastEnd);
-    if (gap >= m_o.shortestPauseMs) {
+    if (gap > 0 && gap >= m_o.shortestPauseMs) {
         Action w;
         w.type = ActionType::Wait;
         w.ms = int(gap);
@@ -125,12 +127,12 @@ void Recorder::feed(const RawEvent& e)
                 it->emitted = true;
             }
         }
-        if (!m_o.mouseMoves) { m_cursor = e.pos; break; }
+        if (!m_o.mouseMoves) { m_cursor = e.pos; m_haveCursor = true; break; }
         if (!m_moving) {
-            if (dist(e.pos, m_cursor) < m_o.minMovePx && !m_cursor.isNull()) break;
+            if (m_haveCursor && dist(e.pos, m_cursor) < m_o.minMovePx) break;
             flushText();
             m_moving = true;
-            m_moveFrom = m_cursor.isNull() ? e.pos : m_cursor;
+            m_moveFrom = m_haveCursor ? m_cursor : e.pos;
             m_moveStart = e.t;
             m_path = {{m_moveFrom.x(), m_moveFrom.y(), 0}};
         }
@@ -138,6 +140,7 @@ void Recorder::feed(const RawEvent& e)
         if (dist(e.pos, QPoint(last.x, last.y)) >= m_o.minMovePx) m_path.append({e.pos.x(), e.pos.y(), int(e.t - m_moveStart)});
         m_moveLast = e.t;
         m_cursor = e.pos;
+        m_haveCursor = true;
         break;
     }
     case RawEvent::Down: {
@@ -162,6 +165,7 @@ void Recorder::feed(const RawEvent& e)
         }
         m_down.insert(int(e.button), {e.pos, e.t, false});
         m_cursor = e.pos;
+        m_haveCursor = true;
         break;
     }
     case RawEvent::Up: {

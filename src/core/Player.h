@@ -5,6 +5,8 @@
 #include "Paths.h"
 
 #include <QObject>
+#include <QElapsedTimer>
+#include <QHash>
 #include <QSet>
 #include <QThread>
 
@@ -53,7 +55,11 @@ private:
     QThread* m_thread = nullptr;
     std::atomic<bool> m_stop{false}, m_paused{false}, m_running{false};
     QString m_stopWhy;
-    QSet<int> m_held;   // mouse buttons pressed by MouseDown and not yet released
+    QSet<int> m_held;
+    QHash<QString, double> m_heldKeys;   // keys held by KeyDown -> when (ms on m_clock) to repeat them next
+    QElapsedTimer m_clock;
+    int m_repeatDelay = 500, m_repeatInterval = 33;
+    bool m_problemShown = false;   // mouse buttons pressed by MouseDown and not yet released
 };
 
 }  // namespace core
