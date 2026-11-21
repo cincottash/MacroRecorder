@@ -62,6 +62,11 @@ echo '{"countdown": false, "hotkey_record": "", "hotkey_play": "", "hotkey_stop"
 "$APP" --record "$WORK/rec/out.macro" --data-folder "$WORK/rec" &
 APPPID=$!
 sleep 4
+# where every visible window is (helps if a click lands on the wrong one)
+for w in $(xdotool search --onlyvisible --name . 2>/dev/null); do
+  echo "window: $(xdotool getwindowname "$w") | $(xdotool getwindowgeometry "$w" | tail -n +2 | tr -s ' \n' ' ')"
+done || true
+T1=$(date +%s.%N)
 xdotool mousemove 420 160 click 1
 sleep 0.3
 xdotool type --delay 80 "rec ok"
@@ -70,6 +75,11 @@ xdotool mousemove 650 500 click 3
 sleep 0.6
 xdotool key Escape
 wait "$APPPID" || fail "the app exited with an error after recording"
+python3 - "$LOG" "$T1" <<'EOF'
+import json, sys
+ev = [json.loads(l) for l in open(sys.argv[1]) if json.loads(l)['t'] >= float(sys.argv[2])]
+print('the target window got:', [(e['ev'], e.get('x'), e.get('y'), e.get('b'), e.get('text')) for e in ev if e['ev'] in ('down', 'text')])
+EOF
 python3 - "$WORK/rec/out.macro" <<'EOF'
 import json, sys
 acts = json.load(open(sys.argv[1]))['actions']

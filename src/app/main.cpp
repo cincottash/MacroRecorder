@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
                                         QStringLiteral("Keep settings in this folder for this run (portable use) instead of the usual one."),
                                         QStringLiteral("folder"));
     const QCommandLineOption record(QStringLiteral("record"),
-                                    QStringLiteral("Start recording at once; when you stop (Stop hotkey), save to this file and quit."),
+                                    QStringLiteral("Start recording at once (minimized); when you stop (Stop hotkey), save to this file and quit."),
                                     QStringLiteral("file"));
     const QCommandLineOption screenshot(QStringLiteral("screenshot"),
                                         QStringLiteral("Save a picture of the window to this PNG file and exit (for testing; "
@@ -81,7 +81,8 @@ int main(int argc, char* argv[])
     MainWindow w(settings);
     const QStringList files = cli.positionalArguments();
     if (!files.isEmpty()) w.openFile(QDir::current().absoluteFilePath(files.first()));
-    if (cli.isSet(minimized)) w.showMinimized(); else w.show();
+    // --record is for recording other programs, so the window starts out of the way
+    if (cli.isSet(minimized) || cli.isSet(record)) w.showMinimized(); else w.show();
     if (cli.isSet(record)) {
         const QString out = QDir::current().absoluteFilePath(cli.value(record));
         QTimer::singleShot(300, &w, [&w, out] { w.recordToFileAndQuit(out); });

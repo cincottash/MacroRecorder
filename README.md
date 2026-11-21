@@ -131,7 +131,7 @@ MacroRecorder.exe [file] [--play] [--repeat N] [--quit] [--minimized] [--data-fo
 | `--repeat N` | Plays it N times (with `--play`). |
 | `--quit` | Closes the app when playback ends (with `--play`). Handy for Windows Task Scheduler. |
 | `--minimized` | Starts minimized. |
-| `--record FILE` | Starts recording at once; when you stop (Stop hotkey, Esc by default), saves to FILE and quits. |
+| `--record FILE` | Starts minimized and recording at once; when you stop (Stop hotkey, Esc by default), saves to FILE and quits. |
 | `--data-folder FOLDER` | Keeps settings in FOLDER for this run, for example to run from a USB stick. |
 | `--screenshot FILE.png` | Saves a picture of the window and exits (used by the automatic build checks). |
 
@@ -155,8 +155,9 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-For the single self-contained exe, also install `mingw-w64-ucrt-x86_64-qt6-static`,
-`mingw-w64-ucrt-x86_64-libtiff` and `mingw-w64-ucrt-x86_64-libwebp`, and configure with
+For the single self-contained exe, also install `mingw-w64-ucrt-x86_64-qt6-static`, plus the libraries it links
+(`libtiff libwebp harfbuzz freetype libpng zlib pcre2 openssl libb2 brotli bzip2`, each with the
+`mingw-w64-ucrt-x86_64-` prefix), and configure with
 `-DSTATIC_BUILD=ON -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static`.
 
 **Linux:** install Qt 6 (with the SVG module), CMake, Ninja and the X11 development files (`libx11-dev

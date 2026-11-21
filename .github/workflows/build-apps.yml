@@ -72,6 +72,9 @@ jobs:
             mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-qt6-static
             mingw-w64-ucrt-x86_64-libtiff mingw-w64-ucrt-x86_64-libwebp
+            mingw-w64-ucrt-x86_64-harfbuzz mingw-w64-ucrt-x86_64-freetype mingw-w64-ucrt-x86_64-libpng
+            mingw-w64-ucrt-x86_64-zlib mingw-w64-ucrt-x86_64-pcre2 mingw-w64-ucrt-x86_64-openssl
+            mingw-w64-ucrt-x86_64-libb2 mingw-w64-ucrt-x86_64-brotli mingw-w64-ucrt-x86_64-bzip2
 
       - name: Build the .exe (one self-contained file)
         run: |
