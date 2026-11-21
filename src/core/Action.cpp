@@ -85,29 +85,29 @@ QString Action::typeName() const
 {
     const QString b = buttonName(button);
     switch (type) {
-    case ActionType::MouseMove: return QStringLiteral("Mouse move");
-    case ActionType::MouseClick: return clicks >= 2 ? b + QStringLiteral(" double-click") : b + QStringLiteral(" click");
-    case ActionType::MouseDown: return b + QStringLiteral(" button down");
-    case ActionType::MouseUp: return b + QStringLiteral(" button up");
+    case ActionType::MouseMove: return QStringLiteral("Mouse Move");
+    case ActionType::MouseClick: return clicks >= 2 ? b + QStringLiteral(" Double-Click") : b + QStringLiteral(" Click");
+    case ActionType::MouseDown: return b + QStringLiteral(" Button Down");
+    case ActionType::MouseUp: return b + QStringLiteral(" Button Up");
     case ActionType::Wheel:
-        if (horizontal) return notches > 0 ? QStringLiteral("Scroll right") : QStringLiteral("Scroll left");
-        return notches > 0 ? QStringLiteral("Scroll up") : QStringLiteral("Scroll down");
-    case ActionType::KeyPress: return QStringLiteral("Key press");
-    case ActionType::KeyDown: return QStringLiteral("Key down");
-    case ActionType::KeyUp: return QStringLiteral("Key up");
+        if (horizontal) return notches > 0 ? QStringLiteral("Scroll Right") : QStringLiteral("Scroll Left");
+        return notches > 0 ? QStringLiteral("Scroll Up") : QStringLiteral("Scroll Down");
+    case ActionType::KeyPress: return QStringLiteral("Key Press");
+    case ActionType::KeyDown: return QStringLiteral("Key Down");
+    case ActionType::KeyUp: return QStringLiteral("Key Up");
     case ActionType::Text: return QStringLiteral("Text");
     case ActionType::Wait: return QStringLiteral("Wait");
-    case ActionType::WindowFocus: return QStringLiteral("Window focus");
-    case ActionType::WaitPixel: return QStringLiteral("Wait for pixel color");
-    case ActionType::WaitKey: return QStringLiteral("Wait for key");
+    case ActionType::WindowFocus: return QStringLiteral("Window Focus");
+    case ActionType::WaitPixel: return QStringLiteral("Wait for Pixel Color");
+    case ActionType::WaitKey: return QStringLiteral("Wait for Key");
     case ActionType::Repeat: return QStringLiteral("Repeat");
-    case ActionType::Goto: return QStringLiteral("Go to");
-    case ActionType::RunProgram: return QStringLiteral("Run program");
+    case ActionType::Goto: return QStringLiteral("Go To");
+    case ActionType::RunProgram: return QStringLiteral("Run Program");
     case ActionType::Notify: return QStringLiteral("Notification");
-    case ActionType::WaitFile: return QStringLiteral("Wait for file");
-    case ActionType::MessageBox: return QStringLiteral("Message box");
+    case ActionType::WaitFile: return QStringLiteral("Wait for File");
+    case ActionType::MessageBox: return QStringLiteral("Message Box");
     case ActionType::Beep: return QStringLiteral("Beep");
-    case ActionType::RunMacro: return QStringLiteral("Run macro");
+    case ActionType::RunMacro: return QStringLiteral("Run Macro");
     }
     return {};
 }

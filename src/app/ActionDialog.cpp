@@ -125,13 +125,13 @@ void ActionDialog::build()
     if (hasPos) {
         m_x = spin(-100000, 100000, m_a.pos.x(), QStringLiteral("px"));
         m_y = spin(-100000, 100000, m_a.pos.y(), QStringLiteral("px"));
-        auto* pick = new QPushButton(t == ActionType::WaitPixel ? QStringLiteral("Pick point and color…") : QStringLiteral("Use mouse position…"));
+        auto* pick = new QPushButton(t == ActionType::WaitPixel ? QStringLiteral("Pick Point and Color…") : QStringLiteral("Use Mouse Position…"));
         pick->setToolTip(QStringLiteral("After 3 seconds, takes the mouse pointer's position%1. Point at the spot meanwhile. "
-                                        "Or point at it and press the Capture position hotkey (F8 unless you changed it).")
+                                        "Or point at it and press the Capture Position hotkey (F8 unless you changed it).")
                              .arg(t == ActionType::WaitPixel ? QStringLiteral(" and the color under it") : QString()));
         connect(pick, &QPushButton::clicked, this, [this, t] { pickPosition(t == ActionType::WaitPixel); });
         m_form->addRow(t == ActionType::MouseMove ? QStringLiteral("To X, Y:") : QStringLiteral("X, Y:"), hrow({m_x, m_y, pick}));
-        m_rel = new QCheckBox(QStringLiteral("Relative to the active window's top-left corner"));
+        m_rel = new QCheckBox(QStringLiteral("Relative to Active Window"));
         m_rel->setChecked(m_a.relativeToWindow);
         m_form->addRow(QString(), m_rel);
     }
@@ -144,14 +144,14 @@ void ActionDialog::build()
     }
     if (t == ActionType::MouseClick) {
         m_clicks = new QComboBox;
-        m_clicks->addItems({QStringLiteral("Single click"), QStringLiteral("Double-click")});
+        m_clicks->addItems({QStringLiteral("Single Click"), QStringLiteral("Double-Click")});
         m_clicks->setCurrentIndex(m_a.clicks >= 2 ? 1 : 0);
         m_form->addRow(QStringLiteral("Click:"), m_clicks);
     }
     if (t == ActionType::Wheel) {
         m_notches = spin(-100, 100, m_a.notches == 0 ? -1 : m_a.notches, QStringLiteral("notches"));
         m_notches->setToolTip(QStringLiteral("Positive scrolls up (or right), negative scrolls down (or left)."));
-        m_horiz = new QCheckBox(QStringLiteral("Horizontal (left / right)"));
+        m_horiz = new QCheckBox(QStringLiteral("Horizontal (Left / Right)"));
         m_horiz->setChecked(m_a.horizontal);
         m_form->addRow(QStringLiteral("Scroll:"), hrow({m_notches, m_horiz}));
     }
@@ -177,7 +177,7 @@ void ActionDialog::build()
                 h->addWidget(c);
             }
             h->addStretch();
-            m_form->addRow(QStringLiteral("Held with:"), w);
+            m_form->addRow(QStringLiteral("Held With:"), w);
         }
     }
     if (t == ActionType::Text) {
@@ -202,10 +202,10 @@ void ActionDialog::build()
         m_title = new QLineEdit(m_a.title);
         m_title->setMinimumWidth(260);
         m_match = new QComboBox;
-        m_match->addItems({QStringLiteral("Is exactly"), QStringLiteral("Starts with"), QStringLiteral("Contains"), QStringLiteral("Any title")});
+        m_match->addItems({QStringLiteral("Is Exactly"), QStringLiteral("Starts With"), QStringLiteral("Contains"), QStringLiteral("Any Title")});
         m_match->setCurrentIndex(int(m_a.titleMatch));
         m_form->addRow(QStringLiteral("Program:"), m_exe);
-        m_form->addRow(QStringLiteral("Window title:"), hrow({m_match, m_title}));
+        m_form->addRow(QStringLiteral("Window Title:"), hrow({m_match, m_title}));
     }
     if (t == ActionType::WaitPixel) {
         m_color = new QLineEdit(m_a.color.isEmpty() ? QStringLiteral("#FFFFFF") : m_a.color);
@@ -217,18 +217,18 @@ void ActionDialog::build()
         m_ms = spin(0, 86400, m_a.ms / 1000, QStringLiteral("s"));
         m_ms->setToolTip(t == ActionType::WindowFocus ? QStringLiteral("Playback stops if the window doesn't appear in time.")
                                                       : QStringLiteral("0 = wait as long as it takes. On timeout, playback continues."));
-        m_form->addRow(QStringLiteral("Give up after:"), m_ms);
+        m_form->addRow(QStringLiteral("Give Up After:"), m_ms);
     }
     if (t == ActionType::Repeat || t == ActionType::Goto) {
         m_target = new QComboBox;
         m_target->setEditable(true);
         m_target->addItems(m_labels);
         m_target->setCurrentText(m_a.target);
-        m_form->addRow(QStringLiteral("Jump to label:"), m_target);
+        m_form->addRow(QStringLiteral("Jump to Label:"), m_target);
     }
     if (t == ActionType::Repeat) {
         m_mode = new QComboBox;
-        m_mode->addItems({QStringLiteral("times in total"), QStringLiteral("seconds"), QStringLiteral("until stopped")});
+        m_mode->addItems({QStringLiteral("Times in Total"), QStringLiteral("Seconds"), QStringLiteral("Until Stopped")});
         m_mode->setCurrentIndex(int(m_a.repeatMode));
         m_count = spin(1, 1000000, m_a.count);
         m_form->addRow(QStringLiteral("Repeat:"), hrow({m_count, m_mode}));
@@ -239,7 +239,7 @@ void ActionDialog::build()
         m_program = new QLineEdit(m_a.program);
         auto* browse = new QPushButton(QStringLiteral("Browse…"));
         connect(browse, &QPushButton::clicked, this, [this] {
-            const QString f = QFileDialog::getOpenFileName(this, QStringLiteral("Choose a program or file"), m_program->text());
+            const QString f = QFileDialog::getOpenFileName(this, QStringLiteral("Choose a Program or File"), m_program->text());
             if (!f.isEmpty()) m_program->setText(QDir::toNativeSeparators(f));
         });
         auto* w = new QWidget;
@@ -261,8 +261,8 @@ void ActionDialog::build()
         auto* browse = new QPushButton(QStringLiteral("Browse…"));
         connect(browse, &QPushButton::clicked, this, [this, t] {
             const QString f = t == ActionType::RunMacro
-                                  ? QFileDialog::getOpenFileName(this, QStringLiteral("Choose a macro"), m_file->text(), QStringLiteral("Macros (*.macro)"))
-                                  : QFileDialog::getSaveFileName(this, QStringLiteral("Choose the file to watch"), m_file->text(), QString(), nullptr,
+                                  ? QFileDialog::getOpenFileName(this, QStringLiteral("Choose a Macro"), m_file->text(), QStringLiteral("Macros (*.macro)"))
+                                  : QFileDialog::getSaveFileName(this, QStringLiteral("Choose File to Watch"), m_file->text(), QString(), nullptr,
                                                                  QFileDialog::DontConfirmOverwrite);
             if (!f.isEmpty()) m_file->setText(QDir::toNativeSeparators(f));
         });
@@ -271,16 +271,16 @@ void ActionDialog::build()
         h->setContentsMargins(0, 0, 0, 0);
         h->addWidget(m_file, 1);
         h->addWidget(browse);
-        m_form->addRow(t == ActionType::RunMacro ? QStringLiteral("Macro file:") : QStringLiteral("File:"), w);
+        m_form->addRow(t == ActionType::RunMacro ? QStringLiteral("Macro File:") : QStringLiteral("File:"), w);
     }
     if (t == ActionType::WaitFile) {
         m_fileWhen = new QComboBox;
-        m_fileWhen->addItems({QStringLiteral("Exists"), QStringLiteral("Is gone"), QStringLiteral("Changes")});
+        m_fileWhen->addItems({QStringLiteral("Exists"), QStringLiteral("Is Gone"), QStringLiteral("Changes")});
         m_fileWhen->setCurrentIndex(int(m_a.fileWhen));
-        m_form->addRow(QStringLiteral("Continue when it:"), m_fileWhen);
+        m_form->addRow(QStringLiteral("Continue When File:"), m_fileWhen);
         m_ms = spin(0, 86400, m_a.ms / 1000, QStringLiteral("s"));
         m_ms->setToolTip(QStringLiteral("0 = wait as long as it takes. On timeout, playback continues."));
-        m_form->addRow(QStringLiteral("Give up after:"), m_ms);
+        m_form->addRow(QStringLiteral("Give Up After:"), m_ms);
     }
 
     // Fields every action has
@@ -289,11 +289,12 @@ void ActionDialog::build()
     m_comment = new QLineEdit(m_a.comment);
     m_delay = spin(0, 60000, m_a.delayMs, QStringLiteral("ms"));
     m_delay->setToolTip(QStringLiteral("A short pause before this step, kept from the recording (used when timing is exact)."));
-    m_enabled = new QCheckBox(QStringLiteral("Enabled (unticked steps are skipped when playing)"));
+    m_enabled = new QCheckBox(QStringLiteral("Enabled"));
+    m_enabled->setToolTip(QStringLiteral("Unticked steps are skipped when playing."));
     m_enabled->setChecked(m_a.enabled);
     m_form->addRow(QStringLiteral("Label:"), m_label);
     m_form->addRow(QStringLiteral("Comment:"), m_comment);
-    m_form->addRow(QStringLiteral("Pause before:"), m_delay);
+    m_form->addRow(QStringLiteral("Pause Before:"), m_delay);
     m_form->addRow(QString(), m_enabled);
 
     m_error = new QLabel;
@@ -328,9 +329,9 @@ void ActionDialog::pickPosition(bool withColor)
     btn->setEnabled(false);
     auto left = std::make_shared<int>(3);
     auto* timer = new QTimer(this);
-    btn->setText(QStringLiteral("Point at it… 3"));
+    btn->setText(QStringLiteral("Point at It… 3"));
     connect(timer, &QTimer::timeout, this, [=, this] {
-        if (--*left > 0) { btn->setText(QStringLiteral("Point at it… %1").arg(*left)); return; }
+        if (--*left > 0) { btn->setText(QStringLiteral("Point at It… %1").arg(*left)); return; }
         timer->stop();
         timer->deleteLater();
         const QPoint p = m_inj->cursor();

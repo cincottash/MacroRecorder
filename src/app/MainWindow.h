@@ -12,6 +12,8 @@
 #include <QTimer>
 
 class ActionDialog;
+class ActionPreview;
+class ActionTable;
 class QAction;
 class QActionGroup;
 class QBoxLayout;
@@ -117,6 +119,7 @@ private:
     void runAfterPlayback();    // "When finished": close, lock, sleep, log off, restart or shut down
     void showMessageBox(const QString& text);
     void updateMarker();        // the selected step's position, marked on the screen
+    void showPreview(int row);  // -1 hides it
     int execDialog(ActionDialog& d);
     void stopAll(const QString& why = {});
     void togglePause();
@@ -156,7 +159,8 @@ private:
     QHash<QString, Card> m_cards;
     QVBoxLayout* m_rightCol = nullptr;
     QWidget *m_actionsCard = nullptr, *m_activityCard = nullptr;
-    QTableView* m_table = nullptr;
+    ActionTable* m_table = nullptr;
+    ActionPreview* m_preview = nullptr;   // the hovered step's path or position, drawn in the list's right-hand side
     QPlainTextEdit* m_log = nullptr;
     QPushButton *m_recordBtn = nullptr, *m_playBtn = nullptr, *m_pauseBtn = nullptr, *m_stopBtn = nullptr, *m_playSelBtn = nullptr;
     QToolButton *m_addBtn = nullptr, *m_editBtn = nullptr, *m_deleteBtn = nullptr, *m_upBtn = nullptr, *m_downBtn = nullptr;
@@ -181,6 +185,7 @@ private:
     QMenu* m_viewMenu = nullptr;
     QAction *m_undoAct = nullptr, *m_redoAct = nullptr, *m_saveAct = nullptr, *m_logAct = nullptr;
     QAction *m_confirmDeleteAct = nullptr, *m_startMinAct = nullptr, *m_loginAct = nullptr, *m_scanAct = nullptr, *m_markerAct = nullptr;
+    QAction* m_previewAct = nullptr;
     QList<QPair<QAction*, QPushButton*>> m_buttonActions;
     QList<QAction*> m_editActs;                  // need a selection and Idle
     QActionGroup* m_themeGroup = nullptr;

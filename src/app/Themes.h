@@ -13,7 +13,7 @@ namespace themes {
 // Color keys: bg card border text muted accent accent_hover accent_text input track log_bg
 //             ok ok_bg warn warn_bg warn_border err err_bg
 struct Theme {
-    QString group;  // menu group, e.g. "Dark themes"
+    QString group;  // menu group, e.g. "Dark Themes"
     QString name;   // shown in the menu
     QString key;    // saved in settings
     QHash<QString, QString> colors;

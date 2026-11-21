@@ -83,7 +83,7 @@ QVariant ActionModel::data(const QModelIndex& i, int role) const
         if (i.column() == ColAction) return icon(a.type, QApplication::palette().color(a.enabled ? QPalette::Text : QPalette::PlaceholderText));
         break;
     case Qt::ToolTipRole:
-        if (!a.enabled) return QStringLiteral("Disabled: skipped when playing (Edit > Enable / disable).");
+        if (!a.enabled) return QStringLiteral("Disabled: skipped when playing (Edit > Enable / Disable).");
         if (i.column() == ColLabel) return QStringLiteral("Double-click to name this step, so Repeat and Go to can jump here.");
         if (i.column() == ColValue && a.type == ActionType::Text) return a.text;
         break;

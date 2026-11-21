@@ -1,6 +1,8 @@
 #include "MainWindow.h"
 
 #include "ActionDialog.h"
+#include "ActionPreview.h"
+#include "ActionTable.h"
 #include "AppData.h"
 #include "Themes.h"
 
@@ -165,8 +167,8 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
     connect(m_backend, &platform::Backend::hotkeyPressed, this, &MainWindow::onHotkey);
     connect(m_backend, &platform::Backend::userInput, this, [this](bool key) {
         if (m_state != State::Playing || m_player->paused() || m_msgBox) return;
-        if (key && m_s.stopOnKey) stopAll(QStringLiteral("Stopped: you pressed a key (Stop if I press a key is on)."));
-        else if (!key && m_s.stopOnMouse) stopAll(QStringLiteral("Stopped: you moved the mouse (Stop if I move the mouse is on)."));
+        if (key && m_s.stopOnKey) stopAll(QStringLiteral("Stopped: a key was pressed (Stop on Key Press is on)."));
+        else if (!key && m_s.stopOnMouse) stopAll(QStringLiteral("Stopped: the mouse moved (Stop on Mouse Move is on)."));
     });
     connect(&m_recorder, &core::Recorder::actionAdded, this, [this](const Action& a) {
         m_model.insert(m_recordInsert++, a);
@@ -182,7 +184,7 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
         m_model.setPlayingRow(index);
         if (m_s.detailedLog) log(QStringLiteral("Step %1: %2").arg(index + 1).arg(m_model.at(index).typeName()), true);
         const QString r = rounds > 0 ? QStringLiteral("%1 of %2").arg(round).arg(rounds) : QStringLiteral("round %1").arg(round);
-        setPill(QStringLiteral("▶ Playing %1 · step %2 of %3").arg(r).arg(index + 1).arg(m_model.rowCount()), QStringLiteral("ok"));
+        setPill(QStringLiteral("▶ Playing %1 · Step %2 of %3").arg(r).arg(index + 1).arg(m_model.rowCount()), QStringLiteral("ok"));
     });
     connect(m_player, &core::Player::message, this, [this](const QString& t, bool) { log(t); });
     connect(m_player, &core::Player::notify, this, [this](const QString& t) {
@@ -258,24 +260,24 @@ void MainWindow::buildMenus()
     QMenu* file = menuBar()->addMenu(QStringLiteral("&File"));
     file->addAction(QStringLiteral("&New"), QKeySequence::New, this, [this] { newMacro(); });
     file->addAction(QStringLiteral("&Open…"), QKeySequence::Open, this, [this] { open(); });
-    m_recentMenu = file->addMenu(QStringLiteral("Open &recent"));
+    m_recentMenu = file->addMenu(QStringLiteral("Open &Recent"));
     rebuildRecentMenu();
     file->addSeparator();
     m_saveAct = file->addAction(QStringLiteral("&Save"), QKeySequence::Save, this, [this] { save(false); });
-    file->addAction(QStringLiteral("Save &as…"), QKeySequence::SaveAs, this, [this] { save(true); });
+    file->addAction(QStringLiteral("Save &As…"), QKeySequence::SaveAs, this, [this] { save(true); });
     file->addSeparator();
     file->addAction(QStringLiteral("&Export to CSV…"), this, [this] { exportCsv(); });
-    file->addAction(QStringLiteral("Copy &command line to play this macro"), this, [this] { copyCommandLine(); })
+    file->addAction(QStringLiteral("Copy &Command Line"), this, [this] { copyCommandLine(); })
         ->setToolTip(QStringLiteral("For a desktop shortcut or Windows Task Scheduler: plays the saved macro, then closes."));
     file->addSeparator();
     QMenu* settings = file->addMenu(QStringLiteral("Se&ttings"));
-    settings->addAction(QStringLiteral("Change app data folder…"), this, [this] {
+    settings->addAction(QStringLiteral("Change App Data Folder…"), this, [this] {
         QString msg;
         if (appdata::change(this, &msg)) { m_s.save(appdata::settingsFile()); log(msg); }
-        else if (!msg.isEmpty()) QMessageBox::warning(this, QStringLiteral("App data folder"), msg);
+        else if (!msg.isEmpty()) QMessageBox::warning(this, QStringLiteral("App Data Folder"), msg);
     });
-    settings->addAction(QStringLiteral("Reset settings to defaults…"), this, [this] {
-        if (QMessageBox::question(this, QStringLiteral("Reset settings"),
+    settings->addAction(QStringLiteral("Reset Settings to Defaults…"), this, [this] {
+        if (QMessageBox::question(this, QStringLiteral("Reset Settings"),
                                   QStringLiteral("Reset playback, recording and hotkey settings to their defaults?\n"
                                                  "Your theme, layout and recent files are kept.")) != QMessageBox::Yes)
             return;
@@ -295,13 +297,13 @@ void MainWindow::buildMenus()
         connect(a, &QAction::toggled, this, [this, f](bool v) { f(v); saveSettingsSoon(); });
         return a;
     };
-    m_confirmDeleteAct = toggle(QStringLiteral("Ask before deleting steps"), m_s.confirmDelete, {}, [this](bool v) { m_s.confirmDelete = v; });
-    m_startMinAct = toggle(QStringLiteral("Start minimized"), m_s.startMinimized, {}, [this](bool v) { m_s.startMinimized = v; });
-    m_loginAct = toggle(QStringLiteral("Start when I log in"), m_hotkeysEnabled && m_backend->startsAtLogin(),
+    m_confirmDeleteAct = toggle(QStringLiteral("Confirm Before Deleting Steps"), m_s.confirmDelete, {}, [this](bool v) { m_s.confirmDelete = v; });
+    m_startMinAct = toggle(QStringLiteral("Start Minimized"), m_s.startMinimized, {}, [this](bool v) { m_s.startMinimized = v; });
+    m_loginAct = toggle(QStringLiteral("Start at Login"), m_hotkeysEnabled && m_backend->startsAtLogin(),
                         QStringLiteral("Starts minimized, ready for your hotkeys."), [this](bool v) {
         QString err;
         if (!m_backend->setStartAtLogin(v, &err)) {
-            log(QStringLiteral("Start when I log in: %1").arg(err));
+            log(QStringLiteral("Start at Login: %1").arg(err));
             const QSignalBlocker b(m_loginAct);
             m_loginAct->setChecked(!v);
         } else {
@@ -310,12 +312,12 @@ void MainWindow::buildMenus()
         }
     });
 #ifdef Q_OS_WIN
-    m_scanAct = toggle(QStringLiteral("Send keys as scan codes (for games)"), m_s.scanCodes,
+    m_scanAct = toggle(QStringLiteral("Send Keys as Scan Codes (Games)"), m_s.scanCodes,
                        QStringLiteral("Some games read only the keyboard's hardware codes. Leave off unless keys don't arrive."),
                        [this](bool v) { m_s.scanCodes = v; m_backend->injector()->setScanCodesOnly(v); });
     if (!m_backend->isElevated()) {
         settings->addSeparator();
-        settings->addAction(QStringLiteral("Restart as administrator…"), this, [this] {
+        settings->addAction(QStringLiteral("Restart as Administrator…"), this, [this] {
             if (m_state != State::Idle || !maybeSave()) return;
             QStringList args;
             if (!m_file.isEmpty()) args << m_file;
@@ -341,22 +343,22 @@ void MainWindow::buildMenus()
     };
     // The buttons don't exist yet; look them up when used.
     m_buttonActions << qMakePair(mirror(QStringLiteral("&Record"), [this] { return m_recordBtn; }), static_cast<QPushButton*>(nullptr));
-    m_editActs << macro->addAction(QStringLiteral("Record after the selected step"), this, [this] { startRecording(RecordWhere::AfterSelection); });
-    macro->addAction(QStringLiteral("&New recording"), this, [this] { startRecording(RecordWhere::New); })
+    m_editActs << macro->addAction(QStringLiteral("Record After Selected Step"), this, [this] { startRecording(RecordWhere::AfterSelection); });
+    macro->addAction(QStringLiteral("&New Recording"), this, [this] { startRecording(RecordWhere::New); })
         ->setToolTip(QStringLiteral("Starts a new macro (asks to save changes first) and records."));
     macro->addSeparator();
     m_buttonActions << qMakePair(mirror(QStringLiteral("&Play"), [this] { return m_playBtn; }), static_cast<QPushButton*>(nullptr));
-    m_buttonActions << qMakePair(mirror(QStringLiteral("Play &selection"), [this] { return m_playSelBtn; }), static_cast<QPushButton*>(nullptr));
-    m_editActs << macro->addAction(QStringLiteral("Play from selected &step"), this, [this] { startPlaying(PlayRange::FromSelected); });
-    m_editActs << macro->addAction(QStringLiteral("Play &up to the selected step"), this, [this] { startPlaying(PlayRange::UpToSelected); });
-    m_editActs << macro->addAction(QStringLiteral("Play this step &only"), this, [this] { startPlaying(PlayRange::ThisStep); });
-    m_buttonActions << qMakePair(mirror(QStringLiteral("P&ause / resume"), [this] { return m_pauseBtn; }), static_cast<QPushButton*>(nullptr));
+    m_buttonActions << qMakePair(mirror(QStringLiteral("Play &Selection"), [this] { return m_playSelBtn; }), static_cast<QPushButton*>(nullptr));
+    m_editActs << macro->addAction(QStringLiteral("Play From Selected &Step"), this, [this] { startPlaying(PlayRange::FromSelected); });
+    m_editActs << macro->addAction(QStringLiteral("Play &Up to Selected Step"), this, [this] { startPlaying(PlayRange::UpToSelected); });
+    m_editActs << macro->addAction(QStringLiteral("Play This Step &Only"), this, [this] { startPlaying(PlayRange::ThisStep); });
+    m_buttonActions << qMakePair(mirror(QStringLiteral("P&ause / Resume"), [this] { return m_pauseBtn; }), static_cast<QPushButton*>(nullptr));
     m_buttonActions << qMakePair(mirror(QStringLiteral("S&top"), [this] { return m_stopBtn; }), static_cast<QPushButton*>(nullptr));
     macro->addSeparator();
     QMenu* add = buildAddMenu(this);
-    add->setTitle(QStringLiteral("&Add action"));
+    add->setTitle(QStringLiteral("&Add Action"));
     macro->addMenu(add);
-    macro->addAction(QStringLiteral("&Clean up"), this, [this] { cleanUp(); })
+    macro->addAction(QStringLiteral("&Clean Up"), this, [this] { cleanUp(); })
         ->setToolTip(QStringLiteral("Merges back-to-back waits and moves, and removes empty ones."));
 
     QMenu* edit = menuBar()->addMenu(QStringLiteral("&Edit"));
@@ -367,20 +369,20 @@ void MainWindow::buildMenus()
     m_editActs << edit->addAction(QStringLiteral("&Copy"), QKeySequence::Copy, this, [this] { copySelected(false); });
     edit->addAction(QStringLiteral("&Paste"), QKeySequence::Paste, this, [this] { paste(); });
     m_editActs << edit->addAction(QStringLiteral("&Delete"), QKeySequence::Delete, this, [this] { deleteSelected(); });
-    edit->addAction(QStringLiteral("Select &all"), QKeySequence::SelectAll, this, [this] { m_table->selectAll(); });
+    edit->addAction(QStringLiteral("Select &All"), QKeySequence::SelectAll, this, [this] { m_table->selectAll(); });
     edit->addSeparator();
-    m_editActs << edit->addAction(QStringLiteral("&Edit step…"), QKeySequence(Qt::Key_F2), this, [this] {
+    m_editActs << edit->addAction(QStringLiteral("&Edit Step…"), QKeySequence(Qt::Key_F2), this, [this] {
         const auto rows = selectedRows();
         if (!rows.isEmpty()) editRow(rows.first());
     });
-    m_editActs << edit->addAction(QStringLiteral("E&nable / disable"), QKeySequence(Qt::CTRL | Qt::Key_E), this, [this] { toggleEnabled(); });
-    m_editActs << edit->addAction(QStringLiteral("Move &up"), QKeySequence(Qt::ALT | Qt::Key_Up), this, [this] { moveSelected(-1); });
-    m_editActs << edit->addAction(QStringLiteral("Move do&wn"), QKeySequence(Qt::ALT | Qt::Key_Down), this, [this] { moveSelected(1); });
+    m_editActs << edit->addAction(QStringLiteral("E&nable / Disable"), QKeySequence(Qt::CTRL | Qt::Key_E), this, [this] { toggleEnabled(); });
+    m_editActs << edit->addAction(QStringLiteral("Move &Up"), QKeySequence(Qt::ALT | Qt::Key_Up), this, [this] { moveSelected(-1); });
+    m_editActs << edit->addAction(QStringLiteral("Move Do&wn"), QKeySequence(Qt::ALT | Qt::Key_Down), this, [this] { moveSelected(1); });
     edit->addSeparator();
-    QAction* combine = edit->addAction(QStringLiteral("C&ombine into a click or key press"), this, [this] { combineSelected(); });
+    QAction* combine = edit->addAction(QStringLiteral("C&ombine Into Click or Key Press"), this, [this] { combineSelected(); });
     combine->setToolTip(QStringLiteral("Select a button down and its button up (or a key down and up): they become one click (key press)."));
     m_editActs << combine;
-    edit->addAction(QStringLiteral("&Find and replace…"), QKeySequence(Qt::CTRL | Qt::Key_H), this, [this] { findReplace(); });
+    edit->addAction(QStringLiteral("&Find and Replace…"), QKeySequence(Qt::CTRL | Qt::Key_H), this, [this] { findReplace(); });
 
     m_viewMenu = menuBar()->addMenu(QStringLiteral("&View"));
     QMenu* theme = m_viewMenu->addMenu(QStringLiteral("&Theme"));
@@ -399,7 +401,7 @@ void MainWindow::buildMenus()
             applyTheme();
         });
     };
-    themeAction(theme, QStringLiteral("Match operating system"), QStringLiteral("system"));
+    themeAction(theme, QStringLiteral("Match Operating System"), QStringLiteral("system"));
     for (const QString& g : themes::groups()) {
         QMenu* sub = theme->addMenu(g);
         QList<const themes::Theme*> list;
@@ -411,16 +413,16 @@ void MainWindow::buildMenus()
     connect(m_viewMenu, &QMenu::aboutToHide, this, [this] { endThemePreview(); });
     connect(theme, &QMenu::aboutToHide, this, [this] { endThemePreview(); });
     m_viewMenu->addSeparator();
-    m_logAct = m_viewMenu->addAction(QStringLiteral("Show activity &log"));
+    m_logAct = m_viewMenu->addAction(QStringLiteral("Show Activity &Log"));
     m_logAct->setCheckable(true);
     m_logAct->setChecked(m_s.showLog);
     connect(m_logAct, &QAction::toggled, this, [this](bool on) { setCardOpen(QStringLiteral("ACTIVITY"), on); });
-    QAction* detail = m_viewMenu->addAction(QStringLiteral("&Detailed activity log"));
+    QAction* detail = m_viewMenu->addAction(QStringLiteral("&Detailed Activity Log"));
     detail->setCheckable(true);
     detail->setChecked(m_s.detailedLog);
     detail->setToolTip(QStringLiteral("Also logs every recorded action and every step played."));
     connect(detail, &QAction::toggled, this, [this](bool on) { m_s.detailedLog = on; saveSettingsSoon(); });
-    QAction* top = m_viewMenu->addAction(QStringLiteral("Always on &top"));
+    QAction* top = m_viewMenu->addAction(QStringLiteral("Always on &Top"));
     top->setCheckable(true);
     top->setChecked(m_s.alwaysOnTop);
     connect(top, &QAction::toggled, this, [this](bool on) {
@@ -429,16 +431,23 @@ void MainWindow::buildMenus()
         show();
         saveSettingsSoon();
     });
-    m_markerAct = m_viewMenu->addAction(QStringLiteral("&Mark the selected step's position on screen"));
+    m_markerAct = m_viewMenu->addAction(QStringLiteral("&Mark Selected Step on Screen"));
     m_markerAct->setCheckable(true);
     m_markerAct->setChecked(m_s.showPosition);
     connect(m_markerAct, &QAction::toggled, this, [this](bool on) { m_s.showPosition = on; updateMarker(); saveSettingsSoon(); });
+    m_previewAct = m_viewMenu->addAction(QStringLiteral("&Preview Steps on Hover"));
+    m_previewAct->setCheckable(true);
+    m_previewAct->setChecked(m_s.showPreview);
+    m_previewAct->setToolTip(QStringLiteral("Pointing at a mouse step in the list shows its path or position, animated."));
+    connect(m_previewAct, &QAction::toggled, this, [this](bool on) { m_s.showPreview = on; if (!on) showPreview(-1); saveSettingsSoon(); });
     m_viewMenu->addSeparator();
-    m_viewMenu->addAction(QStringLiteral("&Reset view options"), this, [this] {
+    m_viewMenu->addAction(QStringLiteral("&Reset View Options"), this, [this] {
         m_s.resetView();
         for (QAction* a : m_themeGroup->actions()) a->setChecked(a->data().toString() == m_s.theme);
         for (auto it = m_cards.cbegin(); it != m_cards.cend(); ++it) setCardOpen(it.key(), true, false);
         m_logAct->setChecked(true);
+        for (QAction* a : {m_markerAct, m_previewAct}) { const QSignalBlocker b(a); a->setChecked(true); }
+        updateMarker();
         setWindowFlag(Qt::WindowStaysOnTopHint, false);
         show();
         m_table->horizontalHeader()->resizeSections(QHeaderView::Interactive);
@@ -447,11 +456,11 @@ void MainWindow::buildMenus()
     });
 
     QMenu* help = menuBar()->addMenu(QStringLiteral("&Help"));
-    help->addAction(QStringLiteral("Project &website"), this, [] { QDesktopServices::openUrl(QUrl(kRepoUrl)); });
-    help->addAction(QStringLiteral("Open app &data folder"), this, [] {
+    help->addAction(QStringLiteral("Project &Website"), this, [] { QDesktopServices::openUrl(QUrl(kRepoUrl)); });
+    help->addAction(QStringLiteral("Open App &Data Folder"), this, [] {
         QDesktopServices::openUrl(QUrl::fromLocalFile(appdata::folder()));
     });
-    help->addAction(QStringLiteral("&Report a problem"), this, [] { QDesktopServices::openUrl(QUrl(kRepoUrl + QStringLiteral("/issues"))); });
+    help->addAction(QStringLiteral("&Report a Problem"), this, [] { QDesktopServices::openUrl(QUrl(kRepoUrl + QStringLiteral("/issues"))); });
     help->addSeparator();
     help->addAction(QStringLiteral("&About " APP_NAME), this, [this] {
         QMessageBox::about(this, QStringLiteral("About " APP_NAME),
@@ -472,27 +481,27 @@ QMenu* MainWindow::buildAddMenu(QWidget* parent)
     add(mouse, QStringLiteral("Click"), ActionType::MouseClick);
     add(mouse, QStringLiteral("Move"), ActionType::MouseMove);
     add(mouse, QStringLiteral("Scroll"), ActionType::Wheel);
-    add(mouse, QStringLiteral("Button down (start a drag)"), ActionType::MouseDown);
-    add(mouse, QStringLiteral("Button up (end a drag)"), ActionType::MouseUp);
+    add(mouse, QStringLiteral("Button Down (Start a Drag)"), ActionType::MouseDown);
+    add(mouse, QStringLiteral("Button Up (End a Drag)"), ActionType::MouseUp);
     QMenu* keys = menu->addMenu(QStringLiteral("Keyboard"));
-    add(keys, QStringLiteral("Key press / shortcut"), ActionType::KeyPress);
+    add(keys, QStringLiteral("Key Press / Shortcut"), ActionType::KeyPress);
     add(keys, QStringLiteral("Text"), ActionType::Text);
-    add(keys, QStringLiteral("Key down (hold)"), ActionType::KeyDown);
-    add(keys, QStringLiteral("Key up (release)"), ActionType::KeyUp);
+    add(keys, QStringLiteral("Key Down (Hold)"), ActionType::KeyDown);
+    add(keys, QStringLiteral("Key Up (Release)"), ActionType::KeyUp);
     QMenu* wait = menu->addMenu(QStringLiteral("Wait"));
     add(wait, QStringLiteral("Wait"), ActionType::Wait);
-    add(wait, QStringLiteral("Wait for pixel color"), ActionType::WaitPixel);
-    add(wait, QStringLiteral("Wait for key"), ActionType::WaitKey);
-    add(wait, QStringLiteral("Wait for file"), ActionType::WaitFile);
+    add(wait, QStringLiteral("Wait for Pixel Color"), ActionType::WaitPixel);
+    add(wait, QStringLiteral("Wait for Key"), ActionType::WaitKey);
+    add(wait, QStringLiteral("Wait for File"), ActionType::WaitFile);
     QMenu* flow = menu->addMenu(QStringLiteral("Flow"));
     add(flow, QStringLiteral("Repeat"), ActionType::Repeat);
-    add(flow, QStringLiteral("Go to"), ActionType::Goto);
-    add(flow, QStringLiteral("Run another macro"), ActionType::RunMacro);
-    QMenu* other = menu->addMenu(QStringLiteral("Programs and windows"));
-    add(other, QStringLiteral("Window focus"), ActionType::WindowFocus);
-    add(other, QStringLiteral("Run program"), ActionType::RunProgram);
+    add(flow, QStringLiteral("Go To"), ActionType::Goto);
+    add(flow, QStringLiteral("Run Another Macro"), ActionType::RunMacro);
+    QMenu* other = menu->addMenu(QStringLiteral("Programs and Windows"));
+    add(other, QStringLiteral("Window Focus"), ActionType::WindowFocus);
+    add(other, QStringLiteral("Run Program"), ActionType::RunProgram);
     add(other, QStringLiteral("Notification"), ActionType::Notify);
-    add(other, QStringLiteral("Message box"), ActionType::MessageBox);
+    add(other, QStringLiteral("Message Box"), ActionType::MessageBox);
     add(other, QStringLiteral("Beep"), ActionType::Beep);
     return menu;
 }
@@ -621,7 +630,7 @@ void MainWindow::buildUi()
     bottom->setObjectName(QStringLiteral("bottomBar"));
     auto* bl = new QHBoxLayout(bottom);
     bl->setContentsMargins(16, 10, 16, 10);
-    m_playSelBtn = new QPushButton(QStringLiteral("▶ Play selection"));
+    m_playSelBtn = new QPushButton(QStringLiteral("▶ Play Selection"));
     m_recordBtn = new QPushButton(QStringLiteral("● Record"));
     m_recordBtn->setObjectName(QStringLiteral("record"));
     m_playBtn = new QPushButton(QStringLiteral("▶ Play"));
@@ -689,11 +698,11 @@ QWidget* MainWindow::buildPlaybackCard()
     // Repeat: the number in a box, its unit as plain text after it.
     m_rTimes = new QRadioButton;
     m_rSecs = new QRadioButton;
-    m_rForever = new QRadioButton(QStringLiteral("until stopped"));
+    m_rForever = new QRadioButton(QStringLiteral("Until Stopped"));
     m_repeatTimes = new QSpinBox;
     m_repeatTimes->setRange(1, 1000000);
     m_repeatTimes->setValue(m_s.repeatTimes);
-    m_timesUnit = new QLabel(m_s.repeatTimes == 1 ? QStringLiteral("time") : QStringLiteral("times"));
+    m_timesUnit = new QLabel(m_s.repeatTimes == 1 ? QStringLiteral("Time") : QStringLiteral("Times"));
     m_repeatSecs = new QSpinBox;
     m_repeatSecs->setRange(1, 864000);
     m_repeatSecs->setValue(m_s.repeatSeconds);
@@ -712,23 +721,23 @@ QWidget* MainWindow::buildPlaybackCard()
     for (QRadioButton* rb : {m_rTimes, m_rSecs, m_rForever}) repeatGroup->addButton(rb);
     grid->addWidget(new QLabel(QStringLiteral("Repeat")), r, 0);
     grid->addWidget(radioRow(m_rTimes, m_repeatTimes, m_timesUnit), r++, 1);
-    grid->addWidget(radioRow(m_rSecs, m_repeatSecs, new QLabel(QStringLiteral("seconds"))), r++, 1);
+    grid->addWidget(radioRow(m_rSecs, m_repeatSecs, new QLabel(QStringLiteral("Seconds"))), r++, 1);
     grid->addWidget(radioRow(m_rForever, nullptr, nullptr), r++, 1);
     (m_s.repeatMode == QLatin1String("seconds") ? m_rSecs : m_s.repeatMode == QLatin1String("forever") ? m_rForever : m_rTimes)->setChecked(true);
 
     m_pathStyle = new QComboBox;
-    m_pathStyle->addItem(QStringLiteral("As recorded"), QStringLiteral("recorded"));
-    m_pathStyle->addItem(QStringLiteral("Straight line"), QStringLiteral("linear"));
-    m_pathStyle->addItem(QStringLiteral("Smooth curve"), QStringLiteral("spline"));
-    m_pathStyle->addItem(QStringLiteral("Human-like"), QStringLiteral("human"));
+    m_pathStyle->addItem(QStringLiteral("As Recorded"), QStringLiteral("recorded"));
+    m_pathStyle->addItem(QStringLiteral("Straight Line"), QStringLiteral("linear"));
+    m_pathStyle->addItem(QStringLiteral("Smooth Curve"), QStringLiteral("spline"));
+    m_pathStyle->addItem(QStringLiteral("Human-Like"), QStringLiteral("human"));
     m_pathStyle->setCurrentIndex(qMax(0, m_pathStyle->findData(m_s.pathStyle)));
     m_pathStyle->setToolTip(QStringLiteral("How the mouse travels between points. Human-like wobbles and slows down near the target, "
                                            "for programs that notice robotic movement."));
-    grid->addWidget(new QLabel(QStringLiteral("Mouse path")), r, 0);
+    grid->addWidget(new QLabel(QStringLiteral("Mouse Path")), r, 0);
     grid->addWidget(m_pathStyle, r++, 1);
 
     m_typing = new QComboBox;
-    m_typing->addItem(QStringLiteral("As recorded"), QStringLiteral("recorded"));
+    m_typing->addItem(QStringLiteral("As Recorded"), QStringLiteral("recorded"));
     m_typing->addItem(QStringLiteral("Instant"), QStringLiteral("instant"));
     m_typing->setCurrentIndex(qMax(0, m_typing->findData(m_s.typing)));
     m_typing->setToolTip(QStringLiteral("As recorded keeps your typing rhythm (some programs miss keys typed too fast)."));
@@ -736,22 +745,22 @@ QWidget* MainWindow::buildPlaybackCard()
     grid->addWidget(m_typing, r++, 1);
 
     m_after = new QComboBox;
-    m_after->addItem(QStringLiteral("Do nothing"), QStringLiteral("nothing"));
-    m_after->addItem(QStringLiteral("Close this app"), QStringLiteral("quit"));
-    m_after->addItem(QStringLiteral("Lock the computer"), QStringLiteral("lock"));
+    m_after->addItem(QStringLiteral("Do Nothing"), QStringLiteral("nothing"));
+    m_after->addItem(QStringLiteral("Close App"), QStringLiteral("quit"));
+    m_after->addItem(QStringLiteral("Lock Computer"), QStringLiteral("lock"));
     m_after->addItem(QStringLiteral("Sleep"), QStringLiteral("sleep"));
-    m_after->addItem(QStringLiteral("Log off"), QStringLiteral("logoff"));
+    m_after->addItem(QStringLiteral("Log Off"), QStringLiteral("logoff"));
     m_after->addItem(QStringLiteral("Restart"), QStringLiteral("restart"));
-    m_after->addItem(QStringLiteral("Shut down"), QStringLiteral("shutdown"));
+    m_after->addItem(QStringLiteral("Shut Down"), QStringLiteral("shutdown"));
     m_after->setCurrentIndex(qMax(0, m_after->findData(m_s.afterPlayback)));
     m_after->setToolTip(QStringLiteral("After the macro finishes on its own (not when you stop it). Lock, sleep, log off, restart and "
                                        "shut down wait 30 seconds first, so you can cancel."));
-    grid->addWidget(new QLabel(QStringLiteral("When finished")), r, 0);
+    grid->addWidget(new QLabel(QStringLiteral("When Finished")), r, 0);
     grid->addWidget(m_after, r++, 1);
     grid->setColumnStretch(1, 1);
     b->addLayout(grid);
 
-    m_countdownCheck = new QCheckBox(QStringLiteral("Countdown before playing"));
+    m_countdownCheck = new QCheckBox(QStringLiteral("Countdown Before Playing"));
     m_countdownCheck->setChecked(m_s.countdown);
     m_countdownSecs = new QSpinBox;
     m_countdownSecs->setRange(1, 60);
@@ -762,23 +771,23 @@ QWidget* MainWindow::buildPlaybackCard()
     cd->addWidget(m_countdownSecs);
     cd->addStretch();
     b->addLayout(cd);
-    m_stopOnKey = new QCheckBox(QStringLiteral("Stop if I press a key"));
+    m_stopOnKey = new QCheckBox(QStringLiteral("Stop on Key Press"));
     m_stopOnKey->setChecked(m_s.stopOnKey);
-    m_stopOnMouse = new QCheckBox(QStringLiteral("Stop if I move the mouse"));
+    m_stopOnMouse = new QCheckBox(QStringLiteral("Stop on Mouse Move"));
     m_stopOnMouse->setChecked(m_s.stopOnMouse);
-    m_blockKeys = new QCheckBox(QStringLiteral("Block my keyboard while playing"));
+    m_blockKeys = new QCheckBox(QStringLiteral("Block Keyboard While Playing"));
     m_blockKeys->setChecked(m_s.blockKeyboard);
     const bool canBlock = m_backend->canBlockKeyboard();
     m_blockKeys->setEnabled(canBlock);
     m_blockKeys->setToolTip(canBlock ? QStringLiteral("Keys you press don't reach other programs while a macro plays. "
                                                       "The Stop and Pause hotkeys still work.")
                                      : QStringLiteral("Only available on Windows."));
-    m_restoreMouse = new QCheckBox(QStringLiteral("Put the mouse back where it was afterwards"));
+    m_restoreMouse = new QCheckBox(QStringLiteral("Restore Mouse Position"));
     m_restoreMouse->setChecked(m_s.restoreMouse);
-    m_showNotif = new QCheckBox(QStringLiteral("Show notifications"));
+    m_showNotif = new QCheckBox(QStringLiteral("Show Notifications"));
     m_showNotif->setChecked(m_s.showNotifications);
     m_showNotif->setToolTip(QStringLiteral("Notification steps pop up on the desktop. Off: they're only written to the activity log."));
-    m_hidePlay = new QCheckBox(QStringLiteral("Minimize this window while playing"));
+    m_hidePlay = new QCheckBox(QStringLiteral("Minimize While Playing"));
     m_hidePlay->setChecked(m_s.hideWhilePlaying);
     for (QCheckBox* c : {m_stopOnKey, m_stopOnMouse, m_blockKeys, m_restoreMouse, m_showNotif, m_hidePlay}) b->addWidget(c);
 
@@ -799,7 +808,7 @@ QWidget* MainWindow::buildPlaybackCard()
         m_s.showNotifications = m_showNotif->isChecked();
         m_s.hideWhilePlaying = m_hidePlay->isChecked();
         m_countdownSecs->setEnabled(m_s.countdown);
-        m_timesUnit->setText(m_s.repeatTimes == 1 ? QStringLiteral("time") : QStringLiteral("times"));
+        m_timesUnit->setText(m_s.repeatTimes == 1 ? QStringLiteral("Time") : QStringLiteral("Times"));
         if (m_state == State::Playing) applyWatch();   // stop / block options apply right away
         saveSettingsSoon();
     };
@@ -819,7 +828,7 @@ QWidget* MainWindow::buildRecordingCard()
 {
     QVBoxLayout* b;
     QFrame* card = makeCard(QStringLiteral("RECORDING"), &b);
-    m_recMoves = new QCheckBox(QStringLiteral("Mouse moves"));
+    m_recMoves = new QCheckBox(QStringLiteral("Mouse Moves"));
     m_recMoves->setChecked(m_s.recordMoves);
     m_recMoves->setToolTip(QStringLiteral("Off: only clicks and scrolls are recorded; the mouse jumps straight to each click."));
     m_minMove = new QSpinBox;
@@ -827,7 +836,7 @@ QWidget* MainWindow::buildRecordingCard()
     m_minMove->setSuffix(QStringLiteral(" px"));
     m_minMove->setValue(m_s.minMovePx);
     m_minMove->setToolTip(QStringLiteral("Movements smaller than this are left out of recorded paths."));
-    auto* smallest = new QLabel(QStringLiteral("smallest"));
+    auto* smallest = new QLabel(QStringLiteral("Smallest"));
     smallest->setToolTip(m_minMove->toolTip());
     auto* row = new QHBoxLayout;
     row->addWidget(m_recMoves);
@@ -846,7 +855,7 @@ QWidget* MainWindow::buildRecordingCard()
                                             "barely change a path's shape (smaller files, paths slightly less exact)."));
     m_pathDetailValue = new QLabel(QStringLiteral("%1 %").arg(m_s.pathDetail));
     m_pathDetailValue->setMinimumWidth(QFontMetrics(font()).horizontalAdvance(QStringLiteral("100 %")) + 4);
-    auto* detailLabel = new QLabel(QStringLiteral("Path detail"));
+    auto* detailLabel = new QLabel(QStringLiteral("Path Detail"));
     detailLabel->setToolTip(m_pathDetail->toolTip());
     auto* rowD = new QHBoxLayout;
     rowD->addWidget(detailLabel);
@@ -856,7 +865,7 @@ QWidget* MainWindow::buildRecordingCard()
 
     m_recKeys = new QCheckBox(QStringLiteral("Keyboard"));
     m_recKeys->setChecked(m_s.recordKeyboard);
-    m_mergeTyping = new QCheckBox(QStringLiteral("Merge typing into text"));
+    m_mergeTyping = new QCheckBox(QStringLiteral("Merge Typing Into Text"));
     m_mergeTyping->setChecked(m_s.mergeTyping);
     m_mergeTyping->setToolTip(QStringLiteral("Typed characters become one Text step instead of one step per key."));
     auto* row2 = new QHBoxLayout;
@@ -872,15 +881,15 @@ QWidget* MainWindow::buildRecordingCard()
     m_shortestPause->setToolTip(QStringLiteral("Pauses at least this long become their own Wait steps you can edit. "
                                                "Shorter pauses are kept with the next step, so timing stays exact."));
     auto* row3 = new QHBoxLayout;
-    row3->addWidget(new QLabel(QStringLiteral("Show pauses from")));
+    row3->addWidget(new QLabel(QStringLiteral("Show Pauses From")));
     row3->addWidget(m_shortestPause);
     row3->addStretch();
     b->addLayout(row3);
-    m_relPos = new QCheckBox(QStringLiteral("Positions relative to the window"));
+    m_relPos = new QCheckBox(QStringLiteral("Positions Relative to Window"));
     m_relPos->setChecked(m_s.relativePositions);
     m_relPos->setToolTip(QStringLiteral("Clicks are recorded from the window's top-left corner instead of the screen's, so the macro "
                                         "still works when the window is somewhere else."));
-    m_hideRec = new QCheckBox(QStringLiteral("Minimize this window while recording"));
+    m_hideRec = new QCheckBox(QStringLiteral("Minimize While Recording"));
     m_hideRec->setChecked(m_s.hideWhileRecording);
     b->addWidget(m_relPos);
     b->addWidget(m_hideRec);
@@ -922,13 +931,13 @@ QWidget* MainWindow::buildHotkeysCard()
         return e;
     };
     const QString anywhere = QStringLiteral("Works from any program.");
-    m_hkRecord = make(QStringLiteral("Record / stop"), m_s.hkRecord, anywhere + QStringLiteral(" Records at the end of the list."), 0);
-    m_hkNewRec = make(QStringLiteral("New recording"), m_s.hkNewRecording, anywhere + QStringLiteral(" Starts a new macro (asks to save changes first) and records."), 1);
-    m_hkPlay = make(QStringLiteral("Play / pause"), m_s.hkPlay, anywhere, 2);
-    m_hkPlayFrom = make(QStringLiteral("Play from selected"), m_s.hkPlayFrom, anywhere + QStringLiteral(" Plays from the selected step to the end."), 3);
-    m_hkPlaySel = make(QStringLiteral("Play selection"), m_s.hkPlaySelection, anywhere + QStringLiteral(" Plays only the selected steps."), 4);
+    m_hkRecord = make(QStringLiteral("Record / Stop"), m_s.hkRecord, anywhere + QStringLiteral(" Records at the end of the list."), 0);
+    m_hkNewRec = make(QStringLiteral("New Recording"), m_s.hkNewRecording, anywhere + QStringLiteral(" Starts a new macro (asks to save changes first) and records."), 1);
+    m_hkPlay = make(QStringLiteral("Play / Pause"), m_s.hkPlay, anywhere, 2);
+    m_hkPlayFrom = make(QStringLiteral("Play From Selected"), m_s.hkPlayFrom, anywhere + QStringLiteral(" Plays from the selected step to the end."), 3);
+    m_hkPlaySel = make(QStringLiteral("Play Selection"), m_s.hkPlaySelection, anywhere + QStringLiteral(" Plays only the selected steps."), 4);
     m_hkStop = make(QStringLiteral("Stop"), m_s.hkStop, QStringLiteral("Active only while recording or playing, so the key keeps working normally otherwise."), 5);
-    m_hkCapture = make(QStringLiteral("Capture position"), m_s.hkCapture,
+    m_hkCapture = make(QStringLiteral("Capture Position"), m_s.hkCapture,
                        QStringLiteral("While a step's editor is open: point at a spot and press this to take the mouse position "
                                       "(and the color, for Wait for pixel color). Active only then."), 6);
     grid->setColumnStretch(1, 1);
@@ -990,8 +999,13 @@ QWidget* MainWindow::buildActionsCard()
     bar->addStretch();
     b->addLayout(bar);
 
-    m_table = new QTableView;
+    m_table = new ActionTable;
     m_table->setModel(&m_model);
+    m_preview = new ActionPreview(m_table->viewport());
+    connect(m_table, &ActionTable::hoveredRow, this, [this](int row) { showPreview(row); });
+    connect(&m_model, &QAbstractItemModel::modelReset, this, [this] { showPreview(-1); });
+    connect(&m_model, &QAbstractItemModel::layoutChanged, this, [this] { showPreview(-1); });
+    connect(&m_model, &QAbstractItemModel::rowsRemoved, this, [this] { showPreview(-1); });
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_table->setSelectionMode(QAbstractItemView::ExtendedSelection);   // click-and-drag, Shift+click, Ctrl+click
     m_table->setDragEnabled(false);
@@ -1055,8 +1069,8 @@ void MainWindow::setState(State s)
     const QString why = m_backend->unavailableReason();
     switch (s) {
     case State::Idle:
-        if (!why.isEmpty()) setPill(QStringLiteral("● Can't record here"), QStringLiteral("warn"));
-        else if (!m_backend->recordUnavailableReason().isEmpty()) setPill(QStringLiteral("● Ready (playback only)"), QStringLiteral("warn"));
+        if (!why.isEmpty()) setPill(QStringLiteral("● Can't Record Here"), QStringLiteral("warn"));
+        else if (!m_backend->recordUnavailableReason().isEmpty()) setPill(QStringLiteral("● Ready (Playback Only)"), QStringLiteral("warn"));
         else setPill(QStringLiteral("● Ready"), QStringLiteral("idle"));
         break;
     case State::Countdown: break;
@@ -1077,7 +1091,7 @@ void MainWindow::updateUi()
     const bool hasActions = m_model.rowCount() > 0;
     const bool hasSel = !selectedRows().isEmpty();
 
-    m_recordBtn->setText(m_state == State::Recording ? QStringLiteral("■ Stop recording") : QStringLiteral("● Record"));
+    m_recordBtn->setText(m_state == State::Recording ? QStringLiteral("■ Stop Recording") : QStringLiteral("● Record"));
     m_recordBtn->setEnabled(canRecord && (idle || m_state == State::Recording));
     m_recordBtn->setToolTip(!canRecord ? recWhy
                             : m_state == State::Recording ? QStringLiteral("Stop recording (%1)").arg(m_s.hkStop)
@@ -1170,7 +1184,7 @@ void MainWindow::setDirty(bool d)
 bool MainWindow::maybeSave()
 {
     if (!m_dirty || m_model.rowCount() == 0) return true;
-    const auto r = QMessageBox::question(this, QStringLiteral("Unsaved changes"),
+    const auto r = QMessageBox::question(this, QStringLiteral("Unsaved Changes"),
                                          QStringLiteral("Save the changes to %1?").arg(m_file.isEmpty() ? QStringLiteral("this macro") : QFileInfo(m_file).fileName()),
                                          QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
     if (r == QMessageBox::Cancel) return false;
@@ -1183,7 +1197,7 @@ bool MainWindow::save(bool saveAs)
     QString path = m_file;
     if (saveAs || path.isEmpty()) {
         const QString start = m_file.isEmpty() ? QDir(m_s.lastFolder.isEmpty() ? QDir::homePath() : m_s.lastFolder).filePath(QStringLiteral("Untitled.") + kExt) : m_file;
-        path = QFileDialog::getSaveFileName(this, QStringLiteral("Save macro"), start, QStringLiteral("Macros (*.%1)").arg(kExt));
+        path = QFileDialog::getSaveFileName(this, QStringLiteral("Save Macro"), start, QStringLiteral("Macros (*.%1)").arg(kExt));
         if (path.isEmpty()) return false;
         if (QFileInfo(path).suffix().isEmpty()) path += QLatin1Char('.') + kExt;
     }
@@ -1191,7 +1205,7 @@ bool MainWindow::save(bool saveAs)
     m.actions = m_model.actions();
     QString err;
     if (!m.save(path, &err)) {
-        QMessageBox::warning(this, QStringLiteral("Couldn't save"), QStringLiteral("Couldn't save %1:\n%2").arg(path, err));
+        QMessageBox::warning(this, QStringLiteral("Couldn't Save"), QStringLiteral("Couldn't save %1:\n%2").arg(path, err));
         return false;
     }
     m_file = path;
@@ -1215,7 +1229,7 @@ void MainWindow::newMacro()
 void MainWindow::open()
 {
     if (m_state != State::Idle || !maybeSave()) return;
-    const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("Open macro"),
+    const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("Open Macro"),
                                                       m_s.lastFolder.isEmpty() ? QDir::homePath() : m_s.lastFolder,
                                                       QStringLiteral("Macros (*.%1);;All files (*)").arg(kExt));
     if (!path.isEmpty()) openFile(path);
@@ -1224,7 +1238,7 @@ void MainWindow::open()
 bool MainWindow::openFile(const QString& path)
 {
     if (!QFileInfo::exists(path)) {
-        QMessageBox::warning(this, QStringLiteral("Not found"), QStringLiteral("%1 doesn't exist any more.").arg(path));
+        QMessageBox::warning(this, QStringLiteral("Not Found"), QStringLiteral("%1 doesn't exist any more.").arg(path));
         m_s.recent.removeAll(path);
         rebuildRecentMenu();
         return false;
@@ -1232,7 +1246,7 @@ bool MainWindow::openFile(const QString& path)
     core::Macro m;
     QString err;
     if (!core::Macro::load(path, &m, &err)) {
-        QMessageBox::warning(this, QStringLiteral("Couldn't open"), QStringLiteral("Couldn't open %1:\n%2").arg(path, err));
+        QMessageBox::warning(this, QStringLiteral("Couldn't Open"), QStringLiteral("Couldn't open %1:\n%2").arg(path, err));
         return false;
     }
     if (!err.isEmpty()) log(err);
@@ -1376,7 +1390,7 @@ void MainWindow::deleteSelected(bool ask)
     const auto rows = selectedRows();
     if (rows.isEmpty() || m_state != State::Idle) return;
     if (ask && m_s.confirmDelete
-        && QMessageBox::question(this, QStringLiteral("Delete steps"),
+        && QMessageBox::question(this, QStringLiteral("Delete Steps"),
                                  rows.size() == 1 ? QStringLiteral("Delete step %1?").arg(rows.first() + 1)
                                                   : QStringLiteral("Delete these %1 steps?").arg(rows.size())) != QMessageBox::Yes)
         return;
@@ -1548,7 +1562,7 @@ void MainWindow::syncWidgetsFromSettings()
     for (QWidget* w : all) w->blockSignals(true);
     m_speed->setValue(m_s.speedPct);
     m_repeatTimes->setValue(m_s.repeatTimes);
-    m_timesUnit->setText(m_s.repeatTimes == 1 ? QStringLiteral("time") : QStringLiteral("times"));
+    m_timesUnit->setText(m_s.repeatTimes == 1 ? QStringLiteral("Time") : QStringLiteral("Times"));
     m_repeatSecs->setValue(m_s.repeatSeconds);
     (m_s.repeatMode == QLatin1String("seconds") ? m_rSecs : m_s.repeatMode == QLatin1String("forever") ? m_rForever : m_rTimes)->setChecked(true);
     m_pathStyle->setCurrentIndex(qMax(0, m_pathStyle->findData(m_s.pathStyle)));
@@ -1596,13 +1610,13 @@ void MainWindow::registerHotkeys()
     // Stop is registered only while something runs, and Capture position only while a step editor with a position
     // is open, so those keys work normally in other programs the rest of the time.
     const QList<Hk> list = {
-        {HkRecord, m_s.hkRecord, QStringLiteral("Record / stop"), true},
-        {HkNewRecording, m_s.hkNewRecording, QStringLiteral("New recording"), true},
-        {HkPlay, m_s.hkPlay, QStringLiteral("Play / pause"), true},
-        {HkPlayFrom, m_s.hkPlayFrom, QStringLiteral("Play from selected"), true},
-        {HkPlaySelection, m_s.hkPlaySelection, QStringLiteral("Play selection"), true},
+        {HkRecord, m_s.hkRecord, QStringLiteral("Record / Stop"), true},
+        {HkNewRecording, m_s.hkNewRecording, QStringLiteral("New Recording"), true},
+        {HkPlay, m_s.hkPlay, QStringLiteral("Play / Pause"), true},
+        {HkPlayFrom, m_s.hkPlayFrom, QStringLiteral("Play From Selected"), true},
+        {HkPlaySelection, m_s.hkPlaySelection, QStringLiteral("Play Selection"), true},
         {HkStop, m_s.hkStop, QStringLiteral("Stop"), m_state != State::Idle},
-        {HkCapture, m_s.hkCapture, QStringLiteral("Capture position"), m_openDialog && m_openDialog->hasPosition()},
+        {HkCapture, m_s.hkCapture, QStringLiteral("Capture Position"), m_openDialog && m_openDialog->hasPosition()},
     };
     QStringList problems;
     QHash<QString, QString> owner;   // key -> the first hotkey that uses it; a second one with the same key is ignored
@@ -1659,7 +1673,7 @@ void MainWindow::startRecording(RecordWhere where)
 {
     if (m_state != State::Idle) return;
     const QString why = m_backend->recordUnavailableReason();
-    if (!why.isEmpty()) { QMessageBox::information(this, QStringLiteral("Can't record"), why); return; }
+    if (!why.isEmpty()) { QMessageBox::information(this, QStringLiteral("Can't Record"), why); return; }
     if (where == RecordWhere::New) {
         if (!maybeSave()) return;
         m_undo.clear();
@@ -1716,7 +1730,7 @@ void MainWindow::startPlaying(PlayRange range, int repeatOverride)
 {
     if (m_state != State::Idle || m_model.rowCount() == 0) return;
     const QString why = m_backend->unavailableReason();
-    if (!why.isEmpty()) { QMessageBox::information(this, QStringLiteral("Can't play"), why); return; }
+    if (!why.isEmpty()) { QMessageBox::information(this, QStringLiteral("Can't Play"), why); return; }
     m_pending = playOptions();
     if (repeatOverride > 0) { m_pending.repeatMode = core::RepeatMode::Times; m_pending.repeatCount = repeatOverride; }
     const auto rows = selectedRows();
@@ -1867,25 +1881,25 @@ void MainWindow::findReplace()
 {
     if (m_state != State::Idle) return;
     QDialog d(this);
-    d.setWindowTitle(QStringLiteral("Find and replace"));
+    d.setWindowTitle(QStringLiteral("Find and Replace"));
     auto* lay = new QVBoxLayout(&d);
     auto* form = new QFormLayout;
     auto* find = new QLineEdit;
     auto* repl = new QLineEdit;
-    auto* matchCase = new QCheckBox(QStringLiteral("Match case"));
+    auto* matchCase = new QCheckBox(QStringLiteral("Match Case"));
     auto* status = muted(QString());
     find->setProperty("testId", QStringLiteral("findText"));
     repl->setProperty("testId", QStringLiteral("replaceText"));
     form->addRow(QStringLiteral("Find:"), find);
-    form->addRow(QStringLiteral("Replace with:"), repl);
+    form->addRow(QStringLiteral("Replace With:"), repl);
     form->addRow(QString(), matchCase);
     lay->addLayout(form);
     lay->addWidget(muted(QStringLiteral("Looks in what the list shows (Action, Value, Label, Comment). Replace changes typed text, "
                                         "window titles and programs, file names, messages, labels and comments.")));
     lay->addWidget(status);
     auto* bb = new QDialogButtonBox;
-    QPushButton* next = bb->addButton(QStringLiteral("Find next"), QDialogButtonBox::ActionRole);
-    QPushButton* all = bb->addButton(QStringLiteral("Replace all"), QDialogButtonBox::ActionRole);
+    QPushButton* next = bb->addButton(QStringLiteral("Find Next"), QDialogButtonBox::ActionRole);
+    QPushButton* all = bb->addButton(QStringLiteral("Replace All"), QDialogButtonBox::ActionRole);
     bb->addButton(QDialogButtonBox::Close);
     next->setProperty("testId", QStringLiteral("findNext"));
     all->setProperty("testId", QStringLiteral("replaceAll"));
@@ -1959,13 +1973,13 @@ void MainWindow::exportCsv()
     }
     QSaveFile f(path);
     if (!f.open(QIODevice::WriteOnly)) {
-        QMessageBox::warning(this, QStringLiteral("Couldn't export"), QStringLiteral("Couldn't write %1:\n%2").arg(path, f.errorString()));
+        QMessageBox::warning(this, QStringLiteral("Couldn't Export"), QStringLiteral("Couldn't write %1:\n%2").arg(path, f.errorString()));
         return;
     }
     f.write("\xEF\xBB\xBF");   // UTF-8 marker, so Excel shows accents and symbols correctly
     f.write(out.toUtf8());
     if (!f.commit()) {
-        QMessageBox::warning(this, QStringLiteral("Couldn't export"), QStringLiteral("Couldn't write %1:\n%2").arg(path, f.errorString()));
+        QMessageBox::warning(this, QStringLiteral("Couldn't Export"), QStringLiteral("Couldn't write %1:\n%2").arg(path, f.errorString()));
         return;
     }
     m_s.lastFolder = QFileInfo(path).absolutePath();
@@ -1975,7 +1989,7 @@ void MainWindow::exportCsv()
 void MainWindow::copyCommandLine()
 {
     if (m_file.isEmpty() || m_dirty) {
-        QMessageBox::information(this, QStringLiteral("Copy command line"),
+        QMessageBox::information(this, QStringLiteral("Copy Command Line"),
                                  QStringLiteral("Save the macro first: the command line plays the saved file."));
         return;
     }
@@ -2024,22 +2038,22 @@ void MainWindow::runAfterPlayback()
     const QString what = m_s.afterPlayback;
     if (what == QLatin1String("nothing")) return;
     if (what == QLatin1String("quit")) {
-        log(QStringLiteral("Closing (When finished: Close this app)."));
+        log(QStringLiteral("Closing (When Finished: Close App)."));
         QTimer::singleShot(0, this, &QWidget::close);
         return;
     }
     struct Kind { platform::SystemAction action; QString doing, button; };
     static const QHash<QString, Kind> kinds = {
-        {QStringLiteral("lock"), {platform::SystemAction::Lock, QStringLiteral("Locking the computer"), QStringLiteral("Lock now")}},
-        {QStringLiteral("sleep"), {platform::SystemAction::Sleep, QStringLiteral("Going to sleep"), QStringLiteral("Sleep now")}},
-        {QStringLiteral("logoff"), {platform::SystemAction::LogOff, QStringLiteral("Logging off"), QStringLiteral("Log off now")}},
-        {QStringLiteral("restart"), {platform::SystemAction::Restart, QStringLiteral("Restarting"), QStringLiteral("Restart now")}},
-        {QStringLiteral("shutdown"), {platform::SystemAction::ShutDown, QStringLiteral("Shutting down"), QStringLiteral("Shut down now")}},
+        {QStringLiteral("lock"), {platform::SystemAction::Lock, QStringLiteral("Locking the computer"), QStringLiteral("Lock Now")}},
+        {QStringLiteral("sleep"), {platform::SystemAction::Sleep, QStringLiteral("Going to sleep"), QStringLiteral("Sleep Now")}},
+        {QStringLiteral("logoff"), {platform::SystemAction::LogOff, QStringLiteral("Logging off"), QStringLiteral("Log Off Now")}},
+        {QStringLiteral("restart"), {platform::SystemAction::Restart, QStringLiteral("Restarting"), QStringLiteral("Restart Now")}},
+        {QStringLiteral("shutdown"), {platform::SystemAction::ShutDown, QStringLiteral("Shutting down"), QStringLiteral("Shut Down Now")}},
     };
     if (!kinds.contains(what)) return;
     const Kind k = kinds.value(what);
     if (isMinimized()) showNormal();
-    QMessageBox box(QMessageBox::Warning, QStringLiteral("When finished"), QString(), QMessageBox::Cancel, this);
+    QMessageBox box(QMessageBox::Warning, QStringLiteral("When Finished"), QString(), QMessageBox::Cancel, this);
     QPushButton* now = box.addButton(k.button, QMessageBox::AcceptRole);
     box.setDefaultButton(QMessageBox::Cancel);
     int left = 30;
@@ -2055,10 +2069,10 @@ void MainWindow::runAfterPlayback()
     const int r = box.exec();
     tick.stop();
     if (box.clickedButton() != now && r != QDialog::Accepted + 100) {
-        log(QStringLiteral("When finished: cancelled."));
+        log(QStringLiteral("When Finished: cancelled."));
         return;
     }
-    log(QStringLiteral("When finished: %1.").arg(k.doing.toLower()));
+    log(QStringLiteral("When Finished: %1.").arg(k.doing.toLower()));
     if (what == QLatin1String("restart") || what == QLatin1String("shutdown") || what == QLatin1String("logoff")) {
         m_s.geometry = saveGeometry();
         m_s.save(appdata::settingsFile());   // settings are safe even if the system closes the app abruptly
@@ -2086,6 +2100,26 @@ void MainWindow::updateMarker()
     m_marker->show();
     // Step positions are physical screen pixels; on scaled screens only the system can place a window that exactly.
     if (QGuiApplication::platformName() == QLatin1String("windows")) platform::sys::centerWindowAt(quintptr(m_marker->winId()), at);
+}
+
+void MainWindow::showPreview(int row)
+{
+    if (!m_preview) return;
+    if (!m_s.showPreview || row < 0 || row >= m_model.rowCount() || !ActionPreview::canPreview(m_model.at(row)) || m_table->selecting()) {
+        m_preview->stop();
+        return;
+    }
+    // In the list's right-hand side, just below the step (above it near the bottom of the list).
+    m_preview->showAction(m_model.at(row));
+    const QWidget* vp = m_table->viewport();
+    const int w = qBound(220, vp->width() * 38 / 100, 380);
+    const int h = qMin(m_preview->heightForWidth(w), qMax(120, vp->height() - 16));
+    m_preview->setFixedSize(w, h);
+    const int rowTop = m_table->rowViewportPosition(row), rowBottom = rowTop + m_table->rowHeight(row);
+    int y = rowBottom + 6;
+    if (y + h > vp->height() - 8) y = rowTop - h - 6;
+    y = qBound(8, y, qMax(8, vp->height() - h - 8));
+    m_preview->move(vp->width() - w - 12, y);
 }
 
 int MainWindow::execDialog(ActionDialog& d)

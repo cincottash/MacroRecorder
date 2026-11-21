@@ -17,7 +17,7 @@ const Theme* find(const QString& key)
     return nullptr;
 }
 
-QStringList groups() { return {QStringLiteral("Dark themes"), QStringLiteral("Light themes")}; }
+QStringList groups() { return {QStringLiteral("Dark Themes"), QStringLiteral("Light Themes")}; }
 
 bool systemIsDark()
 {

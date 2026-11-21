@@ -55,6 +55,7 @@ struct Settings {
     bool confirmDelete = false;
     bool startMinimized = false;
     bool showPosition = true;   // mark the selected step's position on the screen
+    bool showPreview = true;    // animate the hovered step's path in the list
     bool scanCodes = false;     // Windows: send keys as hardware scan codes (for games)
 
     // Files

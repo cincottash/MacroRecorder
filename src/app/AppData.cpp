@@ -36,7 +36,7 @@ QString choiceFile()
 QString ask(QWidget* parent, const QString& current, bool firstRun)
 {
     QDialog d(parent);
-    d.setWindowTitle(firstRun ? QStringLiteral("Welcome to " APP_NAME) : QStringLiteral("App data folder"));
+    d.setWindowTitle(firstRun ? QStringLiteral("Welcome to " APP_NAME) : QStringLiteral("App Data Folder"));
     auto* lay = new QVBoxLayout(&d);
     auto* intro = new QLabel(QStringLiteral(
         "Where should " APP_NAME " keep its settings (theme, hotkeys, playback options, recent files)?\n"
@@ -49,14 +49,15 @@ QString ask(QWidget* parent, const QString& current, bool firstRun)
     row->addWidget(path, 1);
     row->addWidget(browse);
     lay->addLayout(row);
-    auto* none = new QCheckBox(QStringLiteral("Don't keep app data (start fresh every time; nothing is left behind)"));
+    auto* none = new QCheckBox(QStringLiteral("Don't Keep App Data"));
+    none->setToolTip(QStringLiteral("Start fresh every time; nothing is left behind."));
     none->setChecked(current == kNone);
     lay->addWidget(none);
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    buttons->button(QDialogButtonBox::Ok)->setText(firstRun ? QStringLiteral("Continue") : QStringLiteral("Use this folder"));
+    buttons->button(QDialogButtonBox::Ok)->setText(firstRun ? QStringLiteral("Continue") : QStringLiteral("Use This Folder"));
     lay->addWidget(buttons);
     QObject::connect(browse, &QPushButton::clicked, &d, [&] {
-        const QString f = QFileDialog::getExistingDirectory(&d, QStringLiteral("Choose the app data folder"), path->text());
+        const QString f = QFileDialog::getExistingDirectory(&d, QStringLiteral("Choose App Data Folder"), path->text());
         if (!f.isEmpty()) path->setText(QDir::toNativeSeparators(f));
     });
     QObject::connect(none, &QCheckBox::toggled, &d, [&](bool on) { path->setEnabled(!on); browse->setEnabled(!on); });
@@ -68,11 +69,11 @@ QString ask(QWidget* parent, const QString& current, bool firstRun)
         const QString p = path->text().trimmed();
         if (p.isEmpty()) return;
         if (!QDir(p).exists()) {
-            if (QMessageBox::question(&d, QStringLiteral("Create folder?"),
+            if (QMessageBox::question(&d, QStringLiteral("Create Folder?"),
                                       QStringLiteral("This folder doesn't exist. Create it?\n\n%1").arg(p)) != QMessageBox::Yes)
                 return;
             if (!QDir().mkpath(p)) {
-                QMessageBox::warning(&d, QStringLiteral("Couldn't create folder"), QStringLiteral("Couldn't create %1.").arg(p));
+                QMessageBox::warning(&d, QStringLiteral("Couldn't Create Folder"), QStringLiteral("Couldn't create %1.").arg(p));
                 return;
             }
         }

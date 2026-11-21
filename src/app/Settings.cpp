@@ -53,6 +53,7 @@ void fields(Settings& s, F&& f)
     f("confirm_delete", s.confirmDelete);
     f("start_minimized", s.startMinimized);
     f("show_position", s.showPosition);
+    f("show_preview", s.showPreview);
     f("scan_codes", s.scanCodes);
     f("recent", s.recent);
     f("last_folder", s.lastFolder);
@@ -121,6 +122,8 @@ void Settings::resetView()
     showLog = d.showLog;
     detailedLog = d.detailedLog;
     alwaysOnTop = d.alwaysOnTop;
+    showPosition = d.showPosition;
+    showPreview = d.showPreview;
     tableState.clear();
 }
 
