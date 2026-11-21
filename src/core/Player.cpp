@@ -111,14 +111,17 @@ bool Player::playAction(const Action& a, int index)
             elapsed = qMax(elapsed, due);
             m_inj->moveTo(QPoint(p.x, p.y));
         }
+        // The move's recorded time includes any rest at the end (pointer arrived, then a pause before the click).
+        const double total = a.ms / sp;
+        if (total > elapsed && !waitMs(total - elapsed)) return false;
         break;
     }
     case ActionType::MouseClick:
         moveInstant(target(a));
         for (int i = 0; i < a.clicks; ++i) {
-            if (i > 0 && !waitMs(kDoubleGapMs)) return false;
+            if (i > 0 && !waitMs(a.gapMs > 0 ? a.gapMs / sp : kDoubleGapMs)) return false;
             m_inj->button(a.button, true);
-            if (!waitMs(kClickHoldMs)) { m_inj->button(a.button, false); return false; }
+            if (!waitMs(a.holdMs > 0 ? qMax(8.0, a.holdMs / sp) : kClickHoldMs)) { m_inj->button(a.button, false); return false; }
             m_inj->button(a.button, false);
         }
         break;
@@ -135,7 +138,7 @@ bool Player::playAction(const Action& a, int index)
     case ActionType::Wheel:
         moveInstant(target(a));
         for (int i = 0; i < qAbs(a.notches); ++i) {
-            if (i > 0 && !waitMs(kWheelGapMs / sp)) return false;
+            if (i > 0 && !waitMs((a.gapMs > 0 ? a.gapMs : kWheelGapMs) / sp)) return false;
             m_inj->wheel(a.notches > 0 ? 1 : -1, a.horizontal);
         }
         break;
@@ -146,7 +149,7 @@ bool Player::playAction(const Action& a, int index)
         if (down) for (const QString& m : a.mods) m_inj->key(m, true);
         bool ok = true;
         if (down) ok = m_inj->key(a.key, true);
-        if (down && up && !waitMs(kKeyHoldMs)) { m_inj->key(a.key, false); return false; }
+        if (down && up && !waitMs(a.holdMs > 0 ? qMax(8.0, a.holdMs / sp) : kKeyHoldMs)) { m_inj->key(a.key, false); return false; }
         if (up) ok = m_inj->key(a.key, false) && ok;
         if (up) for (auto it = a.mods.crbegin(); it != a.mods.crend(); ++it) m_inj->key(*it, false);
         if (!ok) emit message(QStringLiteral("Unknown key “%1” was skipped.").arg(a.key), true);

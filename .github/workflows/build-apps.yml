@@ -1,0 +1,198 @@
+# Builds MacroRecorder for Windows (a single MacroRecorder.exe) and Linux (MacroRecorder-x86_64.AppImage).
+#
+# - Pull requests and manual runs: build both, check that each starts, and keep them as downloadable artifacts of
+#   the run for 14 days (nothing is published).
+# - Every merge into main: the same, then publish a GitHub Release with both files attached, tagged with the next
+#   version (v1.1.1 -> v1.1.2). Put [minor] or [major] in the PR title for v1.2.0 or v2.0.0 instead.
+# - A version tag pushed by hand (git tag v1.5.0; git push origin v1.5.0) also publishes a release.
+
+name: Build apps
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: write          # needed to create the release
+
+jobs:
+  version:
+    name: Work out the version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # all tags, to find the latest version
+      - id: v
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"                     # a tag pushed by hand: use it as is
+          else
+            latest=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)
+            latest=${latest:-v0.0.0}
+            IFS=. read -r major minor patch <<< "${latest#v}"
+            # Only the merged PR's title (the commit's first line), never its description.
+            message=$(git log -1 --format=%s "$GITHUB_SHA")
+            if grep -qi '\[major\]' <<< "$message"; then
+              version="$((major + 1)).0.0"
+            elif grep -qi '\[minor\]' <<< "$message"; then
+              version="${major}.$((minor + 1)).0"
+            else
+              version="${major}.${minor}.$((patch + 1))"
+            fi
+            if [[ "$GITHUB_EVENT_NAME" != "push" ]]; then
+              version="${version}-test.${GITHUB_RUN_NUMBER}"   # pull requests and manual runs
+            fi
+            echo "Latest release tag: $latest"
+          fi
+          echo "Version: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  windows:
+    name: Windows .exe
+    needs: version
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-qt6-static
+            mingw-w64-ucrt-x86_64-libtiff mingw-w64-ucrt-x86_64-libwebp
+
+      - name: Build the .exe (one self-contained file)
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSTATIC_BUILD=ON \
+            -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static -DRELEASE_VERSION=${{ needs.version.outputs.version }}
+          cmake --build build
+          mkdir -p dist
+          cp build/MacroRecorder.exe dist/
+          ls -l dist
+          # Fail if the exe needs any DLL that isn't part of Windows.
+          if objdump -p dist/MacroRecorder.exe | grep "DLL Name" | grep -iE "lib(stdc|gcc|winpthread|png|z|freetype|harfbuzz|crypto)|Qt6"; then
+            echo "The exe depends on DLLs that aren't part of Windows"; exit 1
+          fi
+
+      - name: Check the .exe starts
+        shell: pwsh
+        run: |
+          $data = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\appdata"
+          # Draws the window off-screen to a picture and exits: proves Qt, its plugins and the UI all load.
+          $p = Start-Process dist/MacroRecorder.exe -ArgumentList "--screenshot", "$env:RUNNER_TEMP\shot.png" -PassThru -Wait
+          if ($p.ExitCode -ne 0 -or -not (Test-Path "$env:RUNNER_TEMP\shot.png")) { throw "The screenshot check failed (exit $($p.ExitCode))" }
+          # Starts normally and keeps running.
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $p = Start-Process dist/MacroRecorder.exe -ArgumentList "--data-folder", "$data" -PassThru
+          Start-Sleep -Seconds 15
+          if ($p.HasExited) { throw "MacroRecorder.exe exited early with code $($p.ExitCode)" }
+          Stop-Process -Id $p.Id -Force
+          "MacroRecorder.exe started and kept running"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MacroRecorder-windows
+          path: dist/MacroRecorder.exe
+          retention-days: 14
+
+  linux:
+    name: Linux AppImage
+    needs: version
+    # The oldest supported Ubuntu, so the AppImage also runs on older distributions.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8.3"
+          cache: true
+
+      - name: Install build tools and the libraries Qt needs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build libgl1-mesa-dev libegl1 libxkbcommon0 \
+            libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-render-util0 \
+            libxcb-image0 libfontconfig1 libdbus-1-3 libfuse2
+
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DRELEASE_VERSION=${{ needs.version.outputs.version }}
+          cmake --build build
+
+      - name: Package the AppImage
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"      # runners have no FUSE; AppImages unpack themselves instead
+          EXTRA_PLATFORM_PLUGINS: libqoffscreen.so
+          EXTRA_QT_MODULES: svg
+        run: |
+          curl -fsSL -o linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          curl -fsSL -o linuxdeploy-plugin-qt https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy linuxdeploy-plugin-qt
+          cp resources/icon.svg MacroRecorder.svg
+          ./linuxdeploy --appdir AppDir --executable build/MacroRecorder \
+            --desktop-file packaging/linux/MacroRecorder.desktop --icon-file MacroRecorder.svg \
+            --plugin qt --output appimage
+          mkdir -p dist
+          mv MacroRecorder*.AppImage dist/MacroRecorder-x86_64.AppImage
+          ls -l dist
+
+      - name: Check the AppImage starts
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          ./dist/MacroRecorder-x86_64.AppImage --screenshot "$RUNNER_TEMP/shot.png"
+          test -s "$RUNNER_TEMP/shot.png"
+          ./dist/MacroRecorder-x86_64.AppImage --data-folder "$RUNNER_TEMP/appdata" &
+          pid=$!
+          sleep 20
+          if ! kill -0 "$pid" 2>/dev/null; then wait "$pid"; echo "The AppImage exited early (code $?)"; exit 1; fi
+          kill "$pid"
+          echo "MacroRecorder-x86_64.AppImage started and kept running"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MacroRecorder-linux
+          path: dist/MacroRecorder-x86_64.AppImage
+          retention-days: 14
+
+  release:
+    name: Publish release
+    # Every merge into main, and any v* tag pushed by hand. Pull requests and manual runs don't publish.
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    needs: [version, windows, linux]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: publish-release      # one at a time, so two quick merges never pick the same version
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: v${{ needs.version.outputs.version }}
+        run: |
+          ls -l dist
+          # For a merge this also creates the tag on the merged commit (a tag made this way doesn't start
+          # another run).
+          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "MacroRecorder $VERSION" --generate-notes \
+            dist/MacroRecorder.exe dist/MacroRecorder-x86_64.AppImage

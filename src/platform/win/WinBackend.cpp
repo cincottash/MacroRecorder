@@ -129,6 +129,28 @@ public:
     }
     void typeText(const QString& ch) override
     {
+        // Prefer real key presses (with Shift / AltGr as the layout needs): every program understands them,
+        // including games that ignore "Unicode" input. Fall back to Unicode for characters the layout can't type.
+        if (ch.size() == 1) {
+            const HKL layout = GetKeyboardLayout(GetWindowThreadProcessId(GetForegroundWindow(), nullptr));
+            const SHORT v = VkKeyScanExW(ch.at(0).unicode(), layout);
+            const bool capsOn = GetKeyState(VK_CAPITAL) & 1;
+            if (v != -1 && !(capsOn && ch.at(0).isLetter())) {
+                const WORD vk = LOBYTE(v);
+                const BYTE state = HIBYTE(v);   // 1 Shift, 2 Ctrl, 4 Alt (Ctrl+Alt = AltGr)
+                if (state <= 7 && !(state & 8)) {
+                    if (state & 1) sendKey(VK_SHIFT, true);
+                    if (state & 2) sendKey(VK_CONTROL, true);
+                    if (state & 4) sendKey(VK_MENU, true);
+                    sendKey(vk, true);
+                    sendKey(vk, false);
+                    if (state & 4) sendKey(VK_MENU, false);
+                    if (state & 2) sendKey(VK_CONTROL, false);
+                    if (state & 1) sendKey(VK_SHIFT, false);
+                    return;
+                }
+            }
+        }
         for (QChar c : ch) {
             INPUT in[2]{};
             for (int i = 0; i < 2; ++i) {

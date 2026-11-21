@@ -64,7 +64,7 @@ private:
     Action m_last;
     bool m_hasLast = false;
     qint64 m_lastClickT = 0;
-    qint64 m_lastWheelT = 0;
+    qint64 m_lastWheelT = 0, m_wheelStartT = 0;
     int m_wheelRemainder = 0;
 
     // keyboard

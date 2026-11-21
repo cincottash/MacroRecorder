@@ -53,10 +53,7 @@ int main(int argc, char* argv[])
         QTemporaryDir tmp;
         appdata::resolve(tmp.path(), nullptr);
         Settings settings;
-        settings.hkRecord.clear();
-        settings.hkPlay.clear();
-        settings.hkStop.clear();
-        MainWindow w(settings);
+        MainWindow w(settings, false);   // shows the default hotkeys without registering them
         w.setAttribute(Qt::WA_DontShowOnScreen);
         if (!cli.positionalArguments().isEmpty()) w.openFile(QDir::current().absoluteFilePath(cli.positionalArguments().first()));
         w.resize(1320, 860);

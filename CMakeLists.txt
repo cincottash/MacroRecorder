@@ -4,6 +4,13 @@ cmake_minimum_required(VERSION 3.21)
 set(APP_NAME "MacroRecorder")
 set(APP_ORG "cincottash")
 project(${APP_NAME} VERSION 0.1.0 LANGUAGES CXX)
+# Release builds pass the real version (e.g. -DRELEASE_VERSION=1.2.3); local builds show 0.1.0-dev.
+set(RELEASE_VERSION "" CACHE STRING "Version shown in the app (set by the release workflow)")
+if(RELEASE_VERSION)
+    set(APP_VERSION "${RELEASE_VERSION}")
+else()
+    set(APP_VERSION "${PROJECT_VERSION}-dev")
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -58,7 +65,7 @@ qt_add_executable(app WIN32 ${SOURCES})
 set_target_properties(app PROPERTIES OUTPUT_NAME ${APP_NAME})
 target_include_directories(app PRIVATE src)
 target_compile_definitions(app PRIVATE
-    APP_NAME="${APP_NAME}" APP_ORG="${APP_ORG}" APP_VERSION="${PROJECT_VERSION}")
+    APP_NAME="${APP_NAME}" APP_ORG="${APP_ORG}" APP_VERSION="${APP_VERSION}")
 target_link_libraries(app PRIVATE Qt6::Widgets Qt6::Svg)
 
 if(STATIC_BUILD)

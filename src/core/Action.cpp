@@ -155,6 +155,9 @@ int Action::durationMs() const
     switch (type) {
     case ActionType::MouseMove: return ms;
     case ActionType::Wait: return ms;
+    case ActionType::MouseClick: return holdMs * clicks + (clicks > 1 ? gapMs * (clicks - 1) : 0);
+    case ActionType::KeyPress: return holdMs;
+    case ActionType::Wheel: return gapMs * qMax(0, qAbs(notches) - 1);
     case ActionType::Text: return strokes.isEmpty() ? 0 : strokes.last().t;
     default: return 0;
     }
@@ -168,6 +171,8 @@ QJsonObject Action::toJson() const
     if (!label.isEmpty()) o[QStringLiteral("label")] = label;
     if (!comment.isEmpty()) o[QStringLiteral("comment")] = comment;
     if (delayMs > 0) o[QStringLiteral("delay_ms")] = delayMs;
+    if (holdMs > 0) o[QStringLiteral("hold_ms")] = holdMs;
+    if (gapMs > 0) o[QStringLiteral("gap_ms")] = gapMs;
 
     auto point = [](QPoint p) { return QJsonArray{p.x(), p.y()}; };
     switch (type) {
@@ -249,6 +254,8 @@ Action Action::fromJson(const QJsonObject& o, bool* ok)
     a.label = o.value(QStringLiteral("label")).toString();
     a.comment = o.value(QStringLiteral("comment")).toString();
     a.delayMs = qMax(0, o.value(QStringLiteral("delay_ms")).toInt());
+    a.holdMs = qBound(0, o.value(QStringLiteral("hold_ms")).toInt(), 60000);
+    a.gapMs = qBound(0, o.value(QStringLiteral("gap_ms")).toInt(), 60000);
     a.relativeToWindow = o.value(QStringLiteral("relative_to_window")).toBool();
     a.pos = point(a.type == ActionType::MouseMove ? "to" : "at");
     a.from = point("from");

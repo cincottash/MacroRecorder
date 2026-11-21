@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=MacroRecorder
+Comment=Record and play back mouse and keyboard actions
+Exec=MacroRecorder %f
+Icon=MacroRecorder
+Categories=Utility;
+Terminal=false

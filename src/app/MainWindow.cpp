@@ -99,8 +99,8 @@ QString filterKey(ActionType t)
 
 }  // namespace
 
-MainWindow::MainWindow(Settings& s, QWidget* parent)
-    : QMainWindow(parent), m_s(s), m_backend(platform::Backend::create(this))
+MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
+    : QMainWindow(parent), m_s(s), m_backend(platform::Backend::create(this)), m_hotkeysEnabled(hotkeys)
 {
     m_player = new core::Player(m_backend->injector(), this);
     setWindowIcon(QIcon(QStringLiteral(":/icon.svg")));
@@ -968,7 +968,7 @@ bool MainWindow::save(bool saveAs)
     m_s.lastFolder = QFileInfo(path).absolutePath();
     addRecent(path);
     setDirty(false);
-    log(QStringLiteral("Saved %1 (%2 actions).").arg(QDir::toNativeSeparators(path)).arg(m.actions.size()));
+    log(QStringLiteral("Saved %1 (%2 actions).").arg(QFileInfo(path).fileName()).arg(m.actions.size()));
     return true;
 }
 
@@ -1014,7 +1014,7 @@ bool MainWindow::openFile(const QString& path)
     addRecent(path);
     setDirty(false);
     applyFilter();
-    log(QStringLiteral("Opened %1 (%2 actions).").arg(QDir::toNativeSeparators(path)).arg(m.actions.size()));
+    log(QStringLiteral("Opened %1 (%2 actions).").arg(QFileInfo(path).fileName()).arg(m.actions.size()));
     updateUi();
     return true;
 }
@@ -1302,6 +1302,7 @@ core::PlayOptions MainWindow::playOptions() const
 
 void MainWindow::registerHotkeys()
 {
+    if (!m_hotkeysEnabled) return;   // screenshot / test mode: show the hotkeys, never register them
     QStringList problems;
     QString err;
     if (!m_backend->setHotkey(HkRecord, QKeySequence(m_s.hkRecord), &err) && !m_s.hkRecord.isEmpty()) problems << QStringLiteral("Record / stop: ") + err;

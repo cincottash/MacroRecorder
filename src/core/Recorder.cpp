@@ -183,6 +183,7 @@ void Recorder::feed(const RawEvent& e)
         } else if (m_hasLast && m_last.type == ActionType::MouseClick && m_last.clicks == 1 && m_last.button == e.button
                    && h.t - m_lastClickT <= m_o.doubleClickMs && dist(m_last.pos, h.pos) <= kClickSlopPx) {
             m_last.clicks = 2;
+            m_last.gapMs = int(h.t - m_lastClickT);   // first release -> second press
             m_lastEnd = e.t;
             emit lastActionChanged(m_last);
         } else {
@@ -190,6 +191,7 @@ void Recorder::feed(const RawEvent& e)
             c.type = ActionType::MouseClick;
             c.button = e.button;
             c.pos = h.pos;
+            c.holdMs = int(e.t - h.t);
             emitAction(c, h.t, e.t);
             m_lastClickT = e.t;
         }
@@ -205,6 +207,7 @@ void Recorder::feed(const RawEvent& e)
         if (m_hasLast && m_last.type == ActionType::Wheel && m_last.horizontal == e.horizontal
             && (m_last.notches > 0) == (notches > 0) && e.t - m_lastWheelT <= kWheelMergeMs && m_last.pos == e.pos) {
             m_last.notches += notches;
+            m_last.gapMs = int((e.t - m_wheelStartT) / qMax(1, qAbs(m_last.notches) - 1));
             m_lastEnd = e.t;
             emit lastActionChanged(m_last);
         } else {
@@ -214,6 +217,7 @@ void Recorder::feed(const RawEvent& e)
             w.notches = notches;
             w.horizontal = e.horizontal;
             emitAction(w, e.t, e.t);
+            m_wheelStartT = e.t;
         }
         m_lastWheelT = e.t;
         break;
@@ -281,6 +285,11 @@ void Recorder::feed(const RawEvent& e)
             break;
         }
         const KeyHeld k = m_keys.take(e.key);
+        if (k.emitted && e.t - k.t < kHoldMs && m_hasLast && m_last.type == ActionType::KeyPress && m_last.key == e.key) {
+            m_last.holdMs = int(e.t - k.t);
+            m_lastEnd = e.t;
+            emit lastActionChanged(m_last);
+        }
         if (k.emitted && e.t - k.t >= kHoldMs && m_hasLast && m_last.type == ActionType::KeyPress && m_last.key == e.key) {
             m_last.type = ActionType::KeyDown;  // held: record as down ... up
             emit lastActionChanged(m_last);

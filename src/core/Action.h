@@ -49,6 +49,8 @@ struct Action {
     QString label;     // jump target name (Repeat / Goto)
     QString comment;
     int delayMs = 0;   // pause before this action that was shorter than the "shortest pause kept" (exact timing)
+    int holdMs = 0;    // how long a click's button or a key was held (0 = a short default)
+    int gapMs = 0;     // between the clicks of a double-click, or between scroll notches (0 = a short default)
 
     // Mouse
     QPoint pos;                 // target (click / move end / down / up / wheel / pixel)

@@ -31,7 +31,7 @@ class QVBoxLayout;
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
-    explicit MainWindow(Settings& s, QWidget* parent = nullptr);
+    explicit MainWindow(Settings& s, bool hotkeys = true, QWidget* parent = nullptr);
     ~MainWindow() override;
 
     bool openFile(const QString& path);
@@ -126,6 +126,7 @@ private:
     int m_countdownLeft = 0;
     QTimer m_countdown;
     bool m_quitWhenDone = false;
+    bool m_hotkeysEnabled = true;
 
     // widgets
     QLabel *m_fileLabel = nullptr, *m_pill = nullptr;
