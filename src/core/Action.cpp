@@ -43,7 +43,7 @@ QString num(qint64 v) { return QLocale().toString(v); }   // the system's format
 QString msText(int ms)
 {
     if (ms < 10000) return num(ms) + QStringLiteral(" ms");
-    return QString::number(ms / 1000.0, 'f', 1) + QStringLiteral(" s");
+    return QLocale().toString(ms / 1000.0, 'f', 1) + QStringLiteral(" s");   // the system's decimal mark, as everywhere
 }
 
 QString combo(const QStringList& mods, const QString& key)

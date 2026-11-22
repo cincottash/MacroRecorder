@@ -136,7 +136,7 @@ QLabel* muted(const QString& text)
 
 QString seconds(int ms)
 {
-    if (ms < 60000) return QString::number(ms / 1000.0, 'f', 1) + QStringLiteral(" s");
+    if (ms < 60000) return QLocale().toString(ms / 1000.0, 'f', 1) + QStringLiteral(" s");   // the system's decimal mark
     const int s = ms / 1000;
     return QStringLiteral("%1 min %2 s").arg(s / 60).arg(s % 60);
 }
@@ -1223,7 +1223,7 @@ void MainWindow::updateHeader()
     const int n = m_model.rowCount();
     m_fileLabel->setText(QStringLiteral("%1%2  ·  %3 action%4  ·  %5")
                              .arg(name, m_dirty ? QStringLiteral("*") : QString())
-                             .arg(QLocale(QLocale::English).toString(n), n == 1 ? QString() : QStringLiteral("s"), seconds(m.totalMs())));
+                             .arg(QLocale().toString(n), n == 1 ? QString() : QStringLiteral("s"), seconds(m.totalMs())));
     setWindowTitle(QStringLiteral("%1%2 – " APP_NAME).arg(name, m_dirty ? QStringLiteral("*") : QString()));
 }
 
