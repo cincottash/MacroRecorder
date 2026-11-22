@@ -444,59 +444,81 @@ void MainWindow::buildMenus()
     QMenu* opacity = m_viewMenu->addMenu(QStringLiteral("Window &Opacity"));
     opacity->setToolTipsVisible(true);
     {
-        // Two sliders inside the menu: the window's opacity, and how see-through it gets with the options below.
-        // The window changes while a slider moves, so the level can be judged against what's behind it.
-        auto* box = new QWidget;
-        auto* grid = new QGridLayout(box);
-        grid->setContentsMargins(26, 6, 14, 6);
-        grid->setHorizontalSpacing(10);
-        auto slider = [&](int row, const QString& text, const QString& tip, int Settings::*field, const char* id) {
+        // Normal level at the top; the two Fade options, with the Faded level right under them (greyed out until
+        // one of them is ticked). The window changes as a slider moves, so the level can be judged against what's
+        // behind it; moving the Faded slider shows the faded level for a moment.
+        const QStringList names = {QStringLiteral("Normal"), QStringLiteral("Faded")};
+        int labelWidth = 0;
+        for (const QString& n : names) labelWidth = qMax(labelWidth, QFontMetrics(font()).horizontalAdvance(n));
+        auto sliderRow = [&](const QString& text, int Settings::*field, const char* id, QSlider** out) {
+            auto* row = new QWidget;
+            auto* h = new QHBoxLayout(row);
+            h->setContentsMargins(26, 5, 14, 5);
+            h->setSpacing(10);
             auto* label = new QLabel(text);
+            label->setMinimumWidth(labelWidth + 4);
             auto* s = new QSlider(Qt::Horizontal);
             s->setRange(30, 100);
             s->setSingleStep(5);
             s->setPageStep(10);
-            s->setMinimumWidth(160);
+            s->setMinimumWidth(170);
             s->setValue(m_s.*field);
-            s->setToolTip(tip);
             s->setProperty("testId", QString::fromLatin1(id));
             auto* value = new QLabel(QStringLiteral("%1 %").arg(m_s.*field));
-            value->setMinimumWidth(QFontMetrics(value->font()).horizontalAdvance(QStringLiteral("100 %")) + 4);
+            value->setMinimumWidth(QFontMetrics(font()).horizontalAdvance(QStringLiteral("100 %")) + 4);
             value->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-            label->setToolTip(tip);
-            grid->addWidget(label, row, 0);
-            grid->addWidget(s, row, 1);
-            grid->addWidget(value, row, 2);
+            h->addWidget(label);
+            h->addWidget(s, 1);
+            h->addWidget(value);
             connect(s, &QSlider::valueChanged, this, [this, field, value](int v) {
                 m_s.*field = v;
                 value->setText(QStringLiteral("%1 %").arg(v));
                 applyOpacity();
                 saveSettingsSoon();
             });
-            return s;
+            auto* wa = new QWidgetAction(opacity);
+            wa->setDefaultWidget(row);
+            opacity->addAction(wa);
+            *out = s;
+            return row;
         };
-        m_opacitySlider = slider(0, QStringLiteral("Window"), QStringLiteral("How solid the window is: 100 % is fully solid."),
-                                 &Settings::windowOpacity, "opacitySlider");
-        m_seeThroughSlider = slider(1, QStringLiteral("See-Through"),
-                                    QStringLiteral("How solid the window is while one of the See-Through options below applies."),
-                                    &Settings::seeThroughOpacity, "seeThroughSlider");
-        auto* wa = new QWidgetAction(opacity);
-        wa->setDefaultWidget(box);
-        opacity->addAction(wa);
+        sliderRow(names[0], &Settings::windowOpacity, "opacitySlider", &m_opacitySlider);
+        opacity->addSeparator();
+        m_seeBusyAct = opacity->addAction(QStringLiteral("Fade While Recording or Playing"));
+        m_seeInactiveAct = opacity->addAction(QStringLiteral("Fade While Another Program Is in Front"));
+        m_fadedRow = sliderRow(names[1], &Settings::seeThroughOpacity, "seeThroughSlider", &m_seeThroughSlider);
+        // Moving the Faded slider by hand shows that level for a moment, even when no fade applies right now.
+        m_fadePreview.setSingleShot(true);
+        m_fadePreview.setInterval(1200);
+        connect(&m_fadePreview, &QTimer::timeout, this, [this] {
+            if (m_seeThroughSlider->isSliderDown()) return;   // still held: keep showing it until released
+            m_previewFade = false;
+            applyOpacity();
+        });
+        auto showFaded = [this] {
+            m_previewFade = true;
+            m_fadePreview.start();
+            applyOpacity();
+        };
+        connect(m_seeThroughSlider, &QSlider::sliderPressed, this, showFaded);
+        connect(m_seeThroughSlider, &QSlider::sliderReleased, this, [this] { m_fadePreview.start(); });
+        connect(m_seeThroughSlider, &QSlider::valueChanged, this, [this, showFaded] {
+            if (m_seeThroughSlider->isSliderDown() || m_seeThroughSlider->hasFocus() || m_seeThroughSlider->underMouse()) showFaded();
+        });
     }
-    opacity->addSeparator();
-    m_seeBusyAct = opacity->addAction(QStringLiteral("See-Through While Recording or Playing"));
-    m_seeBusyAct->setToolTip(QStringLiteral("The window drops to the See-Through level while recording, playing or counting down, "
-                                            "so the program underneath stays visible."));
-    m_seeInactiveAct = opacity->addAction(QStringLiteral("See-Through When Inactive"));
-    m_seeInactiveAct->setToolTip(QStringLiteral("The window drops to the See-Through level while another program is in front."));
     const std::pair<QAction*, bool Settings::*> flags[] = {{m_seeBusyAct, &Settings::seeThroughBusy},
                                                           {m_seeInactiveAct, &Settings::seeThroughInactive}};
     for (const auto& [act, flag] : flags) {
         act->setCheckable(true);
         act->setChecked(m_s.*flag);
-        connect(act, &QAction::toggled, this, [this, flag](bool on) { m_s.*flag = on; applyOpacity(); saveSettingsSoon(); });
+        connect(act, &QAction::toggled, this, [this, flag](bool on) {
+            m_s.*flag = on;
+            m_fadedRow->setEnabled(m_s.seeThroughBusy || m_s.seeThroughInactive);
+            applyOpacity();
+            saveSettingsSoon();
+        });
     }
+    m_fadedRow->setEnabled(m_s.seeThroughBusy || m_s.seeThroughInactive);
     m_markerAct = m_viewMenu->addAction(QStringLiteral("&Mark Selected Step on Screen"));
     m_markerAct->setCheckable(true);
     m_markerAct->setChecked(m_s.showPosition);
@@ -516,6 +538,7 @@ void MainWindow::buildMenus()
         m_opacitySlider->setValue(m_s.windowOpacity);   // also updates the value shown beside it
         m_seeThroughSlider->setValue(m_s.seeThroughOpacity);
         for (QAction* a : {m_seeBusyAct, m_seeInactiveAct}) { const QSignalBlocker b(a); a->setChecked(false); }
+        m_fadedRow->setEnabled(false);
         applyOpacity();
         updateMarker();
         setWindowFlag(Qt::WindowStaysOnTopHint, false);
@@ -1360,7 +1383,8 @@ void MainWindow::applyOpacity()
 {
     int pct = m_s.windowOpacity;
     const bool busy = m_state != State::Idle;
-    if ((busy && m_s.seeThroughBusy) || (!m_appActive && m_s.seeThroughInactive)) pct = qMin(pct, m_s.seeThroughOpacity);
+    if (m_previewFade || (busy && m_s.seeThroughBusy) || (!m_appActive && m_s.seeThroughInactive))
+        pct = qMin(pct, m_s.seeThroughOpacity);
     if (qAbs(windowOpacity() - pct / 100.0) > 0.01) setWindowOpacity(pct / 100.0);
 }
 

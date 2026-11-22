@@ -13,9 +13,9 @@ struct Settings {
     bool detailedLog = false;
     bool alwaysOnTop = false;
     int windowOpacity = 100;          // percent
-    bool seeThroughBusy = false;      // more see-through while recording or playing
-    bool seeThroughInactive = false;  // more see-through while another program is in front
-    int seeThroughOpacity = 50;       // percent, while one of the two above applies
+    bool seeThroughBusy = false;      // View > Window Opacity > Fade While Recording or Playing
+    bool seeThroughInactive = false;  // ... > Fade While Another Program Is in Front
+    int seeThroughOpacity = 50;       // the Faded level (percent), while one of the two above applies
     QByteArray geometry;
     QByteArray tableState;
 
