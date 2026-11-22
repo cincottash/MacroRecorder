@@ -13,7 +13,6 @@ struct Settings {
     bool detailedLog = false;
     bool alwaysOnTop = false;
     int windowOpacity = 100;            // percent (View > Window Opacity)
-    bool opacityOnlyWhileBusy = false;  // apply it only while recording or playing; solid otherwise
     QByteArray geometry;
     QByteArray tableState;
 

@@ -49,6 +49,7 @@ public:
     bool importThemeFile(const QString& path, QString* error = nullptr);
 
 protected:
+    bool eventFilter(QObject* watched, QEvent* e) override;
     void closeEvent(QCloseEvent* e) override;
     void changeEvent(QEvent* e) override;
 
@@ -86,7 +87,8 @@ private:
     void importTheme();               // asks for the file
     void exportTheme();
     void removeCustomTheme(const QString& key);
-    void applyOpacity();              // the window's opacity, from the View options and the state
+    void applyOpacity();              // View > Window Opacity, on the window and whatever it has open
+    bool followsOpacity(const QWidget* w) const;   // a menu, drop-down list or dialog of this app
 
     // file
     bool maybeSave();
@@ -162,6 +164,7 @@ private:
     QMessageBox* m_msgBox = nullptr;       // a Message box step waiting for OK
     ActionDialog* m_openDialog = nullptr;  // a step editor that's open (for the Capture position hotkey)
     QWidget* m_marker = nullptr;
+    QHash<int, bool> m_effectsDefault;   // the system's menu/drop-down animations (Qt::UIEffect), as found at start
     class QSystemTrayIcon* m_tray = nullptr;    // created for the first notification
 
     // widgets
@@ -203,9 +206,6 @@ private:
     QActionGroup* m_themeGroup = nullptr;
     QMenu *m_customThemeMenu = nullptr, *m_removeThemeMenu = nullptr;
     QSlider* m_opacitySlider = nullptr;   // View > Window Opacity
-    QAction* m_opacityBusyAct = nullptr;  // ... > Only While Recording or Playing
-    QTimer m_opacityPreview;              // after the slider moves: show that level for a moment
-    bool m_previewOpacity = false;
     QString m_themePreviewing;
     QTimer m_themePreviewTimer;
     QTimer m_saveTimer;

@@ -19,7 +19,6 @@ void fields(Settings& s, F&& f)
     f("detailed_log", s.detailedLog);
     f("always_on_top", s.alwaysOnTop);
     f("window_opacity", s.windowOpacity);
-    f("opacity_only_while_busy", s.opacityOnlyWhileBusy);
     f("custom_themes", s.customThemes);
     f("geometry", s.geometry);
     f("table_state", s.tableState);
@@ -127,7 +126,6 @@ void Settings::resetView()
     detailedLog = d.detailedLog;
     alwaysOnTop = d.alwaysOnTop;
     windowOpacity = d.windowOpacity;
-    opacityOnlyWhileBusy = d.opacityOnlyWhileBusy;
     showPosition = d.showPosition;
     showPreview = d.showPreview;
     tableState.clear();
@@ -142,12 +140,10 @@ void Settings::resetOptions()
     const QStringList keepFolded = foldedCards;
     const bool keepLog = showLog, keepDetail = detailedLog, keepTop = alwaysOnTop;
     const int keepOpacity = windowOpacity;
-    const bool keepOnlyBusy = opacityOnlyWhileBusy;
     const QStringList keepThemes = customThemes;
     const QByteArray keepGeo = geometry, keepTable = tableState;
     *this = d;
     windowOpacity = keepOpacity;
-    opacityOnlyWhileBusy = keepOnlyBusy;
     customThemes = keepThemes;
     recent = keepRecent;
     lastFolder = keepFolder;

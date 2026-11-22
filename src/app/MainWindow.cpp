@@ -160,6 +160,9 @@ QString filterKey(ActionType t)
 MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
     : QMainWindow(parent), m_s(s), m_backend(platform::Backend::create(this)), m_hotkeysEnabled(hotkeys)
 {
+    // The system's menu and drop-down animations, before Window Opacity changes them (see applyOpacity)
+    for (Qt::UIEffect e : {Qt::UI_AnimateMenu, Qt::UI_FadeMenu, Qt::UI_AnimateCombo})
+        m_effectsDefault.insert(int(e), QApplication::isEffectEnabled(e));
     m_player = new core::Player(m_backend->injector(), this);
     setWindowIcon(QIcon(QStringLiteral(":/icon.svg")));
     themes::setCustom(themefile::fromStored(m_s.customThemes));   // imported themes, before the Theme menu is built
@@ -234,6 +237,7 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
     connect(&m_model, &ActionModel::edited, this, [this] { setDirty(true); });
     m_backend->injector()->setScanCodesOnly(m_s.scanCodes);
     m_marker = new PositionMarker(this);
+    qApp->installEventFilter(this);   // menus, drop-down lists and dialogs get the window's opacity as they open
     connect(qApp, &QGuiApplication::applicationStateChanged, this, [this] { updateMarker(); });
 
     // Size: remembered, or a comfortable size that fits the screen.
@@ -258,6 +262,8 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
 MainWindow::~MainWindow()
 {
     m_player->stop();
+    for (auto it = m_effectsDefault.cbegin(); it != m_effectsDefault.cend(); ++it)   // the system's animations back
+        QApplication::setEffectEnabled(Qt::UIEffect(it.key()), it.value());
 }
 
 // ------------------------------------------------------------------------------------------------ building
@@ -447,8 +453,8 @@ void MainWindow::buildMenus()
     });
     QMenu* opacity = m_viewMenu->addMenu(QStringLiteral("Window &Opacity"));
     {
-        // One slider and one option. The window changes as the slider moves, so the level can be judged against
-        // what's behind it (also with the option on, for a moment, while the window would otherwise stay solid).
+        // One slider; the level always applies. The window changes as the slider moves, so the level can be judged
+        // against what's behind it.
         auto* row = new QWidget;
         auto* h = new QHBoxLayout(row);
         h->setContentsMargins(26, 5, 14, 5);
@@ -469,30 +475,9 @@ void MainWindow::buildMenus()
         auto* wa = new QWidgetAction(opacity);
         wa->setDefaultWidget(row);
         opacity->addAction(wa);
-        m_opacityBusyAct = opacity->addAction(QStringLiteral("Only While Recording or Playing"));
-        m_opacityBusyAct->setCheckable(true);
-        m_opacityBusyAct->setChecked(m_s.opacityOnlyWhileBusy);
-        connect(m_opacityBusyAct, &QAction::toggled, this, [this](bool on) {
-            m_s.opacityOnlyWhileBusy = on;
-            applyOpacity();
-            saveSettingsSoon();
-        });
-        m_opacityPreview.setSingleShot(true);
-        m_opacityPreview.setInterval(1200);
-        connect(&m_opacityPreview, &QTimer::timeout, this, [this] {
-            if (m_opacitySlider->isSliderDown()) return;   // still held: keep showing it until released
-            m_previewOpacity = false;
-            applyOpacity();
-        });
-        connect(m_opacitySlider, &QSlider::sliderReleased, this, [this] { m_opacityPreview.start(); });
         connect(m_opacitySlider, &QSlider::valueChanged, this, [this, value](int v) {
             m_s.windowOpacity = v;
             value->setText(QStringLiteral("%1 %").arg(v));
-            // Moved by hand: show the level for a moment even if it only applies while recording or playing
-            if (m_opacitySlider->isSliderDown() || m_opacitySlider->hasFocus() || m_opacitySlider->underMouse()) {
-                m_previewOpacity = true;
-                m_opacityPreview.start();
-            }
             applyOpacity();
             saveSettingsSoon();
         });
@@ -514,7 +499,6 @@ void MainWindow::buildMenus()
         m_logAct->setChecked(true);
         for (QAction* a : {m_markerAct, m_previewAct}) { const QSignalBlocker b(a); a->setChecked(true); }
         m_opacitySlider->setValue(m_s.windowOpacity);   // also updates the value shown beside it
-        { const QSignalBlocker b(m_opacityBusyAct); m_opacityBusyAct->setChecked(m_s.opacityOnlyWhileBusy); }
         applyOpacity();
         updateMarker();
         setWindowFlag(Qt::WindowStaysOnTopHint, false);
@@ -1364,13 +1348,43 @@ void MainWindow::removeCustomTheme(const QString& key)
     log(QStringLiteral("Removed the custom theme \u201C%1\u201D.").arg(name));
 }
 
+// Menus, submenus, drop-down lists and dialogs are windows of their own: they get the main window's opacity too.
+// (Not the on-screen position marker, which is drawn see-through on purpose, and not tooltips.)
+bool MainWindow::followsOpacity(const QWidget* w) const
+{
+    if (!w || w == this || w == m_marker || !w->isWindow()) return false;
+    const Qt::WindowType type = w->windowType();
+    return type == Qt::Popup || type == Qt::Dialog || type == Qt::Sheet;
+}
+
 void MainWindow::applyOpacity()
 {
-    // With "Only While Recording or Playing" on, the window is solid unless something is running (or the slider is
-    // being moved, to show the level).
-    const bool busy = m_state != State::Idle;
-    const int pct = (m_s.opacityOnlyWhileBusy && !busy && !m_previewOpacity) ? 100 : m_s.windowOpacity;
-    if (qAbs(windowOpacity() - pct / 100.0) > 0.01) setWindowOpacity(pct / 100.0);
+    const double level = m_s.windowOpacity / 100.0;   // View > Window Opacity; the same in every state
+    if (qAbs(windowOpacity() - level) > 0.01) setWindowOpacity(level);
+    // A menu opened by a click plays the opening animation, which draws it solid. So below 100 % the menu and
+    // drop-down animations are off; at 100 % the system's own settings are back.
+    const bool solid = level >= 0.995;
+    for (auto it = m_effectsDefault.cbegin(); it != m_effectsDefault.cend(); ++it) {
+        const bool want = solid && it.value();
+        if (QApplication::isEffectEnabled(Qt::UIEffect(it.key())) != want)
+            QApplication::setEffectEnabled(Qt::UIEffect(it.key()), want);
+    }
+    // Every menu, drop-down list and dialog, open or not: one that has its level before it opens shows it from the
+    // start (and open ones change at once, as the slider sits in a menu).
+    QList<QWidget*> targets = QApplication::topLevelWidgets();
+    for (QMenu* m : findChildren<QMenu*>()) targets << m;
+    for (QWidget* w : targets)
+        if (followsOpacity(w) && qAbs(w->windowOpacity() - level) > 0.01) w->setWindowOpacity(level);
+}
+
+bool MainWindow::eventFilter(QObject* watched, QEvent* e)
+{
+    // Polish: a popup made later (a new context menu or drop-down list) gets the level before it's first shown
+    if ((e->type() == QEvent::Show || e->type() == QEvent::Polish) && watched->isWidgetType()) {
+        auto* w = static_cast<QWidget*>(watched);
+        if (followsOpacity(w)) w->setWindowOpacity(m_s.windowOpacity / 100.0);
+    }
+    return QMainWindow::eventFilter(watched, e);
 }
 
 void MainWindow::previewTheme(const QString& key)
