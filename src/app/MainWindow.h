@@ -49,6 +49,7 @@ public:
     bool importThemeFile(const QString& path, QString* error = nullptr);
 
 protected:
+    bool eventFilter(QObject* watched, QEvent* e) override;
     void closeEvent(QCloseEvent* e) override;
     void changeEvent(QEvent* e) override;
 
@@ -86,7 +87,8 @@ private:
     void importTheme();               // asks for the file
     void exportTheme();
     void removeCustomTheme(const QString& key);
-    void applyOpacity();              // the window's opacity, from the View options and the state
+    void applyOpacity();              // View > Window Opacity, on the window and whatever it has open
+    bool followsOpacity(const QWidget* w) const;   // a menu, drop-down list or dialog of this app
 
     // file
     bool maybeSave();

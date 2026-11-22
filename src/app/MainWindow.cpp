@@ -234,6 +234,7 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
     connect(&m_model, &ActionModel::edited, this, [this] { setDirty(true); });
     m_backend->injector()->setScanCodesOnly(m_s.scanCodes);
     m_marker = new PositionMarker(this);
+    qApp->installEventFilter(this);   // menus, drop-down lists and dialogs get the window's opacity as they open
     connect(qApp, &QGuiApplication::applicationStateChanged, this, [this] { updateMarker(); });
 
     // Size: remembered, or a comfortable size that fits the screen.
@@ -1342,10 +1343,30 @@ void MainWindow::removeCustomTheme(const QString& key)
     log(QStringLiteral("Removed the custom theme \u201C%1\u201D.").arg(name));
 }
 
+// Menus, submenus, drop-down lists and dialogs are windows of their own: they get the main window's opacity too.
+// (Not the on-screen position marker, which is drawn see-through on purpose, and not tooltips.)
+bool MainWindow::followsOpacity(const QWidget* w) const
+{
+    if (!w || w == this || w == m_marker || !w->isWindow()) return false;
+    const Qt::WindowType type = w->windowType();
+    return type == Qt::Popup || type == Qt::Dialog || type == Qt::Sheet;
+}
+
 void MainWindow::applyOpacity()
 {
-    const int pct = m_s.windowOpacity;   // View > Window Opacity; the same in every state
-    if (qAbs(windowOpacity() - pct / 100.0) > 0.01) setWindowOpacity(pct / 100.0);
+    const double level = m_s.windowOpacity / 100.0;   // View > Window Opacity; the same in every state
+    if (qAbs(windowOpacity() - level) > 0.01) setWindowOpacity(level);
+    for (QWidget* w : QApplication::topLevelWidgets())   // open ones change at once (the slider sits in a menu)
+        if (w->isVisible() && followsOpacity(w) && qAbs(w->windowOpacity() - level) > 0.01) w->setWindowOpacity(level);
+}
+
+bool MainWindow::eventFilter(QObject* watched, QEvent* e)
+{
+    if (e->type() == QEvent::Show && watched->isWidgetType()) {
+        auto* w = static_cast<QWidget*>(watched);
+        if (followsOpacity(w)) w->setWindowOpacity(m_s.windowOpacity / 100.0);
+    }
+    return QMainWindow::eventFilter(watched, e);
 }
 
 void MainWindow::previewTheme(const QString& key)
