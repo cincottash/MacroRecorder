@@ -1,4 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- A camera's recording screen: viewfinder corners, the red REC light, and the mouse pointer being recorded.
+       Few, large parts so it still reads at taskbar size. REC is drawn as shapes so it doesn't depend on a font. -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#2B3445"/>
@@ -11,8 +13,13 @@
   </defs>
   <!-- rounded square filling almost the whole canvas, so small taskbar icons still look big -->
   <rect x="6" y="6" width="244" height="244" rx="52" fill="url(#bg)"/>
-  <!-- record dot -->
-  <circle cx="98" cy="128" r="64" fill="url(#dot)"/>
-  <!-- play triangle -->
-  <path d="M150 70 L224 128 L150 186 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="10" stroke-linejoin="round"/>
+  <!-- viewfinder corners, curved with the rounded square -->
+  <path d="M24 84 L24 60 A36 36 0 0 1 60 24 L84 24 M172 24 L196 24 A36 36 0 0 1 232 60 L232 84 M232 172 L232 196 A36 36 0 0 1 196 232 L172 232 M84 232 L60 232 A36 36 0 0 1 24 196 L24 172"
+        fill="none" stroke="#E5484D" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- REC light -->
+  <circle cx="66" cy="81" r="20" fill="url(#dot)"/>
+  <path fill="#FFFFFF" d="M96.3 102.0L96.3 60.5L113.9 60.5C118.3 60.5 121.6 60.9 123.6 61.6C125.6 62.3 127.2 63.7 128.4 65.6C129.6 67.5 130.2 69.7 130.2 72.1C130.2 75.2 129.3 77.8 127.5 79.8C125.6 81.9 122.9 83.2 119.3 83.7C121.1 84.7 122.6 85.9 123.7 87.2C124.9 88.4 126.5 90.7 128.5 93.9L133.6 102.0L123.5 102.0L117.5 93.0C115.3 89.7 113.9 87.7 113.1 86.9C112.3 86.0 111.4 85.5 110.5 85.1C109.7 84.8 108.3 84.7 106.3 84.7L104.6 84.7L104.6 102.0L96.3 102.0M104.6 78.0L110.8 78.0C114.8 78.0 117.4 77.9 118.4 77.5C119.4 77.2 120.2 76.6 120.7 75.8C121.3 74.9 121.6 73.9 121.6 72.7C121.6 71.3 121.2 70.1 120.4 69.3C119.7 68.4 118.7 67.9 117.3 67.6C116.6 67.5 114.6 67.5 111.2 67.5L104.6 67.5L104.6 78.0M138.2 102.0L138.2 60.5L169.0 60.5L169.0 67.5L146.6 67.5L146.6 76.7L167.5 76.7L167.5 83.7L146.6 83.7L146.6 95.0L169.8 95.0L169.8 102.0L138.2 102.0M203.8 86.7L211.9 89.3C210.7 93.8 208.6 97.2 205.7 99.4C202.8 101.6 199.1 102.7 194.7 102.7C189.2 102.7 184.6 100.8 181.1 97.1C177.5 93.3 175.8 88.1 175.8 81.6C175.8 74.7 177.5 69.3 181.1 65.5C184.7 61.7 189.4 59.8 195.2 59.8C200.3 59.8 204.4 61.3 207.5 64.3C209.4 66.1 210.9 68.6 211.8 71.9L203.5 73.9C203.0 71.8 202.0 70.0 200.4 68.8C198.9 67.6 197.0 66.9 194.8 66.9C191.7 66.9 189.2 68.0 187.3 70.3C185.3 72.5 184.4 76.0 184.4 81.0C184.4 86.2 185.3 90.0 187.2 92.2C189.1 94.4 191.6 95.5 194.6 95.5C196.8 95.5 198.7 94.8 200.3 93.4C201.9 92.0 203.1 89.8 203.8 86.7Z"/>
+  <!-- mouse pointer -->
+  <path d="M104 116 L104 211 L127 190 L142 224 L162 215 L147 182 L177 182 Z" fill="#FFFFFF" stroke="#121722"
+        stroke-width="9" stroke-linejoin="round"/>
 </svg>
