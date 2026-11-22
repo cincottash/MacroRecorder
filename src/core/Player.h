@@ -36,24 +36,30 @@ public:
     void setPaused(bool p) { m_paused = p; }
     bool paused() const { return m_paused; }
     bool running() const { return m_running; }
+    void answerMessageBox() { m_boxOpen = false; }   // the user pressed OK on a Message box step
 
 signals:
     void step(int index, int round, int rounds);       // rounds = 0 when repeating by time or forever
     void message(const QString& text, bool warning);
     void notify(const QString& text);
+    void messageBox(const QString& text);              // show it, then call answerMessageBox()
+    void beep();
     void finished(bool stopped, const QString& why);
 
 private:
     void run();
     bool waitMs(double ms);              // sleeps, honoring pause and stop; false if stopped
     bool playAction(const Action& a, int index);
+    // Plays acts[first..last] once; false if stopped. depth > 0: inside a "Run macro" step.
+    bool playList(const QList<Action>& acts, int first, int last, int round, int rounds, int depth);
     QPoint target(const Action& a);
 
     Injector* m_inj;
     Macro m_macro;
     PlayOptions m_o;
     QThread* m_thread = nullptr;
-    std::atomic<bool> m_stop{false}, m_paused{false}, m_running{false};
+    std::atomic<bool> m_stop{false}, m_paused{false}, m_running{false}, m_boxOpen{false};
+    int m_depth = 0;
     QString m_stopWhy;
     QSet<int> m_held;
     QHash<QString, double> m_heldKeys;   // keys held by KeyDown -> when (ms on m_clock) to repeat them next

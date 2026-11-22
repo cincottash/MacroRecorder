@@ -21,6 +21,9 @@ public:
     core::Action result() const { return m_a; }
 
     static QStringList keyNames();   // names offered in the key drop-down
+    bool hasPosition() const { return m_x != nullptr; }
+    // Capture position hotkey: take the mouse pointer's position (and color, for a pixel wait) now.
+    void captureNow();
 
 private:
     void build();
@@ -40,6 +43,7 @@ private:
     QCheckBox *m_rel = nullptr, *m_horiz = nullptr, *m_enabled = nullptr;
     QList<QCheckBox*> m_mods;
     QLineEdit *m_exe = nullptr, *m_title = nullptr, *m_color = nullptr, *m_program = nullptr, *m_args = nullptr, *m_message = nullptr;
-    QLineEdit *m_label = nullptr, *m_comment = nullptr;
+    QLineEdit *m_label = nullptr, *m_comment = nullptr, *m_file = nullptr;
+    QComboBox* m_fileWhen = nullptr;
     QPlainTextEdit* m_text = nullptr;
 };

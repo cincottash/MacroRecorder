@@ -24,9 +24,13 @@ struct Settings {
     QString typing = QStringLiteral("recorded");    // recorded / instant
     bool countdown = true;
     int countdownSeconds = 3;
-    bool stopOnUserInput = true;
+    bool stopOnKey = true;
+    bool stopOnMouse = true;
+    bool blockKeyboard = false;                     // Windows only
     bool restoreMouse = true;
     bool hideWhilePlaying = false;
+    bool showNotifications = true;
+    QString afterPlayback = QStringLiteral("nothing"); // nothing / quit / lock / sleep / logoff / restart / shutdown
 
     // Recording
     bool recordMoves = true;
@@ -35,11 +39,24 @@ struct Settings {
     bool mergeTyping = true;
     int shortestPauseMs = 500;
     bool hideWhileRecording = false;
+    bool relativePositions = false;   // record positions relative to the window
+    int pathDetail = 100;             // % of mouse path points kept (100 = all)
 
     // Hotkeys (QKeySequence portable text; empty = none)
     QString hkRecord = QStringLiteral("F9");
     QString hkPlay = QStringLiteral("F10");
     QString hkStop = QStringLiteral("Esc");     // only active while recording or playing
+    QString hkNewRecording;
+    QString hkPlayFrom;                         // play from the selected step
+    QString hkPlaySelection;
+    QString hkCapture = QStringLiteral("F8");   // only active while a step editor with a position is open
+
+    // App
+    bool confirmDelete = false;
+    bool startMinimized = false;
+    bool showPosition = true;   // mark the selected step's position on the screen
+    bool showPreview = true;    // animate the hovered step's path in the list
+    bool scanCodes = false;     // Windows: send keys as hardware scan codes (for games)
 
     // Files
     QStringList recent;

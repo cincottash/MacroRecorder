@@ -17,7 +17,7 @@ const Theme* find(const QString& key)
     return nullptr;
 }
 
-QStringList groups() { return {QStringLiteral("Dark themes"), QStringLiteral("Light themes")}; }
+QStringList groups() { return {QStringLiteral("Dark Themes"), QStringLiteral("Light Themes")}; }
 
 bool systemIsDark()
 {
@@ -46,8 +46,8 @@ static QString styleSheet(const Theme& t)
     QString s = QStringLiteral(R"(
 QWidget { font-family: "Segoe UI"; font-size: 10pt; }
 QMainWindow, QWidget#root { background: @bg; }
-QMenuBar { background: @card; padding: 2px 8px; }
-QMenuBar::item { padding: 5px 10px; border-radius: 4px; background: transparent; }
+QMenuBar { background: @card; padding: 0; margin: 0; spacing: 0; }
+QMenuBar::item { padding: 4px 8px; margin: 0; border-radius: 0; background: transparent; }
 QMenuBar::item:selected { background: @track; }
 QMenu { background: @card; border: 1px solid @border; padding: 4px; }
 QMenu::item { padding: 6px 28px 6px 26px; border-radius: 4px; color: @text; }

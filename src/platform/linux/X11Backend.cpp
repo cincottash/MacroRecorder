@@ -113,6 +113,24 @@ Window activeWindow(Display* d)
     return focus == PointerRoot ? 0 : focus;
 }
 
+// A window's outer top-left corner, frame included (as on Windows).
+QPoint windowOrigin(Display* d, Window w)
+{
+    if (!w) return {INT_MIN, INT_MIN};
+    int x = 0, y = 0;
+    Window child;
+    XTranslateCoordinates(d, w, DefaultRootWindow(d), 0, 0, &x, &y, &child);
+    std::vector<unsigned char> v;   // _NET_FRAME_EXTENTS: left, right, top, bottom
+    int fmt = 0;
+    unsigned long n = 0;
+    if (getProp(d, w, atom(d, "_NET_FRAME_EXTENTS"), XA_CARDINAL, &v, &fmt, &n) && fmt == 32 && n == 4) {
+        const long* e = reinterpret_cast<long*>(v.data());
+        x -= int(e[0]);
+        y -= int(e[2]);
+    }
+    return {x, y};
+}
+
 bool isOwn(Display* d, Window w) { return w && getCardinal(d, w, "_NET_WM_PID") == long(getpid()); }
 
 std::atomic<int> g_xerror{0};
@@ -266,20 +284,8 @@ public:
     QPoint activeWindowOrigin() override
     {
         QMutexLocker l(&m_mx);
-        const Window w = activeWindow(m_d);
-        if (!w) return {};
-        int x = 0, y = 0;
-        Window child;
-        XTranslateCoordinates(m_d, w, DefaultRootWindow(m_d), 0, 0, &x, &y, &child);
-        std::vector<unsigned char> v;   // _NET_FRAME_EXTENTS: left, right, top, bottom (the frame's outer corner, as on Windows)
-        int fmt = 0;
-        unsigned long n = 0;
-        if (getProp(m_d, w, atom(m_d, "_NET_FRAME_EXTENTS"), XA_CARDINAL, &v, &fmt, &n) && fmt == 32 && n == 4) {
-            const long* e = reinterpret_cast<long*>(v.data());
-            x -= int(e[0]);
-            y -= int(e[2]);
-        }
-        return {x, y};
+        const QPoint p = windowOrigin(m_d, activeWindow(m_d));
+        return p.x() == INT_MIN ? QPoint() : p;
     }
     QString pixelColor(QPoint p) override
     {
@@ -355,7 +361,7 @@ struct X11Backend::Impl {
     core::Injector* inj = nullptr;
     std::mutex expMx;
     std::deque<Expected> expected;
-    std::atomic<bool> userSignalled{false};
+    std::atomic<bool> keySignalled{false}, mouseSignalled{false};
     QString unavailable, notes, name = QStringLiteral("X11");
 
     // hotkeys: id -> (keycode, modifiers)
@@ -442,10 +448,11 @@ struct X11Backend::Impl {
         if (d->category == XRecordFromServer && d->data && d->data_len >= 8) self->onEvent(reinterpret_cast<const xEvent*>(d->data));
         XRecordFreeData(d);
     }
-    void userDidSomething()
+    void userDidSomething(bool key)
     {
-        if (userSignalled.exchange(true)) return;
-        QMetaObject::invokeMethod(q, [this] { userSignalled = false; emit q->userInput(); }, Qt::QueuedConnection);
+        std::atomic<bool>& flag = key ? keySignalled : mouseSignalled;
+        if (flag.exchange(true)) return;
+        QMetaObject::invokeMethod(q, [this, key, &flag] { flag = false; emit q->userInput(key); }, Qt::QueuedConnection);
     }
     void onEvent(const xEvent* ev)
     {
@@ -457,7 +464,8 @@ struct X11Backend::Impl {
         if (mode == CaptureMode::Watch) {
             if (ours) return;
             if ((type == KeyPress) && isHotkey(detail, state)) return;
-            if (type == KeyPress || type == ButtonPress || type == MotionNotify) userDidSomething();
+            if (type == KeyPress) userDidSomething(true);
+            else if (type == ButtonPress || type == MotionNotify) userDidSomething(false);
             return;
         }
         if (mode != CaptureMode::Record || ours) return;
@@ -471,6 +479,9 @@ struct X11Backend::Impl {
             XQueryPointer(query, DefaultRootWindow(query), &r, &child, &rx, &ry, &wx, &wy, &m);
             const Window client = clientOf(query, child);
             if (isOwn(query, client)) return;   // our own window is never recorded
+            // presses and releases belong to the window under the pointer; moves and scrolling to the active one
+            const bool button = (type == ButtonPress || type == ButtonRelease) && !(detail >= 4 && detail <= 7);
+            e.windowOrigin = windowOrigin(query, button ? client : activeWindow(query));
             if (type == MotionNotify) e.kind = core::RawEvent::Move;
             else if (detail >= 4 && detail <= 7) {
                 if (type == ButtonRelease) return;
@@ -492,6 +503,7 @@ struct X11Backend::Impl {
         } else if (type == KeyPress || type == KeyRelease) {
             const Window active = activeWindow(query);
             if (isOwn(query, clientOf(query, active) ? clientOf(query, active) : active)) return;   // typing into our window
+            e.windowOrigin = windowOrigin(query, active);
             if (isHotkey(detail, state)) { swallowUp.insert(detail); return; }
             if (type == KeyRelease && swallowUp.remove(detail)) return;
             const unsigned long ks = XkbKeycodeToKeysym(query, KeyCode(detail), 0, 0);

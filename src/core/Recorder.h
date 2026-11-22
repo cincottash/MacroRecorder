@@ -19,6 +19,8 @@ struct RecordOptions {
     bool mergeTyping = true;    // typed characters -> one Text action
     int shortestPauseMs = 500;  // pauses at least this long become Wait actions; shorter ones are kept as delays
     int doubleClickMs = 500;
+    bool relativeToWindow = false;  // positions relative to the window's top-left instead of the screen
+    int pathDetail = 100;       // 100: keep every point of a mouse path; lower: drop points that barely change its shape
 };
 
 class Recorder : public QObject {
@@ -35,7 +37,9 @@ signals:
     void lastActionChanged(const core::Action& a);   // e.g. a click that became a double-click
 
 private:
-    void emitAction(Action a, qint64 start, qint64 end);
+    static constexpr QPoint kNoOrigin{INT_MIN, INT_MIN};
+    void emitAction(Action a, qint64 start, qint64 end, QPoint origin = kNoOrigin);
+    Action output(const Action& a, QPoint origin) const;   // what the list gets: relative to the window if asked
     void flushMove();
     void flushText();
     void flushAll() { flushMove(); flushText(); }
@@ -52,6 +56,7 @@ private:
     bool m_moving = false;
     qint64 m_moveStart = 0, m_moveLast = 0;
     QPoint m_moveFrom;
+    QPoint m_moveOrigin = kNoOrigin;
     QVector<PathPoint> m_path;
 
     // pending text
@@ -60,11 +65,12 @@ private:
     qint64 m_textStart = 0, m_textLast = 0;
 
     // buttons held: button -> (press position, time, already emitted as MouseDown)
-    struct Held { QPoint pos; qint64 t = 0; bool emitted = false; };
+    struct Held { QPoint pos; qint64 t = 0; bool emitted = false; QPoint origin = kNoOrigin; };
     QHash<int, Held> m_down;
 
     // last emitted action (for double-click / wheel merging)
-    Action m_last;
+    Action m_last;               // always in screen positions
+    QPoint m_lastOrigin = kNoOrigin;
     bool m_hasLast = false;
     qint64 m_lastClickT = 0;
     qint64 m_lastWheelT = 0, m_wheelStartT = 0;

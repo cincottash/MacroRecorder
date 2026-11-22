@@ -4,15 +4,19 @@
 #include "platform/Backend.h"
 #include "WinKeys.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 #include <QHash>
 #include <QMutex>
+#include <QProcess>
 #include <QSet>
+#include <QSettings>
 
 #include <windows.h>
 #include <dwmapi.h>
 #include <mmsystem.h>
+#include <shellapi.h>
 
 #include <atomic>
 #include <chrono>
@@ -70,6 +74,16 @@ bool isOwnProcess(HWND hwnd)
 }
 
 std::atomic<int> g_blocked{0};   // SendInput calls Windows refused (e.g. a window running as administrator)
+std::atomic<bool> g_scanOnly{false};   // send keys as hardware scan codes only (some games read nothing else)
+
+// A window's outer top-left corner (without the invisible resize border Windows 10 adds).
+QPoint originOf(HWND h)
+{
+    RECT r{};
+    if (!h) return {INT_MIN, INT_MIN};
+    if (FAILED(DwmGetWindowAttribute(h, DWMWA_EXTENDED_FRAME_BOUNDS, &r, sizeof(r)))) GetWindowRect(h, &r);
+    return {r.left, r.top};
+}
 
 void sendInputs(UINT n, INPUT* in)
 {
@@ -80,9 +94,10 @@ void sendKey(WORD vk, bool down)
 {
     INPUT in{};
     in.type = INPUT_KEYBOARD;
-    in.ki.wVk = vk;
     in.ki.wScan = WORD(MapVirtualKeyW(vk, MAPVK_VK_TO_VSC));
-    in.ki.dwFlags = (down ? 0 : KEYEVENTF_KEYUP) | (platform::win::isExtendedKey(vk) ? KEYEVENTF_EXTENDEDKEY : 0);
+    in.ki.wVk = (g_scanOnly && in.ki.wScan) ? 0 : vk;
+    in.ki.dwFlags = (down ? 0 : KEYEVENTF_KEYUP) | (platform::win::isExtendedKey(vk) ? KEYEVENTF_EXTENDEDKEY : 0)
+                    | ((g_scanOnly && in.ki.wScan) ? KEYEVENTF_SCANCODE : 0);
     in.ki.dwExtraInfo = kMagic;
     sendInputs(1, &in);
 }
@@ -203,11 +218,10 @@ public:
     }
     QPoint activeWindowOrigin() override
     {
-        HWND h = GetForegroundWindow();
-        RECT r{};
-        if (FAILED(DwmGetWindowAttribute(h, DWMWA_EXTENDED_FRAME_BOUNDS, &r, sizeof(r)))) GetWindowRect(h, &r);
-        return {r.left, r.top};
+        const QPoint p = originOf(GetForegroundWindow());
+        return p.x() == INT_MIN ? QPoint() : p;
     }
+    void setScanCodesOnly(bool on) override { g_scanOnly = on; }
     QString pixelColor(QPoint p) override
     {
         HDC dc = GetDC(nullptr);
@@ -326,9 +340,11 @@ public:
     }
     static LRESULT CALLBACK keyProc(int code, WPARAM w, LPARAM l)
     {
-        if (code == HC_ACTION && g_self) g_self->onKey(w, *reinterpret_cast<KBDLLHOOKSTRUCT*>(l));
+        if (code == HC_ACTION && g_self && g_self->onKey(w, *reinterpret_cast<KBDLLHOOKSTRUCT*>(l))) return 1;   // swallowed
         return CallNextHookEx(nullptr, code, w, l);
     }
+    bool canBlockKeyboard() const override { return true; }
+    void setBlockKeyboard(bool on) override { m_block = on; }
 
 private:
     struct Hotkey { unsigned vk, mods; };
@@ -377,10 +393,18 @@ private:
     {
         QMetaObject::invokeMethod(this, [this, e] { emit rawEvent(e); }, Qt::QueuedConnection);
     }
-    void userDidSomething()
+    void userDidSomething(bool key)
     {
-        if (m_userSignalled.exchange(true)) return;  // once per playback
-        QMetaObject::invokeMethod(this, [this] { m_userSignalled = false; emit userInput(); }, Qt::QueuedConnection);
+        std::atomic<bool>& flag = key ? m_userKeySignalled : m_userMouseSignalled;
+        if (flag.exchange(true)) return;  // one signal at a time
+        QMetaObject::invokeMethod(this, [this, key, &flag] { flag = false; emit userInput(key); }, Qt::QueuedConnection);
+    }
+    bool hotkeysUseModifiers()
+    {
+        QMutexLocker lock(&m_hkMutex);
+        for (const Hotkey& h : std::as_const(m_hkCopy))
+            if (h.mods) return true;
+        return false;
     }
 
     bool isHotkey(unsigned vk)
@@ -403,7 +427,7 @@ private:
         if (m_mode == CaptureMode::Watch) {
             if (ours) return;
             if (msg == WM_MOUSEMOVE && m.pt.x == m_inj.lastX && m.pt.y == m_inj.lastY) return;  // our SetCursorPos
-            userDidSomething();
+            userDidSomething(false);
             return;
         }
         if (m_mode != CaptureMode::Record || ours) return;
@@ -426,31 +450,45 @@ private:
             break;
         default: return;
         }
-        if (msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN || msg == WM_XBUTTONDOWN) {
+        const bool press = msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN || msg == WM_XBUTTONDOWN;
+        const bool release = msg == WM_LBUTTONUP || msg == WM_RBUTTONUP || msg == WM_MBUTTONUP || msg == WM_XBUTTONUP;
+        // Presses and releases belong to the window under the pointer (playback brings it to the front first);
+        // moves and scrolling to the active window, as during playback.
+        e.windowOrigin = originOf((press || release) ? GetAncestor(under, GA_ROOT) : GetForegroundWindow());
+        if (press) {
             e.kind = core::RawEvent::Down;
             HWND top = GetAncestor(under, GA_ROOT);
             e.windowId = quint64(reinterpret_cast<quintptr>(top));
             e.exe = exeOf(top);
             e.title = titleOf(top);
-        } else if (msg == WM_LBUTTONUP || msg == WM_RBUTTONUP || msg == WM_MBUTTONUP || msg == WM_XBUTTONUP) {
+        } else if (release) {
             e.kind = core::RawEvent::Up;
         }
         post(e);
     }
 
-    void onKey(WPARAM msg, const KBDLLHOOKSTRUCT& k)
+    // True: swallow the key (blocking the keyboard during playback).
+    bool onKey(WPARAM msg, const KBDLLHOOKSTRUCT& k)
     {
         const bool ours = k.dwExtraInfo == kMagic;
         const bool down = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
         if (m_mode == CaptureMode::Watch) {
-            if (!ours && down && !isHotkey(k.vkCode)) userDidSomething();
-            return;
+            if (ours) return false;
+            const bool hot = isHotkey(k.vkCode);
+            if (down && !hot) userDidSomething(true);
+            if (!m_block) return false;
+            // Hotkeys (Stop, Pause) always get through, and so do their releases and their modifier keys.
+            if (hot) { if (down) m_passUp.insert(k.vkCode); return false; }
+            if (!down && m_passUp.remove(k.vkCode)) return false;
+            if (win::isModifierKey(k.vkCode) && hotkeysUseModifiers()) return false;
+            return true;
         }
-        if (m_mode != CaptureMode::Record || ours) return;
+        m_passUp.clear();
+        if (m_mode != CaptureMode::Record || ours) return false;
         HWND fg = GetForegroundWindow();
-        if (fg && isOwnProcess(fg)) return;          // typing into our own window
-        if (isHotkey(k.vkCode)) { m_swallowUp.insert(k.vkCode); return; }
-        if (!down && m_swallowUp.remove(k.vkCode)) return;
+        if (fg && isOwnProcess(fg)) return false;          // typing into our own window
+        if (isHotkey(k.vkCode)) { m_swallowUp.insert(k.vkCode); return false; }
+        if (!down && m_swallowUp.remove(k.vkCode)) return false;
         core::RawEvent e;
         e.t = now();
         e.kind = down ? core::RawEvent::KeyDown : core::RawEvent::KeyUp;
@@ -459,6 +497,7 @@ private:
         POINT p;
         GetCursorPos(&p);
         e.pos = {p.x, p.y};
+        e.windowOrigin = originOf(fg);
         if (down) {
             e.windowId = quint64(reinterpret_cast<quintptr>(fg));
             e.exe = exeOf(fg);
@@ -482,6 +521,7 @@ private:
             }
         }
         post(e);
+        return false;
     }
 
     std::thread m_thread;
@@ -492,12 +532,105 @@ private:
     QHash<int, Hotkey> m_hkCopy;           // guarded by m_hkMutex, read by the hooks
     QMutex m_hkMutex;
     QSet<unsigned> m_swallowUp;            // hook thread
-    std::atomic<bool> m_userSignalled{false};
+    std::atomic<bool> m_userKeySignalled{false}, m_userMouseSignalled{false};
+    std::atomic<bool> m_block{false};
+    QSet<unsigned> m_passUp;               // hook thread: hotkeys let through while blocking; their releases too
     WinInjector m_inj;
 };
 
 }  // namespace
 
 Backend* createWindowsBackend(QObject* parent) { return new WinBackend(parent); }
+
+// ---------------------------------------------------------------- system
+
+namespace sys {
+
+namespace {
+const QString kRunKey = QStringLiteral("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run");
+QString quoted(const QString& s) { return s.contains(QLatin1Char(' ')) || s.isEmpty() ? QLatin1Char('"') + s + QLatin1Char('"') : s; }
+}  // namespace
+
+bool run(SystemAction a, QString* error)
+{
+    bool ok = true;
+    switch (a) {
+    case SystemAction::Lock: ok = LockWorkStation(); break;
+    case SystemAction::Sleep: {
+        using Fn = BOOLEAN(WINAPI*)(BOOLEAN, BOOLEAN, BOOLEAN);
+        HMODULE m = LoadLibraryW(L"powrprof.dll");
+        auto fn = m ? reinterpret_cast<Fn>(reinterpret_cast<void*>(GetProcAddress(m, "SetSuspendState"))) : nullptr;
+        ok = fn && fn(FALSE, FALSE, FALSE);
+        break;
+    }
+    case SystemAction::LogOff: ok = ExitWindowsEx(EWX_LOGOFF, SHTDN_REASON_MAJOR_OTHER | SHTDN_REASON_FLAG_PLANNED); break;
+    case SystemAction::Restart: ok = QProcess::startDetached(QStringLiteral("shutdown.exe"), {QStringLiteral("/r"), QStringLiteral("/t"), QStringLiteral("0")}); break;
+    case SystemAction::ShutDown: ok = QProcess::startDetached(QStringLiteral("shutdown.exe"), {QStringLiteral("/s"), QStringLiteral("/t"), QStringLiteral("0")}); break;
+    }
+    if (!ok && error) *error = QStringLiteral("Windows refused (error %1).").arg(GetLastError());
+    return ok;
+}
+
+bool startsAtLogin()
+{
+    return QSettings(kRunKey, QSettings::NativeFormat).contains(QStringLiteral(APP_NAME));
+}
+
+bool setStartAtLogin(bool on, QString* error)
+{
+    QSettings run(kRunKey, QSettings::NativeFormat);
+    if (on) run.setValue(QStringLiteral(APP_NAME), quoted(QDir::toNativeSeparators(QCoreApplication::applicationFilePath())) + QStringLiteral(" --minimized"));
+    else run.remove(QStringLiteral(APP_NAME));
+    run.sync();
+    if (run.status() != QSettings::NoError) {
+        if (error) *error = QStringLiteral("Couldn't change the Windows start-up list.");
+        return false;
+    }
+    return true;
+}
+
+bool isElevated()
+{
+    HANDLE token = nullptr;
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) return false;
+    TOKEN_ELEVATION e{};
+    DWORD n = 0;
+    const bool ok = GetTokenInformation(token, TokenElevation, &e, sizeof(e), &n) && e.TokenIsElevated;
+    CloseHandle(token);
+    return ok;
+}
+
+bool restartElevated(const QStringList& args, QString* error)
+{
+    QStringList q;
+    for (const QString& a : args) q << quoted(a);
+    const std::wstring exe = QDir::toNativeSeparators(QCoreApplication::applicationFilePath()).toStdWString();
+    const std::wstring params = q.join(QLatin1Char(' ')).toStdWString();
+    SHELLEXECUTEINFOW info{};
+    info.cbSize = sizeof(info);
+    info.lpVerb = L"runas";
+    info.lpFile = exe.c_str();
+    info.lpParameters = params.c_str();
+    info.nShow = SW_SHOWNORMAL;
+    if (ShellExecuteExW(&info)) return true;
+    if (error) *error = GetLastError() == ERROR_CANCELLED ? QStringLiteral("Cancelled.") : QStringLiteral("Windows couldn't start it (error %1).").arg(GetLastError());
+    return false;
+}
+
+void beep() { MessageBeep(MB_OK); }
+
+bool centerWindowAt(quintptr windowId, QPoint p)
+{
+    HWND h = reinterpret_cast<HWND>(windowId);
+    RECT r{};
+    if (!IsWindow(h) || !GetWindowRect(h, &r)) return false;
+    DWORD pid = 0;
+    GetWindowThreadProcessId(h, &pid);
+    if (pid != GetCurrentProcessId()) return false;   // only ever our own windows
+    return SetWindowPos(h, HWND_TOPMOST, p.x() - (r.right - r.left) / 2, p.y() - (r.bottom - r.top) / 2, 0, 0,
+                        SWP_NOSIZE | SWP_NOACTIVATE);
+}
+
+}  // namespace sys
 
 }  // namespace platform

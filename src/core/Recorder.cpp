@@ -12,6 +12,42 @@ constexpr int kHoldMs = 600;           // a key held at least this long is recor
 
 int dist(QPoint a, QPoint b) { return qRound(qSqrt(qreal((a.x() - b.x()) * (a.x() - b.x()) + (a.y() - b.y()) * (a.y() - b.y())))); }
 
+bool isMouse(ActionType t)
+{
+    return t == ActionType::MouseMove || t == ActionType::MouseClick || t == ActionType::MouseDown || t == ActionType::MouseUp
+           || t == ActionType::Wheel;
+}
+
+// Ramer-Douglas-Peucker: keeps the points that shape the path, drops those within eps pixels of a straight line.
+QVector<PathPoint> simplify(const QVector<PathPoint>& in, double eps)
+{
+    if (in.size() < 3 || eps <= 0) return in;
+    QVector<bool> keep(in.size(), false);
+    keep.first() = keep.last() = true;
+    QVector<QPair<int, int>> stack{{0, int(in.size()) - 1}};
+    while (!stack.isEmpty()) {
+        const auto [a, b] = stack.takeLast();
+        const double ax = in[a].x, ay = in[a].y, bx = in[b].x, by = in[b].y;
+        const double len = qSqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
+        double worst = -1;
+        int at = -1;
+        for (int i = a + 1; i < b; ++i) {
+            const double d = len < 1e-9 ? qSqrt((in[i].x - ax) * (in[i].x - ax) + (in[i].y - ay) * (in[i].y - ay))
+                                        : qAbs((bx - ax) * (ay - in[i].y) - (ax - in[i].x) * (by - ay)) / len;
+            if (d > worst) { worst = d; at = i; }
+        }
+        if (at >= 0 && worst > eps) {
+            keep[at] = true;
+            stack.append({a, at});
+            stack.append({at, b});
+        }
+    }
+    QVector<PathPoint> out;
+    for (int i = 0; i < in.size(); ++i)
+        if (keep[i]) out.append(in[i]);
+    return out;
+}
+
 bool isTextBreakingKey(const QString& k)
 {
     return k == QLatin1String("Enter") || k == QLatin1String("Tab") || k == QLatin1String("Backspace")
@@ -36,6 +72,18 @@ void Recorder::start(const RecordOptions& o, qint64 t, QPoint cursor)
     m_window = 0;
     m_lastClickT = m_lastWheelT = 0;
     m_wheelRemainder = 0;
+    m_lastOrigin = m_moveOrigin = kNoOrigin;
+}
+
+Action Recorder::output(const Action& in, QPoint origin) const
+{
+    if (!m_o.relativeToWindow || !isMouse(in.type) || origin.x() == INT_MIN) return in;
+    Action a = in;
+    a.relativeToWindow = true;
+    a.pos -= origin;
+    a.from -= origin;
+    for (PathPoint& p : a.path) { p.x -= origin.x(); p.y -= origin.y(); }
+    return a;
 }
 
 void Recorder::pauseBefore(Action& a, qint64 start)
@@ -54,13 +102,14 @@ void Recorder::pauseBefore(Action& a, qint64 start)
     }
 }
 
-void Recorder::emitAction(Action a, qint64 start, qint64 end)
+void Recorder::emitAction(Action a, qint64 start, qint64 end, QPoint origin)
 {
     pauseBefore(a, start);
     m_lastEnd = end;
     m_last = a;
+    m_lastOrigin = origin;
     m_hasLast = true;
-    emit actionAdded(a);
+    emit actionAdded(output(a, origin));
 }
 
 void Recorder::flushMove()
@@ -76,9 +125,9 @@ void Recorder::flushMove()
     a.pos = QPoint(m_path.last().x, m_path.last().y);
     if (a.pos == a.from) { m_path.clear(); return; }
     a.ms = int(m_moveLast - m_moveStart);
-    a.path = m_path;
+    a.path = m_o.pathDetail >= 100 ? m_path : simplify(m_path, (100 - qBound(0, m_o.pathDetail, 100)) / 10.0);
     m_path.clear();
-    emitAction(a, m_moveStart, m_moveLast);
+    emitAction(a, m_moveStart, m_moveLast, m_moveOrigin);
 }
 
 void Recorder::flushText()
@@ -123,7 +172,7 @@ void Recorder::feed(const RawEvent& e)
                 d.type = ActionType::MouseDown;
                 d.button = MouseButton(it.key());
                 d.pos = it->pos;
-                emitAction(d, it->t, it->t);
+                emitAction(d, it->t, it->t, it->origin);
                 it->emitted = true;
             }
         }
@@ -134,6 +183,7 @@ void Recorder::feed(const RawEvent& e)
             m_moving = true;
             m_moveFrom = m_haveCursor ? m_cursor : e.pos;
             m_moveStart = e.t;
+            m_moveOrigin = e.windowOrigin;
             m_path = {{m_moveFrom.x(), m_moveFrom.y(), 0}};
         }
         const PathPoint& last = m_path.last();
@@ -163,7 +213,7 @@ void Recorder::feed(const RawEvent& e)
                 m_modUsed = true;
             }
         }
-        m_down.insert(int(e.button), {e.pos, e.t, false});
+        m_down.insert(int(e.button), {e.pos, e.t, false, e.windowOrigin});
         m_cursor = e.pos;
         m_haveCursor = true;
         break;
@@ -183,20 +233,20 @@ void Recorder::feed(const RawEvent& e)
             u.type = ActionType::MouseUp;
             u.button = e.button;
             u.pos = e.pos;
-            emitAction(u, e.t, e.t);
+            emitAction(u, e.t, e.t, e.windowOrigin);
         } else if (m_hasLast && m_last.type == ActionType::MouseClick && m_last.clicks == 1 && m_last.button == e.button
                    && h.t - m_lastClickT <= m_o.doubleClickMs && dist(m_last.pos, h.pos) <= kClickSlopPx) {
             m_last.clicks = 2;
             m_last.gapMs = int(h.t - m_lastClickT);   // first release -> second press
             m_lastEnd = e.t;
-            emit lastActionChanged(m_last);
+            emit lastActionChanged(output(m_last, m_lastOrigin));
         } else {
             Action c;
             c.type = ActionType::MouseClick;
             c.button = e.button;
             c.pos = h.pos;
             c.holdMs = int(e.t - h.t);
-            emitAction(c, h.t, e.t);
+            emitAction(c, h.t, e.t, h.origin);
             m_lastClickT = e.t;
         }
         m_cursor = e.pos;
@@ -213,14 +263,14 @@ void Recorder::feed(const RawEvent& e)
             m_last.notches += notches;
             m_last.gapMs = int((e.t - m_wheelStartT) / qMax(1, qAbs(m_last.notches) - 1));
             m_lastEnd = e.t;
-            emit lastActionChanged(m_last);
+            emit lastActionChanged(output(m_last, m_lastOrigin));
         } else {
             Action w;
             w.type = ActionType::Wheel;
             w.pos = e.pos;
             w.notches = notches;
             w.horizontal = e.horizontal;
-            emitAction(w, e.t, e.t);
+            emitAction(w, e.t, e.t, e.windowOrigin);
             m_wheelStartT = e.t;
         }
         m_lastWheelT = e.t;
@@ -292,11 +342,11 @@ void Recorder::feed(const RawEvent& e)
         if (k.emitted && e.t - k.t < kHoldMs && m_hasLast && m_last.type == ActionType::KeyPress && m_last.key == e.key) {
             m_last.holdMs = int(e.t - k.t);
             m_lastEnd = e.t;
-            emit lastActionChanged(m_last);
+            emit lastActionChanged(output(m_last, m_lastOrigin));
         }
         if (k.emitted && e.t - k.t >= kHoldMs && m_hasLast && m_last.type == ActionType::KeyPress && m_last.key == e.key) {
             m_last.type = ActionType::KeyDown;  // held: record as down ... up
-            emit lastActionChanged(m_last);
+            emit lastActionChanged(output(m_last, m_lastOrigin));
             Action u;
             u.type = ActionType::KeyUp;
             u.key = e.key;

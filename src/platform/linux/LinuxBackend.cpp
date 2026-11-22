@@ -6,7 +6,15 @@
 #include "UinputInjector.h"
 #include "X11Backend.h"
 
+#include <QApplication>
+#include <QCoreApplication>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QProcess>
 #include <QProcessEnvironment>
+#include <QSaveFile>
+#include <QStandardPaths>
 
 #include <chrono>
 
@@ -121,5 +129,77 @@ Backend* createLinuxBackend(QObject* parent)
     }
     return b;
 }
+
+// ---------------------------------------------------------------- system
+
+namespace sys {
+
+namespace {
+QString autostartFile()
+{
+    return QDir(QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation))
+        .filePath(QStringLiteral("autostart/" APP_NAME ".desktop"));
+}
+bool start(const QString& program, const QStringList& args, QString* error)
+{
+    if (QProcess::startDetached(program, args)) return true;
+    if (error) *error = QStringLiteral("Couldn't run %1.").arg(program);
+    return false;
+}
+}  // namespace
+
+bool run(SystemAction a, QString* error)
+{
+    const QString session = qEnvironmentVariable("XDG_SESSION_ID");
+    switch (a) {
+    case SystemAction::Lock:
+        if (start(QStringLiteral("loginctl"), {QStringLiteral("lock-session")}, nullptr)) return true;
+        return start(QStringLiteral("xdg-screensaver"), {QStringLiteral("lock")}, error);
+    case SystemAction::Sleep: return start(QStringLiteral("systemctl"), {QStringLiteral("suspend")}, error);
+    case SystemAction::LogOff:
+        if (!session.isEmpty()) return start(QStringLiteral("loginctl"), {QStringLiteral("terminate-session"), session}, error);
+        return start(QStringLiteral("loginctl"), {QStringLiteral("terminate-user"), qEnvironmentVariable("USER")}, error);
+    case SystemAction::Restart: return start(QStringLiteral("systemctl"), {QStringLiteral("reboot")}, error);
+    case SystemAction::ShutDown: return start(QStringLiteral("systemctl"), {QStringLiteral("poweroff")}, error);
+    }
+    return false;
+}
+
+bool startsAtLogin() { return QFileInfo::exists(autostartFile()); }
+
+bool setStartAtLogin(bool on, QString* error)
+{
+    const QString f = autostartFile();
+    if (!on) {
+        if (!QFileInfo::exists(f) || QFile::remove(f)) return true;
+        if (error) *error = QStringLiteral("Couldn't remove %1.").arg(f);
+        return false;
+    }
+    QDir().mkpath(QFileInfo(f).absolutePath());
+    // An AppImage runs from a temporary mount; $APPIMAGE is the file the user actually has.
+    const QString exe = qEnvironmentVariableIsSet("APPIMAGE") ? qEnvironmentVariable("APPIMAGE") : QCoreApplication::applicationFilePath();
+    QSaveFile out(f);
+    if (out.open(QIODevice::WriteOnly)) {
+        out.write(QStringLiteral("[Desktop Entry]\nType=Application\nName=" APP_NAME "\nExec=\"%1\" --minimized\nX-GNOME-Autostart-enabled=true\n")
+                      .arg(exe).toUtf8());
+        if (out.commit()) return true;
+    }
+    if (error) *error = QStringLiteral("Couldn't write %1.").arg(f);
+    return false;
+}
+
+bool isElevated() { return true; }   // nothing to elevate: X11 has no per-window privilege levels
+
+bool restartElevated(const QStringList&, QString* error)
+{
+    if (error) *error = QStringLiteral("Not needed on Linux.");
+    return false;
+}
+
+void beep() { QApplication::beep(); }
+
+bool centerWindowAt(quintptr, QPoint) { return false; }   // X11 positions are already pixels
+
+}  // namespace sys
 
 }  // namespace platform

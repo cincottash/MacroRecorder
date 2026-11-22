@@ -6,7 +6,10 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
+#include <QFileInfo>
 #include <QFont>
+
+#include <cstdio>
 #include <QMessageBox>
 #include <QTemporaryDir>
 #include <QTimer>
@@ -60,7 +63,18 @@ int main(int argc, char* argv[])
         Settings settings;
         MainWindow w(settings, false);   // shows the default hotkeys without registering them
         w.setAttribute(Qt::WA_DontShowOnScreen);
-        if (!cli.positionalArguments().isEmpty()) w.openFile(QDir::current().absoluteFilePath(cli.positionalArguments().first()));
+        if (!cli.positionalArguments().isEmpty()) {
+            // Never a dialog in this mode (it runs unattended): a bad file is reported here and the run fails.
+            const QString file = QDir::current().absoluteFilePath(cli.positionalArguments().first());
+            core::Macro m;
+            QString err;
+            if (!QFileInfo::exists(file) || !core::Macro::load(file, &m, &err)) {
+                fprintf(stderr, "Can't open %s: %s\n", qPrintable(QDir::toNativeSeparators(file)),
+                        qPrintable(err.isEmpty() ? QStringLiteral("it doesn't exist") : err));
+                return 2;
+            }
+            w.openFile(file);
+        }
         w.resize(1320, 860);
         w.show();
         const QString out = cli.value(screenshot);
@@ -82,7 +96,7 @@ int main(int argc, char* argv[])
     const QStringList files = cli.positionalArguments();
     if (!files.isEmpty()) w.openFile(QDir::current().absoluteFilePath(files.first()));
     // --record is for recording other programs, so the window starts out of the way
-    if (cli.isSet(minimized) || cli.isSet(record)) w.showMinimized(); else w.show();
+    if (cli.isSet(minimized) || cli.isSet(record) || settings.startMinimized) w.showMinimized(); else w.show();
     if (cli.isSet(record)) {
         const QString out = QDir::current().absoluteFilePath(cli.value(record));
         QTimer::singleShot(300, &w, [&w, out] { w.recordToFileAndQuit(out); });

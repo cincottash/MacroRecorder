@@ -27,11 +27,16 @@ enum class ActionType {
     Goto,         // jump to a label
     RunProgram,   // start a program with arguments
     Notify,       // show a desktop notification
+    WaitFile,     // wait until a file exists / is gone / changes
+    MessageBox,   // show a message and wait until OK is pressed
+    Beep,         // play the system sound
+    RunMacro,     // play another macro file at this point
 };
 
 enum class MouseButton { Left, Right, Middle, X1, X2 };
 enum class TitleMatch { Exact, StartsWith, Contains, Any };
 enum class RepeatMode { Times, Seconds, Forever };
+enum class FileCondition { Exists, Gone, Changed };
 
 struct PathPoint {
     int x = 0, y = 0;
@@ -89,6 +94,10 @@ struct Action {
     QString program;
     QString arguments;
     QString message;
+
+    // File (wait for file, run macro)
+    QString file;
+    FileCondition fileWhen = FileCondition::Exists;
 
     QString typeName() const;   // "Left click", "Mouse move", ...
     QString valueText() const;  // "1600, 600 px", "932 ms", ...
