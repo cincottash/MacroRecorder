@@ -17,6 +17,7 @@ on:
 
 permissions:
   contents: write          # needed to create the release
+  pull-requests: read      # needed to read the merged pull request's title (for [minor] / [major])
 
 jobs:
   version:
@@ -29,6 +30,10 @@ jobs:
         with:
           fetch-depth: 0          # all tags, to find the latest version
       - id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # The commit whose pull request is looked up: the branch's last commit on a pull request, else this commit
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             version="${GITHUB_REF_NAME#v}"                     # a tag pushed by hand: use it as is
@@ -36,11 +41,16 @@ jobs:
             latest=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)
             latest=${latest:-v0.0.0}
             IFS=. read -r major minor patch <<< "${latest#v}"
-            # Only the merged PR's title (the commit's first line), never its description.
+            # Only titles, never descriptions: the merged commit's first line and the pull request's title.
+            # They can differ: squash-merging a pull request with a single commit keeps that commit's first
+            # line, not the pull request's title, so the title is asked for as well.
             message=$(git log -1 --format=%s "$GITHUB_SHA")
-            if grep -qi '\[major\]' <<< "$message"; then
+            pr_title=$(gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA/pulls" --jq '.[0].title // ""' 2>/dev/null || true)
+            echo "Commit title: $message"
+            echo "Pull request title: ${pr_title:-(none found)}"
+            if grep -qi '\[major\]' <<< "$message $pr_title"; then
               version="$((major + 1)).0.0"
-            elif grep -qi '\[minor\]' <<< "$message"; then
+            elif grep -qi '\[minor\]' <<< "$message $pr_title"; then
               version="${major}.$((minor + 1)).0"
             else
               version="${major}.${minor}.$((patch + 1))"

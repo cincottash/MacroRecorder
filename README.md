@@ -5,28 +5,17 @@ Free and open source (GPL-3.0). One file to download: nothing to install.
 
 ![The main window: a recorded macro in the list, one step selected, and the pointer on a Mouse Move step, whose path is drawn on the right](.github/screenshot.png)
 
-*A recorded macro. Step 3 is selected; the pointer is on step 6, so its mouse path is drawn on the right.*
-
 ## What it does
 
-- **Records** mouse moves, clicks, double-clicks, drags, scrolling, key presses, shortcuts and typed text, plus
-  which window you were working in.
-- **Shows each step in a list** you can edit: change a position, a key or a pause, add steps by hand, reorder,
-  copy and paste, disable steps, undo and redo. Select steps with a click or by dragging a box over them.
-- **Previews a step when you point at it:** a mouse move's path, or the spot where a click lands, is drawn
-  beside the list.
-- **Plays it back** exactly: clicks land on the same pixel, and the timing of your clicks, typing and pauses is
-  kept. Play faster or slower, repeat a number of times, for a while, or until you stop it.
-- **Steps you can add yourself:** click, move, scroll, button down/up (drags), key press or shortcut, text,
-  wait, wait for a pixel color, wait for a key, wait for a file, bring a window to the front, run a program,
-  run another macro, show a notification or a message box, beep, and **Repeat** / **Go to** a labeled step.
-- **Global hotkeys** work from any program: F9 records or stops, F10 plays or pauses, Esc stops, and more you
-  can set (new recording, play from the selected step, play the selection, capture a position).
-- **Safe to stop:** moving the mouse or pressing a key stops playback (each can be turned off), held buttons
-  or keys are always released, and on Windows you can block the keyboard while a macro plays.
-- **When Finished:** close the app, lock the computer, sleep, log off, restart or shut down (after a 30-second
-  countdown you can cancel).
-- 38 color themes, including popular editor schemes (see the credits below).
+- **Records** mouse moves, clicks, drags, scrolling, key presses, shortcuts and typed text, plus which window
+  you were working in.
+- **Shows each step in a list** you can edit, reorder, copy, disable, undo and redo.
+- **Plays it back exactly:** clicks land on the same pixel, and the timing is kept. Faster, slower, or repeated.
+- **Previews a step** when you point at it: a mouse move's path, or the spot where a click lands.
+- **Global hotkeys** work from any program: **F9** records, **F10** plays, **Esc** stops.
+- **Safe to stop:** moving the mouse or pressing a key stops playback, and held buttons or keys are always
+  released.
+- **38 color themes**, including popular editor schemes (see the credits below).
 
 ## Download
 
@@ -39,130 +28,86 @@ Get the latest version from the [Releases page](https://github.com/cincottash/Ma
 
 Windows may warn that the app is from an unknown publisher (it isn't code-signed). Choose **More info → Run
 anyway**. Programs that watch the keyboard and mouse sometimes get flagged by antivirus tools for the same reason.
-
-On Linux the app checks your session when it starts and uses the best method available; the Activity log says
-which one. See [Linux setup](#linux-setup).
-
-## Linux setup
-
-| Session | Recording | Playback |
-|---|---|---|
-| **X11** ("Xorg" at the login screen) | every program | every program |
-| **Wayland**, with access to `/dev/uinput` | programs running through XWayland | every program |
-| **Wayland**, without that access | programs running through XWayland | programs running through XWayland |
-
-Wayland doesn't let one program watch the mouse and keyboard of others, so **for recording, log in with an X11
-session** (most distributions offer "Xorg" or "X11" on the login screen's settings button).
-
-To play back into every program on Wayland, give your user access to `/dev/uinput` once, then log out and back in:
-
-```
-echo 'KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"' | sudo tee /etc/udev/rules.d/60-macrorecorder-uinput.rules
-sudo usermod -aG input "$USER"
-sudo udevadm control --reload-rules && sudo udevadm trigger
-```
-
-The first line lets members of the `input` group use `/dev/uinput`; the second adds you to that group. On Wayland,
-playback through `/dev/uinput` types plain US-keyboard characters, and "Window Focus", "Wait for Pixel Color",
-"Wait for Key" and positions relative to a window aren't available (Wayland keeps that information private); the
-Activity log says when a step was skipped. Blocking the keyboard during playback is Windows-only.
+On Linux, see [Linux setup](#linux-setup).
 
 ## First run
 
-The app asks where to keep its settings (theme, hotkeys, playback options, recent files). Pick any folder, or
-choose **Don't Keep App Data** to start fresh every time and leave nothing behind. While that choice is on, a
-**Settings Not Kept** link shows at the top of the window, so it's clear why the theme and other settings start
-over each time; click it to pick a folder. You can also change this at any time in
-**File ▸ Settings ▸ Change App Data Folder…**.
+The app asks where to keep its settings. Pick any folder, or choose **Don't Keep App Data** to start fresh every
+time. While that choice is on, a **Settings Not Kept** link shows at the top of the window; click it to pick a
+folder. You can change this at any time in **File ▸ Settings ▸ Change App Data Folder…**.
 
 Your macros are saved wherever you choose when you save them.
 
-## Using the app
+## Record and play
 
-### Record
-1. Press **● Record** (or **F9**).
-2. Do what you want to automate. Steps appear in the list as you go.
-3. Press **Esc**, **F9** or **■ Stop Recording**.
+| To | Do this |
+|---|---|
+| **Record** | Press **● Record** (or **F9**), do what you want to automate, then press **Esc** or **F9**. |
+| **Play** | Press **▶ Play** (or **F10**). **F10** pauses and resumes; **Esc** or **■ Stop** stops. |
+| **Play part of it** | Select some steps and press **▶ Play Selection**. The **Macro** menu can also play from the selected step, up to it, or only that step. |
+| **Record more** | **Macro ▸ Record After Selected Step** adds the new steps there; **Macro ▸ New Recording** starts over. |
 
-Clicks on the app's own window and the hotkeys themselves are never recorded. **Macro ▸ Record After Selected
-Step** inserts the new steps there instead of at the end; **Macro ▸ New Recording** starts over.
+Clicks on the app's own window and the hotkeys themselves are never recorded.
 
-### Play
-Press **▶ Play** (or **F10**). With **Countdown Before Playing** on, you get a few seconds to switch to the right
-window. **F10** pauses and resumes; **Esc** or **■ Stop** stops. Select some steps and press **▶ Play Selection**
-to play just those. The **Macro** menu can also play from the selected step, up to it, or just that one step
-(once, to try it out).
+## The step list
 
 ### Selecting steps
-Click a step to select it, Ctrl+click to add or remove one, Shift+click for a range. Or press anywhere in the list,
-including the empty space below the steps, and drag a selection box over the steps you want, as on the Windows
-desktop or in File Explorer. Hold Ctrl to add to what's already selected; drag past the top or bottom edge to
-scroll. Clicking empty space clears the selection.
 
-![The Light theme, with a selection box dragged up from the empty space under the steps and five steps selected](.github/screenshot-select.png)
+![A selection box dragged up from the empty space under the steps, with five steps selected](.github/readme/select.png)
+
+Click a step, Ctrl+click to add one, Shift+click for a range. Or press anywhere in the list, including the empty
+space below the steps, and drag a box over the steps you want, as in File Explorer. Hold Ctrl to add to the
+selection; drag past the top or bottom edge to scroll. Clicking empty space clears the selection.
 
 ### Previewing a step
-The row under the pointer is lightly highlighted (a selected row is highlighted more strongly). Point at a mouse
-step (a move, click, scroll or pixel check), anywhere on its row, and a small animated picture appears in the
-list's right-hand side: the move's path traced at its recorded speed, or the spot where it clicks or scrolls,
-zoomed in, with a small map of your screens in the corner. The picture at the top of this page shows it. Turn it
-off with **View ▸ Preview Steps on Hover**.
 
-### The cards
-Each card folds to its title with **Hide ▾** / **Show ▴**.
+![The pointer on a Left Double-Click step: the spot where it clicks is shown beside the list](.github/readme/preview-click.png)
 
-- **Playback**
-  - **Speed**: 100 % plays at the recorded speed, 200 % twice as fast.
-  - **Repeat**: a number of times, for a number of seconds, or until stopped.
-  - **Mouse Path**: *As Recorded* follows the exact recorded movement; *Straight Line* and *Smooth Curve* go
-    directly to each point; *Human-Like* wobbles and slows down near the target, for programs that notice robotic
-    movement.
-  - **Typing**: *As Recorded* keeps the typing rhythm (some programs miss keys typed too fast); *Instant* types
-    everything at once.
-  - **When Finished**: do nothing, close the app, lock the computer, sleep, log off, restart or shut down. Only
-    after the macro finishes on its own, and the system actions wait 30 seconds so you can cancel.
-  - **Stop on Key Press** and **Stop on Mouse Move**.
-  - **Block Keyboard While Playing** (Windows): key presses don't reach other programs while a macro plays; the
-    Stop and Pause hotkeys still work.
-  - **Restore Mouse Position** afterwards, **Show Notifications**, **Minimize While Playing**.
-- **Recording**
-  - **Mouse Moves** on or off, and the **Smallest** movement kept (in pixels).
-  - **Path Detail**: 100 % keeps every point of a mouse path; lower leaves out points that barely change its
-    shape.
-  - **Keyboard** on or off, and **Merge Typing Into Text** (typed characters become one Text step).
-  - **Show Pauses From**: pauses at least this long become their own *Wait* steps you can edit. Shorter pauses
-    are kept with the next step (shown as "+120 ms before"), so timing stays exact.
-  - **Positions Relative to Window**: clicks are recorded from the window's corner instead of the screen's, so
-    the macro still works when the window is somewhere else.
-  - **Minimize While Recording**.
-- **Hotkeys**: click a box and press the key you want, or clear it. If another program already uses a key, or
-  two hotkeys share one, the card says so. **Capture Position** (F8) works while a step's editor is open: point
-  at a spot and press it to fill in the position (and the color, for Wait for Pixel Color).
-- **Actions**: the steps. Double-click a step to edit it, or the **Label** / **Comment** column to type there.
-  **Show:** hides kinds of steps from the list (hidden steps still play). The selected step's position is
-  marked on the screen with a red ring (**View ▸ Mark Selected Step on Screen**).
-- **Activity**: what happened and when. **View ▸ Detailed Activity Log** also lists every step played.
+The row under the pointer is lightly highlighted (a selected row more strongly). Point at a mouse step, anywhere
+on its row. A small animated picture appears beside the list: a move's path
+traced at its recorded speed (as in the picture at the top), or the spot where it clicks or scrolls, with a map
+of your screens in the corner. Turn it off with **View ▸ Preview Steps on Hover**.
+
+### Editing a step
+
+<img src=".github/readme/dialog-mouse_click.png" alt="The editor for a click: position, button, single or double click, label, comment and pause" width="420" align="right">
+
+Double-click a step (or press **F2**) to change it. Double-click the **Label** or **Comment** column to type
+there.
+
+**Use Mouse Position…** fills in the position from the screen. While an editor is open, **F8** captures the spot
+under the pointer (and its color, for Wait for Pixel Color).
+
+**Show:** above the list hides kinds of steps (hidden steps still play). The selected step's position is marked
+on the screen with a red ring (**View ▸ Mark Selected Step on Screen**).
+
+<br clear="right">
+
+### Adding steps by hand
+
+**+ Add** inserts a step after the selected one.
+
+![The Add menu, with its Mouse submenu open](.github/readme/menu-add-mouse.png)
+
+| Group | Steps |
+|---|---|
+| Mouse | Click, Move, Scroll, Button Down / Up (drags) |
+| Keyboard | Key Press / Shortcut, Text, Key Down / Up |
+| Wait | Wait, Wait for Pixel Color, Wait for Key, Wait for File |
+| Flow | Repeat, Go To, Run Another Macro |
+| Programs and Windows | Window Focus, Run Program, Notification, Message Box, Beep |
 
 ### Repeating part of a macro
+
+<img src=".github/readme/dialog-repeat.png" alt="The Repeat step's editor: jump to the label 'start', 3 times in total" width="400" align="right">
+
 Give the first step of the part a **Label** (for example `start`), then add **Flow ▸ Repeat** after the part and
 pick that label. "3 times" plays the part three times in total.
 
-### Menus
-- **File**: New, Open, Open Recent, Save, Save As, Export to CSV, Copy Command Line (plays the saved macro and
-  closes; for a shortcut or Windows Task Scheduler), Settings, Quit.
-  - **Settings**: Change App Data Folder, Reset Settings to Defaults, Confirm Before Deleting Steps, Start
-    Minimized, Start at Login, and on Windows: Send Keys as Scan Codes (for games that ignore normal key presses),
-    Restart as Administrator (needed to control programs running as administrator).
-- **Macro**: Record, Record After Selected Step, New Recording, Play, Play Selection, Play From Selected Step,
-  Play Up to Selected Step, Play This Step Only, Pause / Resume, Stop, Add Action, Clean Up (merges back-to-back
-  waits and moves).
-- **Edit**: Undo, Redo, Cut, Copy, Paste, Delete, Select All, Edit Step, Enable / Disable, Move Up / Down,
-  Combine Into Click or Key Press (a button down + up, or key down + up), Find and Replace.
-- **View**: Theme (hover over a theme to preview it), Show Activity Log, Detailed Activity Log, Always on Top,
-  Mark Selected Step on Screen, Preview Steps on Hover, Reset View Options.
-- **Help**: Project Website, Open App Data Folder, Report a Problem, About.
+<br clear="right">
 
-### Keyboard shortcuts in the list
+### Keyboard shortcuts
+
 | Keys | What they do |
 |---|---|
 | **F2** (or double-click) | Edit the selected step |
@@ -174,7 +119,95 @@ pick that label. "3 times" plays the part three times in total.
 | **Ctrl+Z** / **Ctrl+Y** | Undo, redo |
 | **Ctrl+H** | Find and Replace |
 
-## Command line
+## Options
+
+Each card folds to its title with **Hide ▾** / **Show ▴**.
+
+### Playback
+
+<img src=".github/readme/card-playback.png" alt="The Playback card" width="300" align="right">
+
+- **Speed:** 100 % is the recorded speed, 200 % twice as fast.
+- **Repeat:** a number of times, for a number of seconds, or until stopped.
+- **Mouse Path:** *As Recorded*, *Straight Line*, *Smooth Curve*, or *Human-Like* (wobbles and slows near the
+  target, for programs that notice robotic movement).
+- **Typing:** *As Recorded* keeps the rhythm (some programs miss keys typed too fast); *Instant* types
+  everything at once.
+- **When Finished:** close the app, lock, sleep, log off, restart or shut down. Only after the macro finishes on
+  its own, and after a 30-second countdown you can cancel.
+- **Countdown Before Playing:** a few seconds to switch to the right window.
+- **Stop on Key Press**, **Stop on Mouse Move**.
+- **Block Keyboard While Playing** (Windows): keys don't reach other programs; the Stop and Pause hotkeys still
+  work.
+- **Restore Mouse Position**, **Show Notifications**, **Minimize While Playing**.
+
+<br clear="right">
+
+### Recording
+
+<img src=".github/readme/card-recording.png" alt="The Recording card" width="300" align="right">
+
+- **Mouse Moves** on or off, and the **Smallest** movement kept (in pixels).
+- **Path Detail:** 100 % keeps every point; lower leaves out points that barely change a path's shape.
+- **Keyboard** on or off; **Merge Typing Into Text** turns typed characters into one Text step.
+- **Show Pauses From:** longer pauses become their own *Wait* steps. Shorter ones stay with the next step
+  ("+120 ms before"), so timing stays exact.
+- **Positions Relative to Window:** the macro still works when the window has moved.
+- **Minimize While Recording.**
+
+<br clear="right">
+
+### Hotkeys
+
+<img src=".github/readme/card-hotkeys.png" alt="The Hotkeys card" width="300" align="right">
+
+Click a box and press the key you want, or clear it. Hotkeys work from any program.
+
+If another program already uses a key, or two hotkeys share one, the card says so.
+
+**Stop** is active only while recording or playing, and **Capture Position** only while a step's editor is open,
+so those keys work normally the rest of the time.
+
+<br clear="right">
+
+### Themes
+
+<img src=".github/readme/menu-theme-dark.png" alt="View, Theme, Dark Themes: the list of 24 dark themes" width="300" align="right">
+
+**View ▸ Theme** has 24 dark and 14 light themes, or **Match Operating System**.
+
+Hover over a theme to preview it; click to keep it.
+
+<br clear="right">
+
+### Activity
+
+The log at the bottom right says what happened and when. **View ▸ Detailed Activity Log** also lists every step
+played.
+
+## Reference
+
+<details>
+<summary><b>Menus</b></summary>
+
+- **File**: New, Open, Open Recent, Save, Save As, Export to CSV, Copy Command Line (plays the saved macro and
+  closes; for a shortcut or Windows Task Scheduler), Settings, Quit.
+  - **Settings**: Change App Data Folder, Reset Settings to Defaults, Confirm Before Deleting Steps, Start
+    Minimized, Start at Login, and on Windows: Send Keys as Scan Codes (for games that ignore normal key presses),
+    Restart as Administrator (needed to control programs running as administrator).
+- **Macro**: Record, Record After Selected Step, New Recording, Play, Play Selection, Play From Selected Step,
+  Play Up to Selected Step, Play This Step Only, Pause / Resume, Stop, Add Action, Clean Up (merges back-to-back
+  waits and moves).
+- **Edit**: Undo, Redo, Cut, Copy, Paste, Delete, Select All, Edit Step, Enable / Disable, Move Up / Down,
+  Combine Into Click or Key Press (a button down + up, or key down + up), Find and Replace.
+- **View**: Theme, Show Activity Log, Detailed Activity Log (also lists every step played), Always on Top, Mark
+  Selected Step on Screen, Preview Steps on Hover, Reset View Options.
+- **Help**: Project Website, Open App Data Folder, Report a Problem, About.
+
+</details>
+
+<details>
+<summary><b>Command line</b></summary>
 
 ```
 MacroRecorder.exe [file] [--play] [--repeat N] [--quit] [--minimized] [--data-folder FOLDER]
@@ -193,14 +226,53 @@ MacroRecorder.exe [file] [--play] [--repeat N] [--quit] [--minimized] [--data-fo
 
 Example: `MacroRecorder.exe "C:\path\to\daily-report.macro" --play --repeat 3 --quit`
 
-## Macro files
+</details>
+
+<details>
+<summary><b>Macro files</b></summary>
 
 Macros are saved as `.macro` files: plain JSON you can read, compare and fix in any text editor. Each step is
 one object with a `type` (`mouse_click`, `text`, `wait`, …) and its values. Positions are screen pixels, or
 pixels from the window's corner for steps recorded with **Positions Relative to Window** (those carry
 `"relative_to_window": true`).
 
-## Building from source
+</details>
+
+### Linux setup
+
+The app checks your session when it starts and uses the best method available; the Activity log says which one.
+
+| Session | Recording | Playback |
+|---|---|---|
+| **X11** ("Xorg" at the login screen) | every program | every program |
+| **Wayland**, with access to `/dev/uinput` | programs running through XWayland | every program |
+| **Wayland**, without that access | programs running through XWayland | programs running through XWayland |
+
+**For recording, log in with an X11 session** (most distributions offer "Xorg" or "X11" on the login screen's
+settings button): Wayland doesn't let one program watch the mouse and keyboard of others.
+
+<details>
+<summary><b>Playing back into every program on Wayland</b></summary>
+
+Give your user access to `/dev/uinput` once, then log out and back in:
+
+```
+echo 'KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"' | sudo tee /etc/udev/rules.d/60-macrorecorder-uinput.rules
+sudo usermod -aG input "$USER"
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+The first line lets members of the `input` group use `/dev/uinput`; the second adds you to that group. On Wayland,
+playback through `/dev/uinput` types plain US-keyboard characters, and "Window Focus", "Wait for Pixel Color",
+"Wait for Key" and positions relative to a window aren't available (Wayland keeps that information private); the
+Activity log says when a step was skipped. Blocking the keyboard during playback is Windows-only.
+
+</details>
+
+### For developers
+
+<details>
+<summary><b>Building from source</b></summary>
 
 The app is C++20 with Qt 6 (6.5 or newer) and CMake.
 
@@ -221,20 +293,26 @@ For the single self-contained exe, also install `mingw-w64-ucrt-x86_64-qt6-stati
 **Linux:** install Qt 6 (with the SVG module), CMake, Ninja and the X11 development files (`libx11-dev
 libxtst-dev` on Debian and Ubuntu), then run the same two `cmake` commands.
 
-### Changing the icon
-Edit `resources/icon.svg`, then rebuild `packaging/icon.ico` with the small tool in `packaging/make_icon.cpp`
-(build it against Qt Gui and Qt Svg, then run `make_icon resources/icon.svg packaging/icon.ico`).
+**Changing the icon:** edit `resources/icon.svg`, then rebuild `packaging/icon.ico` with the small tool in
+`packaging/make_icon.cpp` (build it against Qt Gui and Qt Svg, then run
+`make_icon resources/icon.svg packaging/icon.ico`).
 
-## Automatic releases
+</details>
+
+<details>
+<summary><b>Automatic releases</b></summary>
 
 GitHub Actions (`.github/workflows/build-apps.yml`) builds the Windows exe and the Linux AppImage and checks that
 both start. On Linux it also records and plays back for real on a virtual X11 display (`.github/ci/x11_check.sh`).
 
 - **Pull requests:** the built files are kept with the run for 14 days (open the run, then **Artifacts**).
 - **Every merge into `main`:** a new release is published with both files, numbered automatically
-  (v0.1.1 → v0.1.2). Put `[minor]` or `[major]` in the pull request's **title** for v0.2.0 or v1.0.0.
+  (v1.0.1 → v1.0.2). Put `[minor]` or `[major]` in the pull request's **title** for v1.1.0 or v2.0.0.
 
-## Code layout
+</details>
+
+<details>
+<summary><b>Code layout</b></summary>
 
 | Folder | What's there |
 |---|---|
@@ -243,6 +321,8 @@ both start. On Linux it also records and plays back for real on a virtual X11 di
 | `src/app` | The window, cards, menus, step editor, themes, settings and app data folder. |
 | `resources` | Icon and small images used by the themes. |
 | `packaging` | Windows icon and version info, the icon tool, the Linux desktop entry. |
+
+</details>
 
 ## License and credits
 
