@@ -1,7 +1,5 @@
 #include "ActionTable.h"
 
-#include "ActionModel.h"
-
 #include <QApplication>
 #include <QCursor>
 #include <QPainter>
@@ -161,13 +159,8 @@ void ActionTable::scrollContentsBy(int dx, int dy)
 void ActionTable::setHover(const QModelIndex& index)
 {
     const int row = index.isValid() ? index.row() : -1;
-    const int valueRow = index.isValid() && index.column() == ActionModel::ColValue ? row : -1;
-    if (row != m_hover) {
-        m_hover = row;
-        viewport()->update();   // repaint the old and new highlighted rows
-    }
-    if (valueRow != m_hoverValue) {
-        m_hoverValue = valueRow;
-        emit hoveredValue(valueRow);
-    }
+    if (row == m_hover) return;
+    m_hover = row;
+    viewport()->update();   // repaint the old and new highlighted rows
+    emit hoveredRow(row);
 }

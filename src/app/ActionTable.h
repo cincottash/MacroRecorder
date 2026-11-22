@@ -1,6 +1,5 @@
 // The step list. Adds what a file manager does: drag a selection box from anywhere in the list (also the empty
-// space below the steps), and a light highlight on the row under the pointer. Reports when the pointer is over a
-// step's Value, for the preview.
+// space below the steps), and a light highlight on the row under the pointer, which it reports for the preview.
 #pragma once
 
 #include <QItemSelectionModel>
@@ -17,7 +16,7 @@ public:
     int hoverRow() const { return m_hover; }   // the row under the pointer (-1: none)
 
 signals:
-    void hoveredValue(int row);   // the pointer is over this step's Value; -1: it isn't
+    void hoveredRow(int row);   // the pointer is over this step (any column); -1: over none
 
 protected:
     void mousePressEvent(QMouseEvent* e) override;
@@ -38,5 +37,5 @@ private:
     QPoint m_last;                       // viewport coordinates of the pointer
     QItemSelection m_before;             // kept when Ctrl or Shift is held: the box adds to it
     QTimer m_scroll;                     // scrolls while the box is dragged past the top or bottom edge
-    int m_hover = -1, m_hoverValue = -1;
+    int m_hover = -1;
 };
