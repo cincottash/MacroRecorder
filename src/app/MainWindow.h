@@ -164,6 +164,7 @@ private:
     QMessageBox* m_msgBox = nullptr;       // a Message box step waiting for OK
     ActionDialog* m_openDialog = nullptr;  // a step editor that's open (for the Capture position hotkey)
     QWidget* m_marker = nullptr;
+    QHash<int, bool> m_effectsDefault;   // the system's menu/drop-down animations (Qt::UIEffect), as found at start
     class QSystemTrayIcon* m_tray = nullptr;    // created for the first notification
 
     // widgets

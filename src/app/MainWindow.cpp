@@ -160,6 +160,9 @@ QString filterKey(ActionType t)
 MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
     : QMainWindow(parent), m_s(s), m_backend(platform::Backend::create(this)), m_hotkeysEnabled(hotkeys)
 {
+    // The system's menu and drop-down animations, before Window Opacity changes them (see applyOpacity)
+    for (Qt::UIEffect e : {Qt::UI_AnimateMenu, Qt::UI_FadeMenu, Qt::UI_AnimateCombo})
+        m_effectsDefault.insert(int(e), QApplication::isEffectEnabled(e));
     m_player = new core::Player(m_backend->injector(), this);
     setWindowIcon(QIcon(QStringLiteral(":/icon.svg")));
     themes::setCustom(themefile::fromStored(m_s.customThemes));   // imported themes, before the Theme menu is built
@@ -259,6 +262,8 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
 MainWindow::~MainWindow()
 {
     m_player->stop();
+    for (auto it = m_effectsDefault.cbegin(); it != m_effectsDefault.cend(); ++it)   // the system's animations back
+        QApplication::setEffectEnabled(Qt::UIEffect(it.key()), it.value());
 }
 
 // ------------------------------------------------------------------------------------------------ building
@@ -1356,13 +1361,26 @@ void MainWindow::applyOpacity()
 {
     const double level = m_s.windowOpacity / 100.0;   // View > Window Opacity; the same in every state
     if (qAbs(windowOpacity() - level) > 0.01) setWindowOpacity(level);
-    for (QWidget* w : QApplication::topLevelWidgets())   // open ones change at once (the slider sits in a menu)
-        if (w->isVisible() && followsOpacity(w) && qAbs(w->windowOpacity() - level) > 0.01) w->setWindowOpacity(level);
+    // A menu opened by a click plays the opening animation, which draws it solid. So below 100 % the menu and
+    // drop-down animations are off; at 100 % the system's own settings are back.
+    const bool solid = level >= 0.995;
+    for (auto it = m_effectsDefault.cbegin(); it != m_effectsDefault.cend(); ++it) {
+        const bool want = solid && it.value();
+        if (QApplication::isEffectEnabled(Qt::UIEffect(it.key())) != want)
+            QApplication::setEffectEnabled(Qt::UIEffect(it.key()), want);
+    }
+    // Every menu, drop-down list and dialog, open or not: one that has its level before it opens shows it from the
+    // start (and open ones change at once, as the slider sits in a menu).
+    QList<QWidget*> targets = QApplication::topLevelWidgets();
+    for (QMenu* m : findChildren<QMenu*>()) targets << m;
+    for (QWidget* w : targets)
+        if (followsOpacity(w) && qAbs(w->windowOpacity() - level) > 0.01) w->setWindowOpacity(level);
 }
 
 bool MainWindow::eventFilter(QObject* watched, QEvent* e)
 {
-    if (e->type() == QEvent::Show && watched->isWidgetType()) {
+    // Polish: a popup made later (a new context menu or drop-down list) gets the level before it's first shown
+    if ((e->type() == QEvent::Show || e->type() == QEvent::Polish) && watched->isWidgetType()) {
         auto* w = static_cast<QWidget*>(watched);
         if (followsOpacity(w)) w->setWindowOpacity(m_s.windowOpacity / 100.0);
     }
