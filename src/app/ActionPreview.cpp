@@ -1,5 +1,7 @@
 #include "ActionPreview.h"
 
+#include "Look.h"
+
 #include <QGuiApplication>
 #include <QPainter>
 #include <QPainterPath>
@@ -128,7 +130,9 @@ void ActionPreview::paintEvent(QPaintEvent*)
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
     const QPalette pal = palette();
-    const QColor card = pal.color(QPalette::Button), border = pal.color(QPalette::Mid), text = pal.color(QPalette::Text);
+    QColor card = pal.color(QPalette::Button);
+    card.setAlphaF(look::values().previewPanel);   // 1: solid; lower lets the list show through
+    const QColor border = pal.color(QPalette::Mid), text = pal.color(QPalette::Text);
     const QColor muted = pal.color(QPalette::PlaceholderText), accent = pal.color(QPalette::Highlight);
 
     // card

@@ -12,6 +12,8 @@ struct Settings {
     bool showLog = true;
     bool detailedLog = false;
     bool alwaysOnTop = false;
+    int windowOpacity = 100;            // percent (View > Window Opacity)
+    bool opacityOnlyWhileBusy = false;  // apply it only while recording or playing; solid otherwise
     QByteArray geometry;
     QByteArray tableState;
 
@@ -57,6 +59,9 @@ struct Settings {
     bool showPosition = true;   // mark the selected step's position on the screen
     bool showPreview = true;    // animate the hovered step's path in the list
     bool scanCodes = false;     // Windows: send keys as hardware scan codes (for games)
+
+    // Imported themes, one JSON text each (kept by both resets: they're the user's own files)
+    QStringList customThemes;
 
     // Files
     QStringList recent;

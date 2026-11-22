@@ -18,6 +18,9 @@ void fields(Settings& s, F&& f)
     f("show_log", s.showLog);
     f("detailed_log", s.detailedLog);
     f("always_on_top", s.alwaysOnTop);
+    f("window_opacity", s.windowOpacity);
+    f("opacity_only_while_busy", s.opacityOnlyWhileBusy);
+    f("custom_themes", s.customThemes);
     f("geometry", s.geometry);
     f("table_state", s.tableState);
     f("speed_pct", s.speedPct);
@@ -97,6 +100,7 @@ bool Settings::load(const QString& path)
     minMovePx = qBound(1, minMovePx, 100);
     shortestPauseMs = qBound(0, shortestPauseMs, 60000);
     pathDetail = qBound(0, pathDetail, 100);
+    windowOpacity = qBound(30, windowOpacity, 100);
     static const QStringList kAfter = {QStringLiteral("nothing"), QStringLiteral("quit"), QStringLiteral("lock"), QStringLiteral("sleep"),
                                        QStringLiteral("logoff"), QStringLiteral("restart"), QStringLiteral("shutdown")};
     if (!kAfter.contains(afterPlayback)) afterPlayback = QStringLiteral("nothing");
@@ -122,6 +126,8 @@ void Settings::resetView()
     showLog = d.showLog;
     detailedLog = d.detailedLog;
     alwaysOnTop = d.alwaysOnTop;
+    windowOpacity = d.windowOpacity;
+    opacityOnlyWhileBusy = d.opacityOnlyWhileBusy;
     showPosition = d.showPosition;
     showPreview = d.showPreview;
     tableState.clear();
@@ -135,8 +141,14 @@ void Settings::resetOptions()
     const QString keepTheme = theme;
     const QStringList keepFolded = foldedCards;
     const bool keepLog = showLog, keepDetail = detailedLog, keepTop = alwaysOnTop;
+    const int keepOpacity = windowOpacity;
+    const bool keepOnlyBusy = opacityOnlyWhileBusy;
+    const QStringList keepThemes = customThemes;
     const QByteArray keepGeo = geometry, keepTable = tableState;
     *this = d;
+    windowOpacity = keepOpacity;
+    opacityOnlyWhileBusy = keepOnlyBusy;
+    customThemes = keepThemes;
     recent = keepRecent;
     lastFolder = keepFolder;
     theme = keepTheme;

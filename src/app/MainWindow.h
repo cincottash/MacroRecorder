@@ -44,6 +44,9 @@ public:
     void playFromCommandLine(int repeat, bool quitWhenDone);
     // Command line: record now; when recording stops, save to `path` and quit.
     void recordToFileAndQuit(const QString& path);
+    // View > Theme > Import Theme…, without the file dialog. Adds the theme, keeps it in the settings and switches
+    // to it. False (with the reason in `error`) if the file isn't a usable theme.
+    bool importThemeFile(const QString& path, QString* error = nullptr);
 
 protected:
     void closeEvent(QCloseEvent* e) override;
@@ -78,6 +81,12 @@ private:
     void applyTheme();
     void previewTheme(const QString& key);
     void endThemePreview();
+    QAction* addThemeAction(QMenu* menu, const QString& text, const QString& key);
+    void rebuildCustomThemeMenus();   // the Custom Themes and Remove Custom Theme submenus
+    void importTheme();               // asks for the file
+    void exportTheme();
+    void removeCustomTheme(const QString& key);
+    void applyOpacity();              // the window's opacity, from the View options and the state
 
     // file
     bool maybeSave();
@@ -191,6 +200,11 @@ private:
     QList<QPair<QAction*, QPushButton*>> m_buttonActions;
     QList<QAction*> m_editActs;                  // need a selection and Idle
     QActionGroup* m_themeGroup = nullptr;
+    QMenu *m_customThemeMenu = nullptr, *m_removeThemeMenu = nullptr;
+    QSlider* m_opacitySlider = nullptr;   // View > Window Opacity
+    QAction* m_opacityBusyAct = nullptr;  // ... > Only While Recording or Playing
+    QTimer m_opacityPreview;              // after the slider moves: show that level for a moment
+    bool m_previewOpacity = false;
     QString m_themePreviewing;
     QTimer m_themePreviewTimer;
     QTimer m_saveTimer;

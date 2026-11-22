@@ -20,9 +20,12 @@ struct Theme {
     QString c(const QString& k) const { return colors.value(k); }
 };
 
-const QList<Theme>& all();
+const QList<Theme>& builtIn();   // the themes that come with the app
+const QList<Theme>& all();       // the built-in themes, then the custom ones
 const Theme* find(const QString& key);
-QStringList groups();          // menu order
+QStringList groups();            // the built-in groups, in menu order
+QString customGroup();           // "Custom Themes": the group of imported themes
+void setCustom(const QList<Theme>& list);   // replaces the imported themes (references from all() become invalid)
 bool systemIsDark();
 const Theme& forChoice(const QString& key);  // "system" or unknown keys -> Light/Dark by the OS setting
 

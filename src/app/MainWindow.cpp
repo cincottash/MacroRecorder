@@ -4,6 +4,7 @@
 #include "ActionPreview.h"
 #include "ActionTable.h"
 #include "AppData.h"
+#include "ThemeFile.h"
 #include "Themes.h"
 
 #include <QActionGroup>
@@ -16,6 +17,7 @@
 #include <QComboBox>
 #include <QDateTime>
 #include <QDesktopServices>
+#include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFrame>
@@ -49,6 +51,7 @@
 #include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <QWidgetAction>
 
 using core::Action;
 using core::ActionType;
@@ -159,6 +162,7 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
 {
     m_player = new core::Player(m_backend->injector(), this);
     setWindowIcon(QIcon(QStringLiteral(":/icon.svg")));
+    themes::setCustom(themefile::fromStored(m_s.customThemes));   // imported themes, before the Theme menu is built
     buildMenus();
     buildUi();
     applyTheme();
@@ -392,30 +396,35 @@ void MainWindow::buildMenus()
     QMenu* theme = m_viewMenu->addMenu(QStringLiteral("&Theme"));
     m_themeGroup = new QActionGroup(this);
     m_themeGroup->setExclusive(true);
-    auto themeAction = [&](QMenu* menu, const QString& text, const QString& key) {
-        QAction* a = menu->addAction(text);
-        a->setCheckable(true);
-        a->setChecked(m_s.theme == key);
-        a->setData(key);
-        m_themeGroup->addAction(a);
-        connect(a, &QAction::hovered, this, [this, key] { previewTheme(key); });
-        connect(a, &QAction::triggered, this, [this, key] {
-            m_s.theme = key;
-            saveSettingsSoon();
-            applyTheme();
-        });
-    };
-    themeAction(theme, QStringLiteral("Match Operating System"), QStringLiteral("system"));
+    theme->setToolTipsVisible(true);
+    // The groups (the entries that open a list) come first, then Match Operating System.
+    m_customThemeMenu = theme->addMenu(themes::customGroup());   // shown once a theme has been imported
     for (const QString& g : themes::groups()) {
         QMenu* sub = theme->addMenu(g);
         QList<const themes::Theme*> list;
         for (const themes::Theme& t : themes::all())
             if (t.group == g) list << &t;
         std::sort(list.begin(), list.end(), [](auto* a, auto* b) { return a->name.compare(b->name, Qt::CaseInsensitive) < 0; });
-        for (auto* t : list) themeAction(sub, t->name, t->key);
+        for (auto* t : list) addThemeAction(sub, t->name, t->key);
     }
+    addThemeAction(theme, QStringLiteral("Match Operating System"), QStringLiteral("system"));
+    theme->addSeparator();
+    QAction* importAct = theme->addAction(QStringLiteral("&Import Theme…"), this, [this] { importTheme(); });
+    importAct->setToolTip(QStringLiteral("Adds a theme from a .json file: one exported from here, or a VS Code color theme. "
+                                         "It's kept with the other themes under Custom Themes."));
+    QAction* exportAct = theme->addAction(QStringLiteral("&Export Current Theme…"), this, [this] { exportTheme(); });
+    exportAct->setToolTip(QStringLiteral("Saves the theme in use as a .json file: a starting point for a theme of your own."));
+    m_removeThemeMenu = theme->addMenu(QStringLiteral("&Remove Custom Theme"));
+    rebuildCustomThemeMenus();
     connect(m_viewMenu, &QMenu::aboutToHide, this, [this] { endThemePreview(); });
     connect(theme, &QMenu::aboutToHide, this, [this] { endThemePreview(); });
+    // The pointer on something that isn't a theme (a group's name such as "Dark Themes", or Import Theme…): show the
+    // theme in use again. Otherwise the last theme the pointer passed over stayed previewed, and it looked as if
+    // pointing at "Dark Themes" had changed the theme.
+    connect(theme, &QMenu::hovered, this, [this](QAction* a) {
+        const bool isTheme = !a->menu() && m_themeGroup->actions().contains(a);
+        if (!isTheme && !m_themePreviewing.isEmpty() && m_themePreviewing != m_s.theme) previewTheme(m_s.theme);
+    });
     m_viewMenu->addSeparator();
     m_logAct = m_viewMenu->addAction(QStringLiteral("Show Activity &Log"));
     m_logAct->setCheckable(true);
@@ -433,8 +442,61 @@ void MainWindow::buildMenus()
         m_s.alwaysOnTop = on;
         setWindowFlag(Qt::WindowStaysOnTopHint, on);
         show();
+        applyOpacity();
         saveSettingsSoon();
     });
+    QMenu* opacity = m_viewMenu->addMenu(QStringLiteral("Window &Opacity"));
+    {
+        // One slider and one option. The window changes as the slider moves, so the level can be judged against
+        // what's behind it (also with the option on, for a moment, while the window would otherwise stay solid).
+        auto* row = new QWidget;
+        auto* h = new QHBoxLayout(row);
+        h->setContentsMargins(26, 5, 14, 5);
+        h->setSpacing(10);
+        m_opacitySlider = new QSlider(Qt::Horizontal);
+        m_opacitySlider->setRange(30, 100);
+        m_opacitySlider->setSingleStep(5);
+        m_opacitySlider->setPageStep(10);
+        m_opacitySlider->setMinimumWidth(170);
+        m_opacitySlider->setValue(m_s.windowOpacity);
+        m_opacitySlider->setProperty("testId", QStringLiteral("opacitySlider"));
+        auto* value = new QLabel(QStringLiteral("%1 %").arg(m_s.windowOpacity));
+        value->setMinimumWidth(QFontMetrics(font()).horizontalAdvance(QStringLiteral("100 %")) + 4);
+        value->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        h->addWidget(new QLabel(QStringLiteral("Opacity")));
+        h->addWidget(m_opacitySlider, 1);
+        h->addWidget(value);
+        auto* wa = new QWidgetAction(opacity);
+        wa->setDefaultWidget(row);
+        opacity->addAction(wa);
+        m_opacityBusyAct = opacity->addAction(QStringLiteral("Only While Recording or Playing"));
+        m_opacityBusyAct->setCheckable(true);
+        m_opacityBusyAct->setChecked(m_s.opacityOnlyWhileBusy);
+        connect(m_opacityBusyAct, &QAction::toggled, this, [this](bool on) {
+            m_s.opacityOnlyWhileBusy = on;
+            applyOpacity();
+            saveSettingsSoon();
+        });
+        m_opacityPreview.setSingleShot(true);
+        m_opacityPreview.setInterval(1200);
+        connect(&m_opacityPreview, &QTimer::timeout, this, [this] {
+            if (m_opacitySlider->isSliderDown()) return;   // still held: keep showing it until released
+            m_previewOpacity = false;
+            applyOpacity();
+        });
+        connect(m_opacitySlider, &QSlider::sliderReleased, this, [this] { m_opacityPreview.start(); });
+        connect(m_opacitySlider, &QSlider::valueChanged, this, [this, value](int v) {
+            m_s.windowOpacity = v;
+            value->setText(QStringLiteral("%1 %").arg(v));
+            // Moved by hand: show the level for a moment even if it only applies while recording or playing
+            if (m_opacitySlider->isSliderDown() || m_opacitySlider->hasFocus() || m_opacitySlider->underMouse()) {
+                m_previewOpacity = true;
+                m_opacityPreview.start();
+            }
+            applyOpacity();
+            saveSettingsSoon();
+        });
+    }
     m_markerAct = m_viewMenu->addAction(QStringLiteral("&Mark Selected Step on Screen"));
     m_markerAct->setCheckable(true);
     m_markerAct->setChecked(m_s.showPosition);
@@ -451,6 +513,9 @@ void MainWindow::buildMenus()
         for (auto it = m_cards.cbegin(); it != m_cards.cend(); ++it) setCardOpen(it.key(), true, false);
         m_logAct->setChecked(true);
         for (QAction* a : {m_markerAct, m_previewAct}) { const QSignalBlocker b(a); a->setChecked(true); }
+        m_opacitySlider->setValue(m_s.windowOpacity);   // also updates the value shown beside it
+        { const QSignalBlocker b(m_opacityBusyAct); m_opacityBusyAct->setChecked(m_s.opacityOnlyWhileBusy); }
+        applyOpacity();
         updateMarker();
         setWindowFlag(Qt::WindowStaysOnTopHint, false);
         show();
@@ -1091,6 +1156,7 @@ void MainWindow::setState(State s)
     case State::Playing: setPill(QStringLiteral("▶ Playing"), QStringLiteral("ok")); break;
     }
     updateUi();
+    applyOpacity();
 }
 
 void MainWindow::updateUi()
@@ -1168,6 +1234,134 @@ void MainWindow::applyTheme()
         c->setPalette(QPalette());
     }
     themes::apply(themes::forChoice(m_s.theme));
+}
+
+QAction* MainWindow::addThemeAction(QMenu* menu, const QString& text, const QString& key)
+{
+    QAction* a = menu->addAction(text);
+    a->setCheckable(true);
+    a->setChecked(m_s.theme == key);
+    a->setData(key);
+    m_themeGroup->addAction(a);
+    connect(a, &QAction::hovered, this, [this, key] { previewTheme(key); });
+    connect(a, &QAction::triggered, this, [this, key] {
+        m_s.theme = key;
+        saveSettingsSoon();
+        applyTheme();
+    });
+    return a;
+}
+
+void MainWindow::rebuildCustomThemeMenus()
+{
+    for (QAction* a : m_customThemeMenu->actions()) {
+        m_themeGroup->removeAction(a);
+        delete a;
+    }
+    m_removeThemeMenu->clear();
+    QList<themes::Theme> list;
+    for (const themes::Theme& t : themes::all())
+        if (t.group == themes::customGroup()) list << t;
+    std::sort(list.begin(), list.end(), [](const auto& a, const auto& b) { return a.name.compare(b.name, Qt::CaseInsensitive) < 0; });
+    for (const themes::Theme& t : list) {
+        addThemeAction(m_customThemeMenu, t.name, t.key);
+        const QString key = t.key;
+        m_removeThemeMenu->addAction(t.name, this, [this, key] { removeCustomTheme(key); });
+    }
+    m_customThemeMenu->menuAction()->setVisible(!list.isEmpty());
+    m_removeThemeMenu->menuAction()->setEnabled(!list.isEmpty());
+}
+
+void MainWindow::importTheme()
+{
+    const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("Import Theme"), m_s.lastFolder,
+                                                      QStringLiteral("Theme Files (*.json);;All Files (*)"));
+    if (path.isEmpty()) return;
+    QString error;
+    if (!importThemeFile(path, &error))
+        QMessageBox::warning(this, QStringLiteral("Couldn't Import the Theme"),
+                             QStringLiteral("%1 can't be used as a theme.\n\n%2").arg(QFileInfo(path).fileName(), error));
+}
+
+bool MainWindow::importThemeFile(const QString& path, QString* error)
+{
+    const themefile::Result r = themefile::read(path);
+    if (!r.ok()) {
+        if (error) *error = r.error;
+        log(QStringLiteral("Couldn't import the theme %1: %2").arg(QDir::toNativeSeparators(path), r.error));
+        return false;
+    }
+    // A custom theme with the same name is replaced (importing an edited file again updates it).
+    QStringList kept;
+    bool replaced = false;
+    for (const QString& stored : m_s.customThemes) {
+        const themefile::Result old = themefile::parse(stored.toUtf8(), QString());
+        if (old.ok() && old.theme.key == r.theme.key) { replaced = true; continue; }
+        kept << stored;
+    }
+    kept << QString::fromUtf8(themefile::write(r.theme, false));
+    m_s.customThemes = kept;
+    themes::setCustom(themefile::fromStored(m_s.customThemes));
+    rebuildCustomThemeMenus();
+    m_s.theme = r.theme.key;
+    for (QAction* a : m_themeGroup->actions()) a->setChecked(a->data().toString() == m_s.theme);
+    applyTheme();
+    saveSettingsSoon();
+    log(replaced ? QStringLiteral("Updated the custom theme \u201C%1\u201D.").arg(r.theme.name)
+                 : QStringLiteral("Imported the theme \u201C%1\u201D. It's in View > Theme > Custom Themes.").arg(r.theme.name));
+    for (const QString& note : r.notes) log(note);
+    if (appdata::isTemporary())
+        log(QStringLiteral("Don't Keep App Data is on, so the imported theme will be gone the next time the app opens."));
+    return true;
+}
+
+void MainWindow::exportTheme()
+{
+    const themes::Theme t = themes::forChoice(m_s.theme);
+    QString fileName = t.name;
+    for (QChar& ch : fileName)
+        if (QStringLiteral("\\/:*?\"<>|").contains(ch)) ch = QLatin1Char('_');
+    const QString folder = m_s.lastFolder.isEmpty() ? QDir::homePath() : m_s.lastFolder;
+    const QString path = QFileDialog::getSaveFileName(this, QStringLiteral("Export Current Theme"),
+                                                      QDir(folder).filePath(fileName + QStringLiteral(".json")),
+                                                      QStringLiteral("Theme Files (*.json)"));
+    if (path.isEmpty()) return;
+    QSaveFile f(path);
+    if (!f.open(QIODevice::WriteOnly) || f.write(themefile::write(t)) < 0 || !f.commit()) {
+        QMessageBox::warning(this, QStringLiteral("Couldn't Export the Theme"),
+                             QStringLiteral("%1 couldn't be saved: %2").arg(QDir::toNativeSeparators(path), f.errorString()));
+        return;
+    }
+    log(QStringLiteral("Exported the theme \u201C%1\u201D to %2. Change its colors and import it to make a theme of your own.")
+            .arg(t.name, QDir::toNativeSeparators(path)));
+}
+
+void MainWindow::removeCustomTheme(const QString& key)
+{
+    QString name;
+    QStringList kept;
+    for (const QString& stored : m_s.customThemes) {
+        const themefile::Result r = themefile::parse(stored.toUtf8(), QString());
+        if (r.ok() && r.theme.key == key) { name = r.theme.name; continue; }
+        kept << stored;
+    }
+    m_s.customThemes = kept;
+    themes::setCustom(themefile::fromStored(m_s.customThemes));
+    rebuildCustomThemeMenus();
+    if (m_s.theme == key) m_s.theme = Settings().theme;
+    for (QAction* a : m_themeGroup->actions()) a->setChecked(a->data().toString() == m_s.theme);
+    applyTheme();
+    saveSettingsSoon();
+    log(QStringLiteral("Removed the custom theme \u201C%1\u201D.").arg(name));
+}
+
+void MainWindow::applyOpacity()
+{
+    // With "Only While Recording or Playing" on, the window is solid unless something is running (or the slider is
+    // being moved, to show the level).
+    const bool busy = m_state != State::Idle;
+    const int pct = (m_s.opacityOnlyWhileBusy && !busy && !m_previewOpacity) ? 100 : m_s.windowOpacity;
+    if (qAbs(windowOpacity() - pct / 100.0) > 0.01) setWindowOpacity(pct / 100.0);
 }
 
 void MainWindow::previewTheme(const QString& key)

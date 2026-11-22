@@ -180,6 +180,64 @@ Hover over a theme to preview it; click to keep it.
 
 <br clear="right">
 
+#### Your own themes
+
+<img src=".github/readme/menu-theme-custom.png" alt="View, Theme: Custom Themes with an imported theme, and Import Theme, Export Current Theme and Remove Custom Theme" width="360" align="right">
+
+**View ▸ Theme ▸ Import Theme…** adds a theme from a single `.json` file. It appears under **Custom Themes**
+and stays there after the app closes. Importing a file with the same theme name again updates it.
+
+Two kinds of file work:
+
+- **A VS Code color theme**, as it comes (comments and all). Its editor, sidebar and button colors are used.
+- **A MacroRecorder theme.** **Export Current Theme…** saves the theme in use as one; change its colors and
+  import it.
+
+<br clear="right">
+
+A MacroRecorder theme needs only `bg` (the background) and `text`; any color left out is worked out from those:
+
+```json
+{
+  "name": "Ocean",
+  "colors": { "bg": "#0B2030", "text": "#E0F0FF", "accent": "#20A0C0" }
+}
+```
+
+<details>
+<summary><b>Every color a theme can set</b></summary>
+
+| Name | Used for |
+|---|---|
+| `bg` | The window's background |
+| `card` | The cards, menus and the step list |
+| `border` | Lines around cards, boxes and menus |
+| `text`, `muted` | Text, and quieter text (hints, card titles) |
+| `accent`, `accent_hover`, `accent_text` | Selected rows, the Play button and links; the button under the pointer; text on the accent |
+| `input` | Text boxes and number boxes |
+| `log_bg` | The Activity log |
+| `track` | Disabled buttons, the status label while idle, and the menu bar item under the pointer |
+| `ok`, `ok_bg` | "Playing" and other good news |
+| `warn`, `warn_bg`, `warn_border` | Warnings |
+| `err`, `err_bg` | "Recording", errors |
+
+Colors are written `#RRGGBB`. A theme with the same name as a built-in one gets "(Imported)" added to its name.
+If the text would be hard to read on the background, the Activity log says so.
+
+</details>
+
+**Remove Custom Theme** takes an imported theme off the list.
+
+### Window opacity
+
+**View ▸ Window Opacity** makes the whole window see-through, so a program behind it stays visible (handy with
+**Always on Top**). Drag **Opacity** and the window changes as you go. Tick **Only While Recording or Playing**
+to keep the window solid the rest of the time.
+
+![View, Window Opacity: an Opacity slider and the option Only While Recording or Playing](.github/readme/menu-opacity.png)
+
+On Linux this needs a desktop with a compositor (most have one).
+
 ### Activity
 
 The log at the bottom right says what happened and when. **View ▸ Detailed Activity Log** also lists every step
@@ -200,7 +258,7 @@ played.
   waits and moves).
 - **Edit**: Undo, Redo, Cut, Copy, Paste, Delete, Select All, Edit Step, Enable / Disable, Move Up / Down,
   Combine Into Click or Key Press (a button down + up, or key down + up), Find and Replace.
-- **View**: Theme, Show Activity Log, Detailed Activity Log (also lists every step played), Always on Top, Mark
+- **View**: Theme (including Import Theme, Export Current Theme and Remove Custom Theme), Show Activity Log, Detailed Activity Log (also lists every step played), Always on Top, Window Opacity, Mark
   Selected Step on Screen, Preview Steps on Hover, Reset View Options.
 - **Help**: Project Website, Open App Data Folder, Report a Problem, About.
 

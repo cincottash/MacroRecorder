@@ -1,5 +1,7 @@
 #include "ActionTable.h"
 
+#include "Look.h"
+
 #include <QApplication>
 #include <QCursor>
 #include <QPainter>
@@ -22,11 +24,11 @@ public:
             QColor c = o.palette.color(QPalette::Highlight);
             const bool selected = o.state & QStyle::State_Selected;
             if (!selected) {
-                c.setAlphaF(0.22);
+                c.setAlphaF(look::values().hover);
                 p->fillRect(o.rect, c);
             }
             QStyledItemDelegate::paint(p, o, i);
-            if (selected) p->fillRect(o.rect, QColor(255, 255, 255, 28));   // a selected row: slightly lighter
+            if (selected) p->fillRect(o.rect, QColor(255, 255, 255, look::values().hoverOnSelected));   // slightly lighter
             return;
         }
         QStyledItemDelegate::paint(p, o, i);
@@ -34,6 +36,26 @@ public:
 
 private:
     ActionTable* m_t;
+};
+
+// The selection box: the style's own, or the theme's accent at the strength set in Look.h.
+class SelectionBand : public QRubberBand {
+public:
+    explicit SelectionBand(QWidget* parent) : QRubberBand(QRubberBand::Rectangle, parent) {}
+
+protected:
+    void paintEvent(QPaintEvent* e) override
+    {
+        const look::Values& v = look::values();
+        if (v.bandFill < 0) { QRubberBand::paintEvent(e); return; }
+        QPainter p(this);
+        QColor fill = palette().color(QPalette::Highlight), line = fill;
+        fill.setAlphaF(v.bandFill);
+        line.setAlphaF(v.bandBorder);
+        p.fillRect(rect(), fill);
+        p.setPen(line);
+        p.drawRect(rect().adjusted(0, 0, -1, -1));
+    }
 };
 
 }  // namespace
@@ -83,7 +105,7 @@ void ActionTable::mouseMoveEvent(QMouseEvent* e)
     if (!m_active) {
         if ((contentPos(p) - m_origin).manhattanLength() < QApplication::startDragDistance()) return;
         m_active = true;
-        if (!m_band) m_band = new QRubberBand(QRubberBand::Rectangle, viewport());
+        if (!m_band) m_band = new SelectionBand(viewport());
         m_band->show();
         setHover({});
         m_scroll.start();
