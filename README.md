@@ -239,6 +239,7 @@ If the text would be hard to read on the background, the Activity log says so.
 
 **View ▸ Window Opacity** makes the whole window see-through, so a program behind it stays visible (handy with
 **Always on Top**). Drag **Opacity** and the window changes as you go; it keeps that level until you change it.
+Menus, drop-down lists and dialogs use the same level.
 
 ![View, Window Opacity: the Opacity slider](.github/readme/menu-opacity.png)
 
