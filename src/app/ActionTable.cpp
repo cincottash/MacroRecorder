@@ -1,13 +1,48 @@
 #include "ActionTable.h"
 
+#include "ActionModel.h"
+
 #include <QApplication>
+#include <QCursor>
+#include <QPainter>
+#include <QStyledItemDelegate>
 #include <QHeaderView>
 #include <QMouseEvent>
 #include <QRubberBand>
 #include <QScrollBar>
 
+namespace {
+
+// Paints the hover highlight under each cell of the row the pointer is over: the theme's accent, faint, so it
+// reads as "here" and never as "selected".
+class HoverDelegate : public QStyledItemDelegate {
+public:
+    explicit HoverDelegate(ActionTable* t) : QStyledItemDelegate(t), m_t(t) {}
+    void paint(QPainter* p, const QStyleOptionViewItem& o, const QModelIndex& i) const override
+    {
+        if (i.row() == m_t->hoverRow() && !m_t->selecting()) {
+            QColor c = o.palette.color(QPalette::Highlight);
+            const bool selected = o.state & QStyle::State_Selected;
+            if (!selected) {
+                c.setAlphaF(0.22);
+                p->fillRect(o.rect, c);
+            }
+            QStyledItemDelegate::paint(p, o, i);
+            if (selected) p->fillRect(o.rect, QColor(255, 255, 255, 28));   // a selected row: slightly lighter
+            return;
+        }
+        QStyledItemDelegate::paint(p, o, i);
+    }
+
+private:
+    ActionTable* m_t;
+};
+
+}  // namespace
+
 ActionTable::ActionTable(QWidget* parent) : QTableView(parent)
 {
+    setItemDelegate(new HoverDelegate(this));
     setMouseTracking(true);
     setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);   // smooth scrolling while dragging the box
     m_scroll.setInterval(30);
@@ -42,7 +77,7 @@ void ActionTable::mouseMoveEvent(QMouseEvent* e)
 {
     const QPoint p = e->position().toPoint();
     if (!m_pressed || !(e->buttons() & Qt::LeftButton)) {
-        setHover(m_active ? -1 : indexAt(p).row());
+        setHover(m_active ? QModelIndex() : indexAt(p));
         QTableView::mouseMoveEvent(e);
         return;
     }
@@ -52,7 +87,7 @@ void ActionTable::mouseMoveEvent(QMouseEvent* e)
         m_active = true;
         if (!m_band) m_band = new QRubberBand(QRubberBand::Rectangle, viewport());
         m_band->show();
-        setHover(-1);
+        setHover({});
         m_scroll.start();
     }
     updateBand();
@@ -95,6 +130,7 @@ void ActionTable::mouseReleaseEvent(QMouseEvent* e)
         m_scroll.stop();
         if (m_band) m_band->hide();
         setState(QAbstractItemView::NoState);
+        setHover(indexAt(e->position().toPoint()));
         e->accept();
         return;
     }
@@ -103,19 +139,35 @@ void ActionTable::mouseReleaseEvent(QMouseEvent* e)
 
 void ActionTable::leaveEvent(QEvent* e)
 {
-    setHover(-1);
+    setHover({});
     QTableView::leaveEvent(e);
 }
 
 bool ActionTable::viewportEvent(QEvent* e)
 {
-    if (e->type() == QEvent::Leave) setHover(-1);
+    if (e->type() == QEvent::Leave) setHover({});
     return QTableView::viewportEvent(e);
 }
 
-void ActionTable::setHover(int row)
+void ActionTable::scrollContentsBy(int dx, int dy)
 {
-    if (row == m_hover) return;
-    m_hover = row;
-    emit hoveredRow(row);
+    QTableView::scrollContentsBy(dx, dy);
+    if (m_hover >= 0 && !m_active) {
+        const QPoint p = viewport()->mapFromGlobal(QCursor::pos());
+        setHover(viewport()->rect().contains(p) ? indexAt(p) : QModelIndex());
+    }
+}
+
+void ActionTable::setHover(const QModelIndex& index)
+{
+    const int row = index.isValid() ? index.row() : -1;
+    const int valueRow = index.isValid() && index.column() == ActionModel::ColValue ? row : -1;
+    if (row != m_hover) {
+        m_hover = row;
+        viewport()->update();   // repaint the old and new highlighted rows
+    }
+    if (valueRow != m_hoverValue) {
+        m_hoverValue = valueRow;
+        emit hoveredValue(valueRow);
+    }
 }
