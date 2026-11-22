@@ -28,6 +28,11 @@ public:
     virtual QString unavailableReason() const { return {}; } // non-empty: playback (and recording) can't work here
     virtual QString recordUnavailableReason() const { return unavailableReason(); }  // non-empty: recording can't work
     virtual QString notes() const { return {}; }             // limitations worth telling the user at start-up
+    // Short, for the status label ("Wayland: Limited"): non-empty when recording or playback reach only some
+    // programs. notes() says what exactly.
+    virtual QString limitedTag() const { return {}; }
+    // The character the system's spreadsheets expect between CSV fields ("," or ";"); virtual so tests can change it.
+    virtual QChar listSeparator() const { return sys::listSeparator(); }
     virtual void setCapture(CaptureMode m) = 0;
     virtual core::Injector* injector() = 0;
     // Register a global hotkey (empty sequence clears it). False with a reason if another program has it.

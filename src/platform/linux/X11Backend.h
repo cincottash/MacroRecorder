@@ -14,10 +14,12 @@ public:
     ~X11Backend() override;
     void setNotes(const QString& notes);
     void setDisplayName(const QString& name);   // e.g. "Wayland (XWayland)"
+    void setLimitedTag(const QString& tag);     // e.g. "Wayland: Limited"
 
     QString name() const override;
     QString unavailableReason() const override;
     QString notes() const override;
+    QString limitedTag() const override;
     void setCapture(CaptureMode m) override;
     core::Injector* injector() override;
     bool setHotkey(int id, const QKeySequence& seq, QString* error) override;

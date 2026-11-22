@@ -93,13 +93,13 @@ ActionDialog::ActionDialog(const Action& a, const QStringList& labels, core::Inj
     build();
 }
 
-QSpinBox* ActionDialog::spin(int min, int max, int value, const QString& suffix)
+QSpinBox* ActionDialog::spin(int min, int max, int value, const QString& suffix, bool groupDigits)
 {
     auto* s = new QSpinBox;
     s->setRange(min, max);
     s->setValue(value);
     if (!suffix.isEmpty()) s->setSuffix(QLatin1Char(' ') + suffix);
-    s->setGroupSeparatorShown(true);
+    s->setGroupSeparatorShown(groupDigits);   // positions are written plainly ("1480 px"), as in the list
     s->setMinimumWidth(110);
     return s;
 }
@@ -118,13 +118,13 @@ void ActionDialog::build()
     const bool hasPos = t == ActionType::MouseMove || t == ActionType::MouseClick || t == ActionType::MouseDown
                         || t == ActionType::MouseUp || t == ActionType::Wheel || t == ActionType::WaitPixel;
     if (t == ActionType::MouseMove) {
-        m_fx = spin(-100000, 100000, m_a.from.x(), QStringLiteral("px"));
-        m_fy = spin(-100000, 100000, m_a.from.y(), QStringLiteral("px"));
+        m_fx = spin(-100000, 100000, m_a.from.x(), QStringLiteral("px"), false);
+        m_fy = spin(-100000, 100000, m_a.from.y(), QStringLiteral("px"), false);
         m_form->addRow(QStringLiteral("From X, Y:"), hrow({m_fx, m_fy}));
     }
     if (hasPos) {
-        m_x = spin(-100000, 100000, m_a.pos.x(), QStringLiteral("px"));
-        m_y = spin(-100000, 100000, m_a.pos.y(), QStringLiteral("px"));
+        m_x = spin(-100000, 100000, m_a.pos.x(), QStringLiteral("px"), false);
+        m_y = spin(-100000, 100000, m_a.pos.y(), QStringLiteral("px"), false);
         auto* pick = new QPushButton(t == ActionType::WaitPixel ? QStringLiteral("Pick Point and Color…") : QStringLiteral("Use Mouse Position…"));
         pick->setToolTip(QStringLiteral("After 3 seconds, takes the mouse pointer's position%1. Point at the spot meanwhile. "
                                         "Or point at it and press the Capture Position hotkey (F8 unless you changed it).")

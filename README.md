@@ -38,8 +38,9 @@ On Linux, see [Linux (experimental)](#linux-experimental).
 
 ## First run
 
-The app asks where to keep its settings. Pick any folder, or choose **Don't Keep App Data** to start fresh every
-time. While that choice is on, a **Settings Not Kept** link shows at the top of the window; click it to pick a
+The app asks where to keep its settings. It suggests the usual place for app data (`%LOCALAPPDATA%\MacroRecorder`
+on Windows, `~/.local/share/MacroRecorder` on Linux); pick any folder, or choose **Don't Keep App Data** to start
+fresh every time. While that choice is on, a **Settings Not Kept** link shows at the top of the window; click it to pick a
 folder. You can change this at any time in **File ▸ Settings ▸ Change App Data Folder…**.
 
 Your macros are saved wherever you choose when you save them.
@@ -254,7 +255,8 @@ played.
 <details>
 <summary><b>Menus</b></summary>
 
-- **File**: New, Open, Open Recent, Save, Save As, Export to CSV, Copy Command Line (plays the saved macro and
+- **File**: New, Open, Open Recent, Save, Save As, Export to CSV (separated the way your region's spreadsheets
+  expect: commas in the US, semicolons in most of Europe), Copy Command Line (plays the saved macro and
   closes; for a shortcut or Windows Task Scheduler), Settings, Quit.
   - **Settings**: Change App Data Folder, Reset Settings to Defaults, Confirm Before Deleting Steps, Start
     Minimized, Start at Login, and on Windows: Send Keys as Scan Codes (for games that ignore normal key presses),
@@ -330,6 +332,8 @@ AppImage says it can't load `libfuse.so.2`, install FUSE 2 (`sudo apt install li
 Ubuntu 22.04), or run it without FUSE: `./MacroRecorder-x86_64.AppImage --appimage-extract-and-run`.
 
 The app checks your session when it starts and uses the best method available; the Activity log says which one.
+On Wayland the status at the top right reads **Ready (Wayland: Limited)**, with a **What's Limited?** link to this
+section.
 
 | Session | Recording | Playback |
 |---|---|---|

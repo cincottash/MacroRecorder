@@ -665,6 +665,13 @@ void MainWindow::buildUi()
     m_notKept->setVisible(appdata::isTemporary() && m_hotkeysEnabled);   // (screenshots use throwaway settings on purpose)
     connect(m_notKept, &QToolButton::clicked, this, [this] { trigger(QStringLiteral("Change App Data Folder…")); });
     hl->addWidget(m_notKept);
+    // Where the input method reaches only some programs (Wayland): say so in the window, with a link to the details.
+    m_limits = linkButton(QStringLiteral("What's Limited?"));
+    m_limits->setProperty("testId", QStringLiteral("limits"));
+    m_limits->setToolTip(m_backend->notes());
+    m_limits->setVisible(!m_backend->limitedTag().isEmpty());
+    connect(m_limits, &QToolButton::clicked, this, [] { QDesktopServices::openUrl(QUrl(kRepoUrl + QStringLiteral("#linux-experimental"))); });
+    hl->addWidget(m_limits);
     hl->addSpacing(10);
     hl->addWidget(m_pill);
     outer->addWidget(header);
@@ -1149,6 +1156,8 @@ void MainWindow::setState(State s)
     case State::Idle:
         if (!why.isEmpty()) setPill(QStringLiteral("● Can't Record Here"), QStringLiteral("warn"));
         else if (!m_backend->recordUnavailableReason().isEmpty()) setPill(QStringLiteral("● Ready (Playback Only)"), QStringLiteral("warn"));
+        else if (!m_backend->limitedTag().isEmpty())
+            setPill(QStringLiteral("● Ready (%1)").arg(m_backend->limitedTag()), QStringLiteral("warn"));
         else setPill(QStringLiteral("● Ready"), QStringLiteral("idle"));
         break;
     case State::Countdown: break;
@@ -2166,16 +2175,21 @@ void MainWindow::exportCsv()
     QString path = QFileDialog::getSaveFileName(this, QStringLiteral("Export to CSV"), start, QStringLiteral("CSV files (*.csv)"));
     if (path.isEmpty()) return;
     if (QFileInfo(path).suffix().isEmpty()) path += QStringLiteral(".csv");
-    auto cell = [](QString s) {
-        if (s.contains(QLatin1Char(',')) || s.contains(QLatin1Char('"')) || s.contains(QLatin1Char('\n')) || s.contains(QLatin1Char('\r')))
+    // Fields are separated the way the system's spreadsheets expect: "," in the US and UK, ";" in most of Europe,
+    // where Excel otherwise puts every row into one column.
+    const QChar sep = m_backend->listSeparator();
+    auto cell = [sep](QString s) {
+        if (s.contains(sep) || s.contains(QLatin1Char('"')) || s.contains(QLatin1Char('\n')) || s.contains(QLatin1Char('\r')))
             s = QLatin1Char('"') + s.replace(QLatin1Char('"'), QStringLiteral("\"\"")) + QLatin1Char('"');
         return s;
     };
-    QString out = QStringLiteral("Step,Action,Value,Label,Comment,Enabled,Pause before (ms)\r\n");
+    QString out = QStringList{QStringLiteral("Step"), QStringLiteral("Action"), QStringLiteral("Value"), QStringLiteral("Label"),
+                              QStringLiteral("Comment"), QStringLiteral("Enabled"), QStringLiteral("Pause before (ms)")}.join(sep)
+                  + QStringLiteral("\r\n");
     for (int r = 0; r < m_model.rowCount(); ++r) {
         const Action& a = m_model.at(r);
         out += QStringList{QString::number(r + 1), cell(a.typeName()), cell(a.valueText()), cell(a.label), cell(a.comment),
-                           a.enabled ? QStringLiteral("yes") : QStringLiteral("no"), QString::number(a.delayMs)}.join(QLatin1Char(','))
+                           a.enabled ? QStringLiteral("yes") : QStringLiteral("no"), QString::number(a.delayMs)}.join(sep)
                + QStringLiteral("\r\n");
     }
     QSaveFile f(path);

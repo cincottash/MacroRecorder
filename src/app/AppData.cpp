@@ -104,7 +104,10 @@ bool useFolder(const QString& choice)
 
 QString suggestedFolder()
 {
-    return QDir::toNativeSeparators(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation));
+    // The system's folder for app data, then the app's name: %LOCALAPPDATA%\MacroRecorder on Windows,
+    // ~/.local/share/MacroRecorder on Linux. (Qt's own app folder would add the publisher's name in between.)
+    const QString base = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+    return QDir::toNativeSeparators(QDir(base).filePath(QStringLiteral(APP_NAME)));
 }
 
 QString rememberedChoice()

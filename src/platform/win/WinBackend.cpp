@@ -546,6 +546,14 @@ Backend* createWindowsBackend(QObject* parent) { return new WinBackend(parent); 
 
 namespace sys {
 
+QChar listSeparator()
+{
+    wchar_t buf[8] = {};
+    if (GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_SLIST, buf, 8) > 1 && buf[0] != 0) return QChar(buf[0]);
+    return QLatin1Char(',');
+}
+
+
 namespace {
 const QString kRunKey = QStringLiteral("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run");
 QString quoted(const QString& s) { return s.contains(QLatin1Char(' ')) || s.isEmpty() ? QLatin1Char('"') + s + QLatin1Char('"') : s; }

@@ -38,7 +38,7 @@ E enumFrom(const QString& s, const char* const (&names)[N], E fallback)
     return fallback;
 }
 
-QString num(qint64 v) { return QLocale(QLocale::English).toString(v); }
+QString num(qint64 v) { return QLocale().toString(v); }   // the system's format, as in the step editor
 
 QString msText(int ms)
 {

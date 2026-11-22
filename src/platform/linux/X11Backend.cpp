@@ -363,6 +363,7 @@ struct X11Backend::Impl {
     std::deque<Expected> expected;
     std::atomic<bool> keySignalled{false}, mouseSignalled{false};
     QString unavailable, notes, name = QStringLiteral("X11");
+    QString limited;   // short tag for the status label, when only some programs can be reached
 
     // hotkeys: id -> (keycode, modifiers)
     struct Hk { int kc; unsigned mods; };
@@ -593,6 +594,8 @@ X11Backend::~X11Backend()
 
 void X11Backend::setNotes(const QString& n) { d->notes = n; }
 void X11Backend::setDisplayName(const QString& n) { d->name = n; }
+void X11Backend::setLimitedTag(const QString& t) { d->limited = t; }
+QString X11Backend::limitedTag() const { return d->limited; }
 QString X11Backend::name() const { return d->name; }
 QString X11Backend::unavailableReason() const { return d->unavailable; }
 QString X11Backend::notes() const { return d->notes; }
