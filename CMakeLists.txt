@@ -57,6 +57,8 @@ list(REMOVE_DUPLICATES SOURCES)
 
 if(WIN32)
     list(APPEND SOURCES src/platform/win/WinBackend.cpp src/platform/win/WinKeys.cpp packaging/app.rc)
+    # The build doesn't see that app.rc uses icon.ico: without this, a new icon keeps the old one in the exe
+    set_source_files_properties(packaging/app.rc PROPERTIES OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/packaging/icon.ico)
 else()
     list(APPEND SOURCES src/platform/linux/LinuxBackend.cpp src/platform/linux/X11Backend.cpp
                         src/platform/linux/UinputInjector.cpp src/platform/linux/LinuxKeys.cpp)
