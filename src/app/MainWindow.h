@@ -201,12 +201,10 @@ private:
     QList<QAction*> m_editActs;                  // need a selection and Idle
     QActionGroup* m_themeGroup = nullptr;
     QMenu *m_customThemeMenu = nullptr, *m_removeThemeMenu = nullptr;
-    QSlider *m_opacitySlider = nullptr, *m_seeThroughSlider = nullptr;   // View > Window Opacity: Normal, Faded
-    QWidget* m_fadedRow = nullptr;   // the Faded slider's row: greyed out until a Fade option is ticked
-    QTimer m_fadePreview;            // after the Faded slider moves: show that level for a moment
-    bool m_previewFade = false;
-    QAction *m_seeBusyAct = nullptr, *m_seeInactiveAct = nullptr;
-    bool m_appActive = true;   // another program is in front when false
+    QSlider* m_opacitySlider = nullptr;   // View > Window Opacity
+    QAction* m_opacityBusyAct = nullptr;  // ... > Only While Recording or Playing
+    QTimer m_opacityPreview;              // after the slider moves: show that level for a moment
+    bool m_previewOpacity = false;
     QString m_themePreviewing;
     QTimer m_themePreviewTimer;
     QTimer m_saveTimer;
