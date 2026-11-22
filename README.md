@@ -3,6 +3,12 @@
 Record what you do with the mouse and keyboard, edit it step by step, and play it back as many times as you like.
 Free and open source (GPL-3.0). One file to download: nothing to install.
 
+> [!NOTE]
+> **Windows** is the main platform: tested in depth, on real desktops. **The Linux version is experimental**: it
+> starts and works on a plain X11 desktop, but it has had little testing on real machines, and on **Wayland**
+> (the default on most current distributions) recording other programs doesn't work. See
+> [Linux (experimental)](#linux-experimental).
+
 ![The main window: a recorded macro in the list, one step selected, and the pointer on a Mouse Move step, whose path is drawn on the right](.github/screenshot.png)
 
 ## What it does
@@ -24,11 +30,11 @@ Get the latest version from the [Releases page](https://github.com/cincottash/Ma
 | System | File |
 |---|---|
 | Windows 10 or 11 | `MacroRecorder.exe`: download and double-click. |
-| Linux (x86-64) | `MacroRecorder-x86_64.AppImage`: download, make it executable (`chmod +x MacroRecorder-x86_64.AppImage`), run it. |
+| Linux (x86-64), **experimental** | `MacroRecorder-x86_64.AppImage`: download, make it executable (`chmod +x MacroRecorder-x86_64.AppImage`), run it. Read [Linux (experimental)](#linux-experimental) first. |
 
 Windows may warn that the app is from an unknown publisher (it isn't code-signed). Choose **More info → Run
 anyway**. Programs that watch the keyboard and mouse sometimes get flagged by antivirus tools for the same reason.
-On Linux, see [Linux setup](#linux-setup).
+On Linux, see [Linux (experimental)](#linux-experimental).
 
 ## First run
 
@@ -236,7 +242,7 @@ to keep the window solid the rest of the time.
 
 ![View, Window Opacity: an Opacity slider and the option Only While Recording or Playing](.github/readme/menu-opacity.png)
 
-On Linux this needs a desktop with a compositor (most have one).
+On Linux it depends on the desktop and often does nothing, especially on Wayland.
 
 ### Activity
 
@@ -296,7 +302,32 @@ pixels from the window's corner for steps recorded with **Positions Relative to 
 
 </details>
 
-### Linux setup
+<a name="linux-setup"></a>
+### Linux (experimental)
+
+> [!WARNING]
+> The Linux version has had little testing on real computers. Expect problems, and please
+> [report them](https://github.com/cincottash/MacroRecorder/issues) with your distribution, desktop, and whether
+> you're on X11 or Wayland (`echo $XDG_SESSION_TYPE` prints it).
+
+**What to expect on Wayland** (the default on most current distributions, for example Ubuntu, Fedora, and KDE
+Plasma 6). Wayland doesn't let one program see or control others, so there:
+
+- **Recording other programs doesn't work.** Clicks, moves and typing in most programs aren't recorded; only
+  older programs that run through XWayland are.
+- **The window you're working in isn't detected**, so Window Focus steps and positions relative to a window
+  don't work.
+- **Global hotkeys** (F9, F10, Esc) only work while an XWayland program is in front.
+- **Window opacity** usually does nothing.
+- **Playback** reaches every program only after the one-time setup below; otherwise only XWayland programs.
+
+**For the best results, log in with an X11 session** ("Xorg" or "X11" on the login screen's settings button).
+On X11, recording and playback work in every program, but the Linux version is still far less tested than the
+Windows one.
+
+**Requirements:** a 64-bit x86 PC with a recent distribution (Ubuntu 22.04 or newer, or the same age). If the
+AppImage says it can't load `libfuse.so.2`, install FUSE 2 (`sudo apt install libfuse2t64`, or `libfuse2` on
+Ubuntu 22.04), or run it without FUSE: `./MacroRecorder-x86_64.AppImage --appimage-extract-and-run`.
 
 The app checks your session when it starts and uses the best method available; the Activity log says which one.
 
@@ -308,9 +339,6 @@ The app checks your session when it starts and uses the best method available; t
 
 On a Wayland session the app's own window runs through XWayland (it picks that by itself, also where Qt programs
 are set to use Wayland). If XWayland is turned off, the app says so and doesn't start.
-
-**For recording, log in with an X11 session** (most distributions offer "Xorg" or "X11" on the login screen's
-settings button): Wayland doesn't let one program watch the mouse and keyboard of others.
 
 <details>
 <summary><b>Playing back into every program on Wayland</b></summary>
