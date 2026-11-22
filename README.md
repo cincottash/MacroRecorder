@@ -228,13 +228,6 @@ If the text would be hard to read on the background, the Activity log says so.
 
 **Remove Custom Theme** takes an imported theme off the list.
 
-### Window opacity
-
-**View ▸ Window Opacity** makes the whole window see-through (100 % down to 50 %), so a program behind it stays
-visible, for example with **Always on Top**. Two options lower it to 50 % only some of the time:
-**See-Through While Recording or Playing** and **See-Through When Inactive** (while another program is in
-front). On Linux this needs a desktop with a compositor (most have one).
-
 ### Activity
 
 The log at the bottom right says what happened and when. **View ▸ Detailed Activity Log** also lists every step
@@ -255,7 +248,7 @@ played.
   waits and moves).
 - **Edit**: Undo, Redo, Cut, Copy, Paste, Delete, Select All, Edit Step, Enable / Disable, Move Up / Down,
   Combine Into Click or Key Press (a button down + up, or key down + up), Find and Replace.
-- **View**: Theme (including Import Theme, Export Current Theme and Remove Custom Theme), Show Activity Log, Detailed Activity Log (also lists every step played), Always on Top, Window Opacity, Mark
+- **View**: Theme (including Import Theme, Export Current Theme and Remove Custom Theme), Show Activity Log, Detailed Activity Log (also lists every step played), Always on Top, Mark
   Selected Step on Screen, Preview Steps on Hover, Reset View Options.
 - **Help**: Project Website, Open App Data Folder, Report a Problem, About.
 

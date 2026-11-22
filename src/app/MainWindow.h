@@ -201,7 +201,7 @@ private:
     QList<QAction*> m_editActs;                  // need a selection and Idle
     QActionGroup* m_themeGroup = nullptr;
     QMenu *m_customThemeMenu = nullptr, *m_removeThemeMenu = nullptr;
-    QActionGroup* m_opacityGroup = nullptr;
+    QSlider *m_opacitySlider = nullptr, *m_seeThroughSlider = nullptr;   // View > Window Opacity
     QAction *m_seeBusyAct = nullptr, *m_seeInactiveAct = nullptr;
     bool m_appActive = true;   // another program is in front when false
     QString m_themePreviewing;

@@ -51,6 +51,7 @@
 #include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <QWidgetAction>
 
 using core::Action;
 using core::ActionType;
@@ -442,22 +443,53 @@ void MainWindow::buildMenus()
     });
     QMenu* opacity = m_viewMenu->addMenu(QStringLiteral("Window &Opacity"));
     opacity->setToolTipsVisible(true);
-    m_opacityGroup = new QActionGroup(this);
-    m_opacityGroup->setExclusive(true);
-    for (int pct : {100, 90, 80, 70, 60, 50}) {
-        QAction* a = opacity->addAction(QStringLiteral("%1 %").arg(pct));
-        a->setCheckable(true);
-        a->setChecked(m_s.windowOpacity == pct);
-        a->setData(pct);
-        m_opacityGroup->addAction(a);
-        connect(a, &QAction::triggered, this, [this, pct] { m_s.windowOpacity = pct; applyOpacity(); saveSettingsSoon(); });
+    {
+        // Two sliders inside the menu: the window's opacity, and how see-through it gets with the options below.
+        // The window changes while a slider moves, so the level can be judged against what's behind it.
+        auto* box = new QWidget;
+        auto* grid = new QGridLayout(box);
+        grid->setContentsMargins(26, 6, 14, 6);
+        grid->setHorizontalSpacing(10);
+        auto slider = [&](int row, const QString& text, const QString& tip, int Settings::*field, const char* id) {
+            auto* label = new QLabel(text);
+            auto* s = new QSlider(Qt::Horizontal);
+            s->setRange(30, 100);
+            s->setSingleStep(5);
+            s->setPageStep(10);
+            s->setMinimumWidth(160);
+            s->setValue(m_s.*field);
+            s->setToolTip(tip);
+            s->setProperty("testId", QString::fromLatin1(id));
+            auto* value = new QLabel(QStringLiteral("%1 %").arg(m_s.*field));
+            value->setMinimumWidth(QFontMetrics(value->font()).horizontalAdvance(QStringLiteral("100 %")) + 4);
+            value->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+            label->setToolTip(tip);
+            grid->addWidget(label, row, 0);
+            grid->addWidget(s, row, 1);
+            grid->addWidget(value, row, 2);
+            connect(s, &QSlider::valueChanged, this, [this, field, value](int v) {
+                m_s.*field = v;
+                value->setText(QStringLiteral("%1 %").arg(v));
+                applyOpacity();
+                saveSettingsSoon();
+            });
+            return s;
+        };
+        m_opacitySlider = slider(0, QStringLiteral("Window"), QStringLiteral("How solid the window is: 100 % is fully solid."),
+                                 &Settings::windowOpacity, "opacitySlider");
+        m_seeThroughSlider = slider(1, QStringLiteral("See-Through"),
+                                    QStringLiteral("How solid the window is while one of the See-Through options below applies."),
+                                    &Settings::seeThroughOpacity, "seeThroughSlider");
+        auto* wa = new QWidgetAction(opacity);
+        wa->setDefaultWidget(box);
+        opacity->addAction(wa);
     }
     opacity->addSeparator();
     m_seeBusyAct = opacity->addAction(QStringLiteral("See-Through While Recording or Playing"));
-    m_seeBusyAct->setToolTip(QStringLiteral("The window drops to 50 % while recording, playing or counting down, so the program "
-                                            "underneath stays visible."));
+    m_seeBusyAct->setToolTip(QStringLiteral("The window drops to the See-Through level while recording, playing or counting down, "
+                                            "so the program underneath stays visible."));
     m_seeInactiveAct = opacity->addAction(QStringLiteral("See-Through When Inactive"));
-    m_seeInactiveAct->setToolTip(QStringLiteral("The window drops to 50 % while another program is in front."));
+    m_seeInactiveAct->setToolTip(QStringLiteral("The window drops to the See-Through level while another program is in front."));
     const std::pair<QAction*, bool Settings::*> flags[] = {{m_seeBusyAct, &Settings::seeThroughBusy},
                                                           {m_seeInactiveAct, &Settings::seeThroughInactive}};
     for (const auto& [act, flag] : flags) {
@@ -481,7 +513,8 @@ void MainWindow::buildMenus()
         for (auto it = m_cards.cbegin(); it != m_cards.cend(); ++it) setCardOpen(it.key(), true, false);
         m_logAct->setChecked(true);
         for (QAction* a : {m_markerAct, m_previewAct}) { const QSignalBlocker b(a); a->setChecked(true); }
-        for (QAction* a : m_opacityGroup->actions()) a->setChecked(a->data().toInt() == m_s.windowOpacity);
+        m_opacitySlider->setValue(m_s.windowOpacity);   // also updates the value shown beside it
+        m_seeThroughSlider->setValue(m_s.seeThroughOpacity);
         for (QAction* a : {m_seeBusyAct, m_seeInactiveAct}) { const QSignalBlocker b(a); a->setChecked(false); }
         applyOpacity();
         updateMarker();
@@ -1325,10 +1358,9 @@ void MainWindow::removeCustomTheme(const QString& key)
 
 void MainWindow::applyOpacity()
 {
-    constexpr int kSeeThroughPct = 50;
     int pct = m_s.windowOpacity;
     const bool busy = m_state != State::Idle;
-    if ((busy && m_s.seeThroughBusy) || (!m_appActive && m_s.seeThroughInactive)) pct = qMin(pct, kSeeThroughPct);
+    if ((busy && m_s.seeThroughBusy) || (!m_appActive && m_s.seeThroughInactive)) pct = qMin(pct, m_s.seeThroughOpacity);
     if (qAbs(windowOpacity() - pct / 100.0) > 0.01) setWindowOpacity(pct / 100.0);
 }
 
