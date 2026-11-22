@@ -447,8 +447,8 @@ void MainWindow::buildMenus()
     });
     QMenu* opacity = m_viewMenu->addMenu(QStringLiteral("Window &Opacity"));
     {
-        // One slider and one option. The window changes as the slider moves, so the level can be judged against
-        // what's behind it (also with the option on, for a moment, while the window would otherwise stay solid).
+        // One slider; the level always applies. The window changes as the slider moves, so the level can be judged
+        // against what's behind it.
         auto* row = new QWidget;
         auto* h = new QHBoxLayout(row);
         h->setContentsMargins(26, 5, 14, 5);
@@ -469,30 +469,9 @@ void MainWindow::buildMenus()
         auto* wa = new QWidgetAction(opacity);
         wa->setDefaultWidget(row);
         opacity->addAction(wa);
-        m_opacityBusyAct = opacity->addAction(QStringLiteral("Only While Recording or Playing"));
-        m_opacityBusyAct->setCheckable(true);
-        m_opacityBusyAct->setChecked(m_s.opacityOnlyWhileBusy);
-        connect(m_opacityBusyAct, &QAction::toggled, this, [this](bool on) {
-            m_s.opacityOnlyWhileBusy = on;
-            applyOpacity();
-            saveSettingsSoon();
-        });
-        m_opacityPreview.setSingleShot(true);
-        m_opacityPreview.setInterval(1200);
-        connect(&m_opacityPreview, &QTimer::timeout, this, [this] {
-            if (m_opacitySlider->isSliderDown()) return;   // still held: keep showing it until released
-            m_previewOpacity = false;
-            applyOpacity();
-        });
-        connect(m_opacitySlider, &QSlider::sliderReleased, this, [this] { m_opacityPreview.start(); });
         connect(m_opacitySlider, &QSlider::valueChanged, this, [this, value](int v) {
             m_s.windowOpacity = v;
             value->setText(QStringLiteral("%1 %").arg(v));
-            // Moved by hand: show the level for a moment even if it only applies while recording or playing
-            if (m_opacitySlider->isSliderDown() || m_opacitySlider->hasFocus() || m_opacitySlider->underMouse()) {
-                m_previewOpacity = true;
-                m_opacityPreview.start();
-            }
             applyOpacity();
             saveSettingsSoon();
         });
@@ -514,7 +493,6 @@ void MainWindow::buildMenus()
         m_logAct->setChecked(true);
         for (QAction* a : {m_markerAct, m_previewAct}) { const QSignalBlocker b(a); a->setChecked(true); }
         m_opacitySlider->setValue(m_s.windowOpacity);   // also updates the value shown beside it
-        { const QSignalBlocker b(m_opacityBusyAct); m_opacityBusyAct->setChecked(m_s.opacityOnlyWhileBusy); }
         applyOpacity();
         updateMarker();
         setWindowFlag(Qt::WindowStaysOnTopHint, false);
@@ -1366,10 +1344,7 @@ void MainWindow::removeCustomTheme(const QString& key)
 
 void MainWindow::applyOpacity()
 {
-    // With "Only While Recording or Playing" on, the window is solid unless something is running (or the slider is
-    // being moved, to show the level).
-    const bool busy = m_state != State::Idle;
-    const int pct = (m_s.opacityOnlyWhileBusy && !busy && !m_previewOpacity) ? 100 : m_s.windowOpacity;
+    const int pct = m_s.windowOpacity;   // View > Window Opacity; the same in every state
     if (qAbs(windowOpacity() - pct / 100.0) > 0.01) setWindowOpacity(pct / 100.0);
 }
 

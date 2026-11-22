@@ -203,9 +203,6 @@ private:
     QActionGroup* m_themeGroup = nullptr;
     QMenu *m_customThemeMenu = nullptr, *m_removeThemeMenu = nullptr;
     QSlider* m_opacitySlider = nullptr;   // View > Window Opacity
-    QAction* m_opacityBusyAct = nullptr;  // ... > Only While Recording or Playing
-    QTimer m_opacityPreview;              // after the slider moves: show that level for a moment
-    bool m_previewOpacity = false;
     QString m_themePreviewing;
     QTimer m_themePreviewTimer;
     QTimer m_saveTimer;

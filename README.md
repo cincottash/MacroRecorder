@@ -238,10 +238,9 @@ If the text would be hard to read on the background, the Activity log says so.
 ### Window opacity
 
 **View ▸ Window Opacity** makes the whole window see-through, so a program behind it stays visible (handy with
-**Always on Top**). Drag **Opacity** and the window changes as you go. Tick **Only While Recording or Playing**
-to keep the window solid the rest of the time.
+**Always on Top**). Drag **Opacity** and the window changes as you go; it keeps that level until you change it.
 
-![View, Window Opacity: an Opacity slider and the option Only While Recording or Playing](.github/readme/menu-opacity.png)
+![View, Window Opacity: the Opacity slider](.github/readme/menu-opacity.png)
 
 On Linux it depends on the desktop and often does nothing, especially on Wayland.
 
