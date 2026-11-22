@@ -243,6 +243,9 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
     registerHotkeys();
     const QString why = m_backend->unavailableReason();
     log(why.isEmpty() ? QStringLiteral("Ready. Input method: %1.").arg(m_backend->name()) : why);
+    if (appdata::isTemporary() && m_hotkeysEnabled)
+        log(QStringLiteral("Settings aren't being kept (Don't Keep App Data is on): the theme and options reset when the app "
+                           "closes. To keep them, choose a folder in File > Settings > Change App Data Folder…"));
     if (why.isEmpty() && !m_backend->recordUnavailableReason().isEmpty()) log(m_backend->recordUnavailableReason());
     if (!m_backend->notes().isEmpty()) log(m_backend->notes());
     setState(State::Idle);
@@ -275,6 +278,7 @@ void MainWindow::buildMenus()
         QString msg;
         if (appdata::change(this, &msg)) { m_s.save(appdata::settingsFile()); log(msg); }
         else if (!msg.isEmpty()) QMessageBox::warning(this, QStringLiteral("App Data Folder"), msg);
+        if (m_notKept) m_notKept->setVisible(appdata::isTemporary());
     });
     settings->addAction(QStringLiteral("Reset Settings to Defaults…"), this, [this] {
         if (QMessageBox::question(this, QStringLiteral("Reset Settings"),
@@ -588,6 +592,15 @@ void MainWindow::buildUi()
     hl->addWidget(title);
     hl->addSpacing(16);
     hl->addWidget(m_fileLabel, 1);
+    // "Don't Keep App Data" is on: say so where it can't be missed, one click from changing it.
+    m_notKept = linkButton(QStringLiteral("Settings Not Kept"));
+    m_notKept->setProperty("testId", QStringLiteral("notKept"));
+    m_notKept->setToolTip(QStringLiteral("Don't Keep App Data is on, so the theme and every other setting start fresh each time "
+                                         "the app opens. Click to choose a folder to keep them in."));
+    m_notKept->setVisible(appdata::isTemporary() && m_hotkeysEnabled);   // (screenshots use throwaway settings on purpose)
+    connect(m_notKept, &QToolButton::clicked, this, [this] { trigger(QStringLiteral("Change App Data Folder…")); });
+    hl->addWidget(m_notKept);
+    hl->addSpacing(10);
     hl->addWidget(m_pill);
     outer->addWidget(header);
 
@@ -2120,6 +2133,12 @@ void MainWindow::showPreview(int row)
     if (y + h > vp->height() - 8) y = rowTop - h - 6;
     y = qBound(8, y, qMax(8, vp->height() - h - 8));
     m_preview->move(vp->width() - w - 12, y);
+}
+
+void MainWindow::trigger(const QString& menuText)
+{
+    for (QAction* a : findChildren<QAction*>())
+        if (!a->menu() && a->text() == menuText) { a->trigger(); return; }
 }
 
 int MainWindow::execDialog(ActionDialog& d)
