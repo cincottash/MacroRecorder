@@ -177,6 +177,30 @@ jobs:
           kill "$pid"
           echo "MacroRecorder-x86_64.AppImage started and kept running"
 
+      - name: Check it starts where Qt programs are told to use Wayland
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          # Many Wayland desktops set QT_QPA_PLATFORM=wayland. The AppImage has no Wayland plugin (the app needs X11),
+          # so it must pick XWayland's display by itself instead of aborting.
+          xvfb-run -a env QT_QPA_PLATFORM=wayland XDG_SESSION_TYPE=wayland WAYLAND_DISPLAY=wayland-0 \
+            ./dist/MacroRecorder-x86_64.AppImage --screenshot "$RUNNER_TEMP/wayland.png"
+          test -s "$RUNNER_TEMP/wayland.png"
+          xvfb-run -a env QT_QPA_PLATFORM="wayland;xcb" XDG_SESSION_TYPE=wayland \
+            ./dist/MacroRecorder-x86_64.AppImage --screenshot "$RUNNER_TEMP/wayland2.png"
+          test -s "$RUNNER_TEMP/wayland2.png"
+          echo "Started through X11 with QT_QPA_PLATFORM=wayland"
+          # No X display at all: a clear message and exit code 1, not a crash
+          set +e
+          out=$(env -u DISPLAY QT_QPA_PLATFORM=wayland XDG_SESSION_TYPE=wayland \
+                ./dist/MacroRecorder-x86_64.AppImage --screenshot "$RUNNER_TEMP/none.png" 2>&1)
+          code=$?
+          set -e
+          echo "$out"
+          echo "exit code $code"
+          [ "$code" -eq 1 ]
+          grep -q "needs an X11 display" <<< "$out"
+
       - name: Record and play for real on a virtual X11 display
         run: bash .github/ci/x11_check.sh "$PWD/dist/MacroRecorder-x86_64.AppImage"
 
