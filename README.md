@@ -248,6 +248,9 @@ The app checks your session when it starts and uses the best method available; t
 | **Wayland**, with access to `/dev/uinput` | programs running through XWayland | every program |
 | **Wayland**, without that access | programs running through XWayland | programs running through XWayland |
 
+On a Wayland session the app's own window runs through XWayland (it picks that by itself, also where Qt programs
+are set to use Wayland). If XWayland is turned off, the app says so and doesn't start.
+
 **For recording, log in with an X11 session** (most distributions offer "Xorg" or "X11" on the login screen's
 settings button): Wayland doesn't let one program watch the mouse and keyboard of others.
 

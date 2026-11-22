@@ -18,8 +18,32 @@
 #include <windows.h>
 #endif
 
+#ifdef Q_OS_LINUX
+// Chooses Qt's display plugin before the application object exists. The window always runs on X11: directly, or
+// through XWayland on a Wayland session. Global hotkeys, recording and window placement need X11, and the AppImage
+// carries only that plugin (plus "offscreen"). Systems that set QT_QPA_PLATFORM=wayland for their Qt programs made
+// the app abort at start ("Could not find the Qt platform plugin wayland"); now it uses XWayland's display.
+// False (after saying why on stderr): there's no X display to use.
+static bool chooseDisplayPlugin()
+{
+    const QByteArray asked = qgetenv("QT_QPA_PLATFORM").toLower();
+    if (!asked.isEmpty() && !asked.startsWith("wayland")) return true;   // "offscreen", "xcb", ...: the caller's choice
+    if (!qEnvironmentVariableIsEmpty("DISPLAY")) {
+        qputenv("QT_QPA_PLATFORM", "xcb");
+        return true;
+    }
+    fprintf(stderr, "%s needs an X11 display, and none was found (DISPLAY isn't set).\n"
+                    "On a Wayland session it runs through XWayland: turn XWayland on in the desktop's settings,\n"
+                    "or choose an \"X11\" or \"Xorg\" session at the login screen.\n", APP_NAME);
+    return false;
+}
+#endif
+
 int main(int argc, char* argv[])
 {
+#ifdef Q_OS_LINUX
+    if (!chooseDisplayPlugin()) return 1;
+#endif
     platform::Backend::earlyInit();
 #ifdef Q_OS_WIN
     // Started from a command prompt: let --help and errors print there.
