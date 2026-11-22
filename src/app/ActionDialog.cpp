@@ -1,4 +1,5 @@
 #include "ActionDialog.h"
+#include "FileDialogs.h"
 
 #include <QCheckBox>
 #include <QColor>
@@ -239,7 +240,8 @@ void ActionDialog::build()
         m_program = new QLineEdit(m_a.program);
         auto* browse = new QPushButton(QStringLiteral("Browse…"));
         connect(browse, &QPushButton::clicked, this, [this] {
-            const QString f = QFileDialog::getOpenFileName(this, QStringLiteral("Choose a Program or File"), m_program->text());
+            const QString f = QFileDialog::getOpenFileName(this, QStringLiteral("Choose a Program or File"), m_program->text(),
+                                                           QString(), nullptr, filedialogs::options());
             if (!f.isEmpty()) m_program->setText(QDir::toNativeSeparators(f));
         });
         auto* w = new QWidget;
@@ -261,9 +263,10 @@ void ActionDialog::build()
         auto* browse = new QPushButton(QStringLiteral("Browse…"));
         connect(browse, &QPushButton::clicked, this, [this, t] {
             const QString f = t == ActionType::RunMacro
-                                  ? QFileDialog::getOpenFileName(this, QStringLiteral("Choose a Macro"), m_file->text(), QStringLiteral("Macros (*.macro)"))
+                                  ? QFileDialog::getOpenFileName(this, QStringLiteral("Choose a Macro"), m_file->text(), QStringLiteral("Macros (*.macro)"),
+                                                                 nullptr, filedialogs::options())
                                   : QFileDialog::getSaveFileName(this, QStringLiteral("Choose File to Watch"), m_file->text(), QString(), nullptr,
-                                                                 QFileDialog::DontConfirmOverwrite);
+                                                                 filedialogs::options(QFileDialog::DontConfirmOverwrite));
             if (!f.isEmpty()) m_file->setText(QDir::toNativeSeparators(f));
         });
         auto* w = new QWidget;

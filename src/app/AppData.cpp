@@ -1,4 +1,5 @@
 #include "AppData.h"
+#include "FileDialogs.h"
 
 #include <QCheckBox>
 #include <QDialog>
@@ -57,7 +58,8 @@ QString ask(QWidget* parent, const QString& current, bool firstRun)
     buttons->button(QDialogButtonBox::Ok)->setText(firstRun ? QStringLiteral("Continue") : QStringLiteral("Use This Folder"));
     lay->addWidget(buttons);
     QObject::connect(browse, &QPushButton::clicked, &d, [&] {
-        const QString f = QFileDialog::getExistingDirectory(&d, QStringLiteral("Choose App Data Folder"), path->text());
+        const QString f = QFileDialog::getExistingDirectory(&d, QStringLiteral("Choose App Data Folder"), path->text(),
+                                                            filedialogs::options(QFileDialog::ShowDirsOnly));
         if (!f.isEmpty()) path->setText(QDir::toNativeSeparators(f));
     });
     QObject::connect(none, &QCheckBox::toggled, &d, [&](bool on) { path->setEnabled(!on); browse->setEnabled(!on); });

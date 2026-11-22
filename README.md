@@ -239,7 +239,9 @@ If the text would be hard to read on the background, the Activity log says so.
 
 **View ▸ Window Opacity** makes the whole window see-through, so a program behind it stays visible (handy with
 **Always on Top**). Drag **Opacity** and the window changes as you go; it keeps that level until you change it.
-Menus, drop-down lists and dialogs use the same level.
+The whole app follows it: menus, drop-down lists, dialogs, tooltips and the on-screen position marker. While the
+window is see-through, opening and saving files uses the app's own file dialog instead of the Windows one, which
+can't be see-through.
 
 ![View, Window Opacity: the Opacity slider](.github/readme/menu-opacity.png)
 

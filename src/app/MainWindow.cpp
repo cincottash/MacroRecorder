@@ -4,6 +4,7 @@
 #include "ActionPreview.h"
 #include "ActionTable.h"
 #include "AppData.h"
+#include "FileDialogs.h"
 #include "ThemeFile.h"
 #include "Themes.h"
 
@@ -161,7 +162,8 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
     : QMainWindow(parent), m_s(s), m_backend(platform::Backend::create(this)), m_hotkeysEnabled(hotkeys)
 {
     // The system's menu and drop-down animations, before Window Opacity changes them (see applyOpacity)
-    for (Qt::UIEffect e : {Qt::UI_AnimateMenu, Qt::UI_FadeMenu, Qt::UI_AnimateCombo})
+    for (Qt::UIEffect e : {Qt::UI_AnimateMenu, Qt::UI_FadeMenu, Qt::UI_AnimateCombo, Qt::UI_AnimateTooltip,
+                           Qt::UI_FadeTooltip})
         m_effectsDefault.insert(int(e), QApplication::isEffectEnabled(e));
     m_player = new core::Player(m_backend->injector(), this);
     setWindowIcon(QIcon(QStringLiteral(":/icon.svg")));
@@ -1268,7 +1270,8 @@ void MainWindow::rebuildCustomThemeMenus()
 void MainWindow::importTheme()
 {
     const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("Import Theme"), m_s.lastFolder,
-                                                      QStringLiteral("Theme Files (*.json);;All Files (*)"));
+                                                      QStringLiteral("Theme Files (*.json);;All Files (*)"), nullptr,
+                                                      filedialogs::options());
     if (path.isEmpty()) return;
     QString error;
     if (!importThemeFile(path, &error))
@@ -1317,7 +1320,7 @@ void MainWindow::exportTheme()
     const QString folder = m_s.lastFolder.isEmpty() ? QDir::homePath() : m_s.lastFolder;
     const QString path = QFileDialog::getSaveFileName(this, QStringLiteral("Export Current Theme"),
                                                       QDir(folder).filePath(fileName + QStringLiteral(".json")),
-                                                      QStringLiteral("Theme Files (*.json)"));
+                                                      QStringLiteral("Theme Files (*.json)"), nullptr, filedialogs::options());
     if (path.isEmpty()) return;
     QSaveFile f(path);
     if (!f.open(QIODevice::WriteOnly) || f.write(themefile::write(t)) < 0 || !f.commit()) {
@@ -1348,21 +1351,20 @@ void MainWindow::removeCustomTheme(const QString& key)
     log(QStringLiteral("Removed the custom theme \u201C%1\u201D.").arg(name));
 }
 
-// Menus, submenus, drop-down lists and dialogs are windows of their own: they get the main window's opacity too.
-// (Not the on-screen position marker, which is drawn see-through on purpose, and not tooltips.)
+// Every other window of the app gets the main window's opacity too: menus, drop-down lists, dialogs, message
+// boxes, tooltips and the on-screen position marker.
 bool MainWindow::followsOpacity(const QWidget* w) const
 {
-    if (!w || w == this || w == m_marker || !w->isWindow()) return false;
-    const Qt::WindowType type = w->windowType();
-    return type == Qt::Popup || type == Qt::Dialog || type == Qt::Sheet;
+    return w && w != this && w->isWindow();
 }
 
 void MainWindow::applyOpacity()
 {
     const double level = m_s.windowOpacity / 100.0;   // View > Window Opacity; the same in every state
+    filedialogs::opacityPercent() = m_s.windowOpacity;   // file dialogs: the app's own while see-through
     if (qAbs(windowOpacity() - level) > 0.01) setWindowOpacity(level);
-    // A menu opened by a click plays the opening animation, which draws it solid. So below 100 % the menu and
-    // drop-down animations are off; at 100 % the system's own settings are back.
+    // A menu opened by a click (or a tooltip fading in) plays an animation, which draws it solid. So below 100 %
+    // the menu, drop-down and tooltip animations are off; at 100 % the system's own settings are back.
     const bool solid = level >= 0.995;
     for (auto it = m_effectsDefault.cbegin(); it != m_effectsDefault.cend(); ++it) {
         const bool want = solid && it.value();
@@ -1427,7 +1429,8 @@ bool MainWindow::save(bool saveAs)
     QString path = m_file;
     if (saveAs || path.isEmpty()) {
         const QString start = m_file.isEmpty() ? QDir(m_s.lastFolder.isEmpty() ? QDir::homePath() : m_s.lastFolder).filePath(QStringLiteral("Untitled.") + kExt) : m_file;
-        path = QFileDialog::getSaveFileName(this, QStringLiteral("Save Macro"), start, QStringLiteral("Macros (*.%1)").arg(kExt));
+        path = QFileDialog::getSaveFileName(this, QStringLiteral("Save Macro"), start, QStringLiteral("Macros (*.%1)").arg(kExt),
+                                            nullptr, filedialogs::options());
         if (path.isEmpty()) return false;
         if (QFileInfo(path).suffix().isEmpty()) path += QLatin1Char('.') + kExt;
     }
@@ -1461,7 +1464,8 @@ void MainWindow::open()
     if (m_state != State::Idle || !maybeSave()) return;
     const QString path = QFileDialog::getOpenFileName(this, QStringLiteral("Open Macro"),
                                                       m_s.lastFolder.isEmpty() ? QDir::homePath() : m_s.lastFolder,
-                                                      QStringLiteral("Macros (*.%1);;All files (*)").arg(kExt));
+                                                      QStringLiteral("Macros (*.%1);;All files (*)").arg(kExt), nullptr,
+                                                      filedialogs::options());
     if (!path.isEmpty()) openFile(path);
 }
 
@@ -2186,7 +2190,8 @@ void MainWindow::exportCsv()
     if (m_model.rowCount() == 0) { log(QStringLiteral("Nothing to export: the list is empty.")); return; }
     const QString base = m_file.isEmpty() ? QStringLiteral("Untitled") : QFileInfo(m_file).completeBaseName();
     const QString start = QDir(m_s.lastFolder.isEmpty() ? QDir::homePath() : m_s.lastFolder).filePath(base + QStringLiteral(".csv"));
-    QString path = QFileDialog::getSaveFileName(this, QStringLiteral("Export to CSV"), start, QStringLiteral("CSV files (*.csv)"));
+    QString path = QFileDialog::getSaveFileName(this, QStringLiteral("Export to CSV"), start, QStringLiteral("CSV files (*.csv)"),
+                                                nullptr, filedialogs::options());
     if (path.isEmpty()) return;
     if (QFileInfo(path).suffix().isEmpty()) path += QStringLiteral(".csv");
     // Fields are separated the way the system's spreadsheets expect: "," in the US and UK, ";" in most of Europe,
