@@ -442,7 +442,7 @@ void MainWindow::buildMenus()
     m_previewAct = m_viewMenu->addAction(QStringLiteral("&Preview Steps on Hover"));
     m_previewAct->setCheckable(true);
     m_previewAct->setChecked(m_s.showPreview);
-    m_previewAct->setToolTip(QStringLiteral("Pointing at a mouse step's Value shows its path or position, animated."));
+    m_previewAct->setToolTip(QStringLiteral("Pointing at a mouse step in the list shows its path or position, animated."));
     connect(m_previewAct, &QAction::toggled, this, [this](bool on) { m_s.showPreview = on; if (!on) showPreview(-1); saveSettingsSoon(); });
     m_viewMenu->addSeparator();
     m_viewMenu->addAction(QStringLiteral("&Reset View Options"), this, [this] {
@@ -1015,7 +1015,7 @@ QWidget* MainWindow::buildActionsCard()
     m_table = new ActionTable;
     m_table->setModel(&m_model);
     m_preview = new ActionPreview(m_table->viewport());
-    connect(m_table, &ActionTable::hoveredValue, this, [this](int row) { showPreview(row); });
+    connect(m_table, &ActionTable::hoveredRow, this, [this](int row) { showPreview(row); });
     connect(&m_model, &QAbstractItemModel::modelReset, this, [this] { showPreview(-1); });
     connect(&m_model, &QAbstractItemModel::layoutChanged, this, [this] { showPreview(-1); });
     connect(&m_model, &QAbstractItemModel::rowsRemoved, this, [this] { showPreview(-1); });

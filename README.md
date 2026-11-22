@@ -94,8 +94,8 @@ desktop or in File Explorer. Hold Ctrl to add to what's already selected; drag p
 scroll. Clicking empty space clears the selection.
 
 ### Previewing a step
-The row under the pointer is lightly highlighted. Point at the **Value** of a mouse step (a move, click, scroll or
-pixel check) and a small animated picture appears in the list's right-hand side: the move's path traced at its
+The row under the pointer is lightly highlighted. Point at a mouse step (a move, click, scroll or pixel check),
+anywhere on its row, and a small animated picture appears in the list's right-hand side: the move's path traced at its
 recorded speed, or the spot where it clicks or scrolls, zoomed in, with a small map of your screens in the corner.
 Turn it off with **View ▸ Preview Steps on Hover**.
 
