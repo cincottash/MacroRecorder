@@ -167,6 +167,7 @@ private:
     // widgets
     QLabel *m_fileLabel = nullptr, *m_pill = nullptr;
     QToolButton* m_notKept = nullptr;   // header link while Don't Keep App Data is on
+    QToolButton* m_limits = nullptr;    // header link where the input method reaches only some programs (Wayland)
     QHash<QString, Card> m_cards;
     QVBoxLayout* m_rightCol = nullptr;
     QWidget *m_actionsCard = nullptr, *m_activityCard = nullptr;

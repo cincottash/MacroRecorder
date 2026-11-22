@@ -29,7 +29,7 @@ private:
     void build();
     void accept() override;
     void pickPosition(bool withColor);
-    QSpinBox* spin(int min, int max, int value, const QString& suffix = {});
+    QSpinBox* spin(int min, int max, int value, const QString& suffix = {}, bool groupDigits = true);
 
     core::Action m_a;
     QStringList m_labels;

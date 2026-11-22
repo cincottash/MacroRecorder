@@ -11,6 +11,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QLocale>
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QSaveFile>
@@ -80,9 +81,10 @@ public:
     }
     QString notes() const override
     {
-        return QStringLiteral("Wayland: playback works in every program, but hotkeys and “stop if I move the mouse” aren't available. "
+        return QStringLiteral("Wayland: playback works in every program, but hotkeys and Stop on Mouse Move aren't available. "
                               "Use the Stop button to stop.");
     }
+    QString limitedTag() const override { return QStringLiteral("Wayland: Limited"); }
     void setCapture(CaptureMode) override {}
     core::Injector* injector() override { return m_inj.get(); }
     bool setHotkey(int, const QKeySequence& seq, QString* error) override
@@ -118,12 +120,15 @@ Backend* createLinuxBackend(QObject* parent)
     auto* b = new X11Backend(parent, uin.get());
     if (uin) {
         b->setDisplayName(QStringLiteral("Wayland (uinput + XWayland)"));
+        b->setLimitedTag(QStringLiteral("Wayland: Limited"));
         b->setNotes(QStringLiteral("Wayland: playback works in every program (plain US-keyboard characters only). Recording, "
-                                   "hotkeys and “stop if I move the mouse” only see programs running through XWayland. ") + kWaylandHelp);
+                                   "hotkeys, the active window and Stop on Mouse Move only see programs running through XWayland. ")
+                    + kWaylandHelp);
         UinputInjector* raw = uin.release();
         QObject::connect(b, &QObject::destroyed, [raw] { delete raw; });   // lives as long as the backend
     } else {
         b->setDisplayName(QStringLiteral("Wayland (XWayland)"));
+        b->setLimitedTag(QStringLiteral("Wayland: Limited"));
         b->setNotes(QStringLiteral("Wayland: recording and playback only work with programs running through XWayland (%1). ")
                         .arg(uinputWhy) + kWaylandHelp);
     }
@@ -133,6 +138,13 @@ Backend* createLinuxBackend(QObject* parent)
 // ---------------------------------------------------------------- system
 
 namespace sys {
+
+QChar listSeparator()
+{
+    // Linux has no list separator setting; spreadsheets there follow the decimal mark.
+    return QLocale().decimalPoint() == QStringLiteral(",") ? QLatin1Char(';') : QLatin1Char(',');
+}
+
 
 namespace {
 QString autostartFile()
