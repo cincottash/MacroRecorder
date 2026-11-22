@@ -3,14 +3,18 @@
 Record what you do with the mouse and keyboard, edit it step by step, and play it back as many times as you like.
 Free and open source (GPL-3.0). One file to download: nothing to install.
 
-![MacroRecorder's main window](.github/screenshot.png)
+![The main window: a recorded macro in the list, one step selected, and the pointer on a Mouse Move step, whose path is drawn on the right](.github/screenshot.png)
+
+*A recorded macro. Step 3 is selected; the pointer is on step 6, so its mouse path is drawn on the right.*
 
 ## What it does
 
 - **Records** mouse moves, clicks, double-clicks, drags, scrolling, key presses, shortcuts and typed text, plus
   which window you were working in.
 - **Shows each step in a list** you can edit: change a position, a key or a pause, add steps by hand, reorder,
-  copy and paste, disable steps, undo and redo.
+  copy and paste, disable steps, undo and redo. Select steps with a click or by dragging a box over them.
+- **Previews a step when you point at it:** a mouse move's path, or the spot where a click lands, is drawn
+  beside the list.
 - **Plays it back** exactly: clicks land on the same pixel, and the timing of your clicks, typing and pauses is
   kept. Play faster or slower, repeat a number of times, for a while, or until you stop it.
 - **Steps you can add yourself:** click, move, scroll, button down/up (drags), key press or shortcut, text,
@@ -66,7 +70,9 @@ Activity log says when a step was skipped. Blocking the keyboard during playback
 ## First run
 
 The app asks where to keep its settings (theme, hotkeys, playback options, recent files). Pick any folder, or
-choose **Don't Keep App Data** to start fresh every time and leave nothing behind. You can change this later in
+choose **Don't Keep App Data** to start fresh every time and leave nothing behind. While that choice is on, a
+**Settings Not Kept** link shows at the top of the window, so it's clear why the theme and other settings start
+over each time; click it to pick a folder. You can also change this at any time in
 **File ▸ Settings ▸ Change App Data Folder…**.
 
 Your macros are saved wherever you choose when you save them.
@@ -93,11 +99,14 @@ including the empty space below the steps, and drag a selection box over the ste
 desktop or in File Explorer. Hold Ctrl to add to what's already selected; drag past the top or bottom edge to
 scroll. Clicking empty space clears the selection.
 
+![The Light theme, with a selection box dragged up from the empty space under the steps and five steps selected](.github/screenshot-select.png)
+
 ### Previewing a step
-The row under the pointer is lightly highlighted. Point at a mouse step (a move, click, scroll or pixel check),
-anywhere on its row, and a small animated picture appears in the list's right-hand side: the move's path traced at its
-recorded speed, or the spot where it clicks or scrolls, zoomed in, with a small map of your screens in the corner.
-Turn it off with **View ▸ Preview Steps on Hover**.
+The row under the pointer is lightly highlighted (a selected row is highlighted more strongly). Point at a mouse
+step (a move, click, scroll or pixel check), anywhere on its row, and a small animated picture appears in the
+list's right-hand side: the move's path traced at its recorded speed, or the spot where it clicks or scrolls,
+zoomed in, with a small map of your screens in the corner. The picture at the top of this page shows it. Turn it
+off with **View ▸ Preview Steps on Hover**.
 
 ### The cards
 Each card folds to its title with **Hide ▾** / **Show ▴**.
@@ -153,6 +162,18 @@ pick that label. "3 times" plays the part three times in total.
   Mark Selected Step on Screen, Preview Steps on Hover, Reset View Options.
 - **Help**: Project Website, Open App Data Folder, Report a Problem, About.
 
+### Keyboard shortcuts in the list
+| Keys | What they do |
+|---|---|
+| **F2** (or double-click) | Edit the selected step |
+| **Delete** | Delete the selected steps |
+| **Ctrl+E** | Enable or disable the selected steps |
+| **Alt+↑** / **Alt+↓** | Move the selected steps up or down |
+| **Ctrl+X** / **Ctrl+C** / **Ctrl+V** | Cut, copy, paste |
+| **Ctrl+A** | Select all steps |
+| **Ctrl+Z** / **Ctrl+Y** | Undo, redo |
+| **Ctrl+H** | Find and Replace |
+
 ## Command line
 
 ```
@@ -175,7 +196,9 @@ Example: `MacroRecorder.exe "C:\path\to\daily-report.macro" --play --repeat 3 --
 ## Macro files
 
 Macros are saved as `.macro` files: plain JSON you can read, compare and fix in any text editor. Each step is
-one object with a `type` (`mouse_click`, `text`, `wait`, …) and its values. Positions are screen pixels.
+one object with a `type` (`mouse_click`, `text`, `wait`, …) and its values. Positions are screen pixels, or
+pixels from the window's corner for steps recorded with **Positions Relative to Window** (those carry
+`"relative_to_window": true`).
 
 ## Building from source
 
@@ -227,7 +250,7 @@ Copyright © 2026 cincottash. Licensed under the [GNU General Public License v3.
 
 Built with [Qt](https://www.qt.io) (LGPL-3.0).
 
-The Dark themes and Light themes use colors from these open-source editor color schemes, adjusted for
+The Dark Themes and Light Themes use colors from these open-source editor color schemes, adjusted for
 readability as app themes: Nord, Dracula, Solarized, Gruvbox, One Dark / One Light, Tokyo Night, Catppuccin
 (Mocha, Macchiato, Frappé, Latte), Rosé Pine (main, Moon, Dawn), Everforest, Kanagawa (Wave, Lotus), Ayu (Dark,
 Mirage, Light), Palenight, Night Owl, Cobalt2, Synthwave '84, Tomorrow (Night and Day), Monokai and Zenburn.
