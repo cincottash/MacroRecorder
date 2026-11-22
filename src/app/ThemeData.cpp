@@ -11,7 +11,7 @@ static Theme make(const char* group, const char* name, const char* key, std::ini
     return t;
 }
 
-const QList<Theme>& all()
+const QList<Theme>& builtIn()
 {
     static const QList<Theme> list = {
         make("Light Themes", "Light", "light", {{"bg", "#F4F5F7"}, {"card", "#FFFFFF"}, {"border", "#E1E4E8"}, {"text", "#1F2328"}, {"muted", "#667085"}, {"accent", "#2563EB"}, {"accent_hover", "#1D4ED8"}, {"accent_text", "#FFFFFF"}, {"input", "#FFFFFF"}, {"ok", "#15803D"}, {"ok_bg", "#DCFCE7"}, {"warn", "#92400E"}, {"warn_bg", "#FEF3C7"}, {"warn_border", "#F59E0B"}, {"err", "#B91C1C"}, {"err_bg", "#FEE2E2"}, {"track", "#E9ECF1"}, {"log_bg", "#F8F9FB"}}),

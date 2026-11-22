@@ -19,6 +19,18 @@ const Theme* find(const QString& key)
 
 QStringList groups() { return {QStringLiteral("Dark Themes"), QStringLiteral("Light Themes")}; }
 
+QString customGroup() { return QStringLiteral("Custom Themes"); }
+
+static QList<Theme>& combined()
+{
+    static QList<Theme> list = builtIn();
+    return list;
+}
+
+const QList<Theme>& all() { return combined(); }
+
+void setCustom(const QList<Theme>& list) { combined() = builtIn() + list; }
+
 bool systemIsDark()
 {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
