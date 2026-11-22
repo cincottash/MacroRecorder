@@ -107,7 +107,11 @@ QVariant ActionModel::data(const QModelIndex& i, int role) const
 
 QVariant ActionModel::headerData(int section, Qt::Orientation o, int role) const
 {
-    if (o != Qt::Horizontal || role != Qt::DisplayRole) return {};
+    if (o != Qt::Horizontal) return {};
+    // Headers line up with their column's values: numbers on the right, everything else on the left.
+    if (role == Qt::TextAlignmentRole)
+        return int((section == ColNum ? Qt::AlignRight : Qt::AlignLeft) | Qt::AlignVCenter);
+    if (role != Qt::DisplayRole) return {};
     switch (section) {
     case ColNum: return QStringLiteral("#");
     case ColAction: return QStringLiteral("Action");

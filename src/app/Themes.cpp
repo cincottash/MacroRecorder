@@ -97,7 +97,7 @@ QTableView { background: @input; alternate-background-color: @log_bg; border: 1p
     gridline-color: @border; selection-background-color: @accent; selection-color: @accent_text; }
 QTableView::item { padding: 2px 6px; }
 QHeaderView::section { background: @card; color: @muted; border: none; border-bottom: 1px solid @border;
-    padding: 5px 6px; font-weight: 600; }
+    padding: 5px 6px 5px 10px; font-weight: 600; }
 QTableCornerButton::section { background: @card; border: none; }
 QLabel#pill { border-radius: 11px; padding: 3px 12px; font-weight: 600; }
 QLabel#pill[tone="ok"] { color: @ok; background: @ok_bg; }
