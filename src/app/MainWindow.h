@@ -88,7 +88,7 @@ private:
     void exportTheme();
     void removeCustomTheme(const QString& key);
     void applyOpacity();              // View > Window Opacity, on the window and whatever it has open
-    bool followsOpacity(const QWidget* w) const;   // a menu, drop-down list or dialog of this app
+    bool followsOpacity(const QWidget* w) const;   // any other window of this app
 
     // file
     bool maybeSave();
@@ -164,7 +164,7 @@ private:
     QMessageBox* m_msgBox = nullptr;       // a Message box step waiting for OK
     ActionDialog* m_openDialog = nullptr;  // a step editor that's open (for the Capture position hotkey)
     QWidget* m_marker = nullptr;
-    QHash<int, bool> m_effectsDefault;   // the system's menu/drop-down animations (Qt::UIEffect), as found at start
+    QHash<int, bool> m_effectsDefault;   // the system's menu/drop-down/tooltip animations (Qt::UIEffect), at start
     class QSystemTrayIcon* m_tray = nullptr;    // created for the first notification
 
     // widgets
