@@ -19,6 +19,7 @@
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFrame>
@@ -38,6 +39,7 @@
 #include <QLineEdit>
 #include <QPainter>
 #include <QPlainTextEdit>
+#include <QProcess>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSaveFile>
@@ -304,6 +306,9 @@ void MainWindow::buildMenus()
         m_backend->injector()->setScanCodesOnly(m_s.scanCodes);
         log(QStringLiteral("Settings reset to defaults."));
     });
+    settings->addAction(QStringLiteral("Start Over…"), this, [this] { startOver(); })
+        ->setToolTip(QStringLiteral("Every setting back to its default, as if the app had just been installed. "
+                                    "Your saved macros aren't touched."));
     settings->addSeparator();
     auto toggle = [&](const QString& text, bool on, const QString& tip, std::function<void(bool)> f) {
         QAction* a = settings->addAction(text);
@@ -2391,6 +2396,48 @@ void MainWindow::closeEvent(QCloseEvent* e)
     m_s.geometry = saveGeometry();
     m_s.tableState = m_table->horizontalHeader()->saveState();
     m_saveTimer.stop();
-    m_s.save(appdata::settingsFile());
+    if (!m_startingOver) m_s.save(appdata::settingsFile());
     e->accept();
+}
+
+void MainWindow::startOver()
+{
+    if (m_state != State::Idle || !maybeSave()) return;
+    const bool portable = appdata::usesOverride();
+    QMessageBox box(QMessageBox::Question, QStringLiteral("Start Over"),
+                    QStringLiteral("Start over as if %1 had just been installed?").arg(QStringLiteral(APP_NAME)),
+                    QMessageBox::Yes | QMessageBox::Cancel, this);
+    box.setInformativeText(
+        QStringLiteral("Every setting goes back to its default: the theme and imported themes, the layout, Window Opacity, "
+                       "hotkeys, playback and recording options, and recent files. Start at Login is turned off.\n\n")
+        + (portable ? QStringLiteral("Then %1 starts again with the same app data folder.").arg(QStringLiteral(APP_NAME))
+                    : QStringLiteral("Then %1 starts again and shows the welcome window, which asks where to keep its "
+                                     "settings.").arg(QStringLiteral(APP_NAME)))
+        + QStringLiteral("\n\nYour saved macros aren't touched."));
+    box.button(QMessageBox::Yes)->setText(QStringLiteral("Start Over"));
+    box.setDefaultButton(QMessageBox::Cancel);
+    if (box.exec() != QMessageBox::Yes) return;
+
+    m_saveTimer.stop();
+    QString err;
+    if (m_backend->startsAtLogin() && !m_backend->setStartAtLogin(false, &err))
+        log(QStringLiteral("Start at Login: %1").arg(err));
+    // The new copy registers the hotkeys again; this one lets go of them first.
+    for (int id = HkRecord; id <= HkCapture; ++id) m_backend->setHotkey(id, QKeySequence(), &err);
+    QFile::remove(appdata::settingsFile());
+    appdata::forgetChoice();
+    m_startingOver = true;
+
+    // An AppImage runs from a folder that's gone once it closes: start the AppImage file itself again.
+    const QString appImage = qEnvironmentVariable("APPIMAGE");
+    const QString program = appImage.isEmpty() ? QCoreApplication::applicationFilePath() : appImage;
+    QStringList args;
+    if (portable) args << QStringLiteral("--data-folder") << (appdata::isTemporary() ? QStringLiteral("<none>") : appdata::folder());
+    const bool started = startAgain ? startAgain(program, args) : QProcess::startDetached(program, args);
+    if (!started)
+        QMessageBox::warning(this, QStringLiteral("Start Over"),
+                             QStringLiteral("The settings are reset, but %1 couldn't start again by itself. "
+                                            "Open it again to continue.").arg(QStringLiteral(APP_NAME)));
+    m_dirty = false;   // maybeSave() above already asked
+    close();
 }

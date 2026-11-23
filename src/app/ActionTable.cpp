@@ -55,6 +55,12 @@ protected:
         p.fillRect(rect(), fill);
         p.setPen(line);
         p.drawRect(rect().adjusted(0, 0, -1, -1));
+        // Over steps that are already selected the accent edge disappears into the selection: a faint line in the
+        // selection's text color just inside it keeps the box's edge visible there too
+        QColor inner = palette().color(QPalette::HighlightedText);
+        inner.setAlphaF(v.bandInner);
+        p.setPen(inner);
+        if (width() > 4 && height() > 4) p.drawRect(rect().adjusted(1, 1, -2, -2));
     }
 };
 

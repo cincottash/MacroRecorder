@@ -41,7 +41,9 @@ On Linux, see [Linux (experimental)](#linux-experimental).
 The app asks where to keep its settings. It suggests the usual place for app data (`%LOCALAPPDATA%\MacroRecorder`
 on Windows, `~/.local/share/MacroRecorder` on Linux); pick any folder, or choose **Don't Keep App Data** to start
 fresh every time. While that choice is on, a **Settings Not Kept** link shows at the top of the window; click it to pick a
-folder. You can change this at any time in **File ▸ Settings ▸ Change App Data Folder…**.
+folder. You can change this at any time in **File ▸ Settings ▸ Change App Data Folder…**. To go back to how the
+app was when first installed, use **File ▸ Settings ▸ Start Over…**: every setting returns to its default and this
+window shows again.
 
 Your macros are saved wherever you choose when you save them.
 
@@ -260,7 +262,8 @@ played.
 - **File**: New, Open, Open Recent, Save, Save As, Export to CSV (separated the way your region's spreadsheets
   expect: commas in the US, semicolons in most of Europe), Copy Command Line (plays the saved macro and
   closes; for a shortcut or Windows Task Scheduler), Settings, Quit.
-  - **Settings**: Change App Data Folder, Reset Settings to Defaults, Confirm Before Deleting Steps, Start
+  - **Settings**: Change App Data Folder, Reset Settings to Defaults, Start Over (every setting back to its
+    default, then the app restarts on the welcome window; your saved macros aren't touched), Confirm Before Deleting Steps, Start
     Minimized, Start at Login, and on Windows: Send Keys as Scan Codes (for games that ignore normal key presses),
     Restart as Administrator (needed to control programs running as administrator).
 - **Macro**: Record, Record After Selected Step, New Recording, Play, Play Selection, Play From Selected Step,

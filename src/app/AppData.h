@@ -16,6 +16,10 @@ void rememberChoice(const QString& folder);
 // Returns an empty string if the user cancelled the first-run dialog.
 QString resolve(const QString& override, QWidget* parent);
 bool isTemporary();
+bool usesOverride();                        // this run's folder came from --data-folder (portable use, tests)
+// File > Settings > Start Over: forget the folder choice, so the next start asks again (the welcome window).
+// Does nothing while --data-folder is in use: that folder is the caller's choice, not the remembered one.
+void forgetChoice();
 QString settingsFile();                     // <folder>/settings.json
 QString folder();
 // File > Settings > Change app data folder: ask, move settings.json, remember. False if cancelled.

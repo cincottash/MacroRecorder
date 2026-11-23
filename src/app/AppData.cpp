@@ -25,6 +25,7 @@ namespace {
 const QString kNone = QStringLiteral("<none>");
 QString g_folder;
 QTemporaryDir* g_temp = nullptr;   // deleted (with its contents) when the app exits
+bool g_override = false;           // the folder came from --data-folder
 
 #ifndef Q_OS_WIN
 QString choiceFile()
@@ -137,7 +138,8 @@ void rememberChoice(const QString& folder)
 
 QString resolve(const QString& override, QWidget* parent)
 {
-    if (!override.isEmpty()) return useFolder(override) ? g_folder : QString();
+    g_override = !override.isEmpty();
+    if (g_override) return useFolder(override) ? g_folder : QString();
     QString choice = rememberedChoice();
     if (choice.isEmpty() || (choice != kNone && !QDir(choice).exists() && !QDir().mkpath(choice))) {
         choice = ask(parent, choice, true);
@@ -148,6 +150,18 @@ QString resolve(const QString& override, QWidget* parent)
 }
 
 bool isTemporary() { return g_temp != nullptr; }
+bool usesOverride() { return g_override; }
+
+void forgetChoice()
+{
+    if (g_override) return;
+#ifdef Q_OS_WIN
+    QSettings reg(QStringLiteral("HKEY_CURRENT_USER\\Software\\" APP_ORG "\\" APP_NAME), QSettings::NativeFormat);
+    reg.remove(QStringLiteral("DataFolder"));
+#else
+    QFile::remove(choiceFile());
+#endif
+}
 QString folder() { return g_folder; }
 QString settingsFile() { return QDir(g_folder).filePath(QStringLiteral("settings.json")); }
 

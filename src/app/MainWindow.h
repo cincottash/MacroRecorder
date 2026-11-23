@@ -7,6 +7,8 @@
 #include "core/Recorder.h"
 #include "platform/Backend.h"
 
+#include <functional>
+
 #include <QHash>
 #include <QMainWindow>
 #include <QTimer>
@@ -47,6 +49,9 @@ public:
     // View > Theme > Import Theme…, without the file dialog. Adds the theme, keeps it in the settings and switches
     // to it. False (with the reason in `error`) if the file isn't a usable theme.
     bool importThemeFile(const QString& path, QString* error = nullptr);
+    // File > Settings > Start Over starts the app again with this. Tests replace it so nothing is started; the
+    // default starts the program (the AppImage itself on Linux) detached.
+    inline static std::function<bool(const QString& program, const QStringList& args)> startAgain;
 
 protected:
     bool eventFilter(QObject* watched, QEvent* e) override;
@@ -137,6 +142,7 @@ private:
     void togglePause();
     void registerHotkeys();
     void syncWidgetsFromSettings();   // after Reset settings: show the defaults right away
+    void startOver();                 // every setting back to its default, then the app starts again (welcome window)
     void onHotkey(int id);
     core::PlayOptions playOptions() const;
     core::RecordOptions recordOptions() const;
@@ -160,6 +166,7 @@ private:
     QTimer m_countdown;
     bool m_quitWhenDone = false;
     bool m_hotkeysEnabled = true;
+    bool m_startingOver = false;   // Start Over: closing without saving the settings again
     QString m_recordTo;
     QMessageBox* m_msgBox = nullptr;       // a Message box step waiting for OK
     ActionDialog* m_openDialog = nullptr;  // a step editor that's open (for the Capture position hotkey)
