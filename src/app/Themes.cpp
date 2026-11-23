@@ -79,6 +79,8 @@ QLineEdit, QSpinBox, QComboBox, QKeySequenceEdit QLineEdit {
     background: @input; border: 1px solid @border; border-radius: 6px; padding: 4px 8px; }
 QLineEdit:focus, QSpinBox:focus, QComboBox:focus { border: 1px solid @accent; }
 QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled { color: @muted; }
+/* Lists open below their box: Fusion puts the chosen item over the box (a "drop up" for the last item). */
+QComboBox { combobox-popup: 0; }
 QComboBox::drop-down { border: none; width: 22px; }
 QComboBox::down-arrow { image: url(@down); width: 12px; height: 12px; }
 QSpinBox::up-arrow { image: url(@up); width: 10px; height: 10px; }
