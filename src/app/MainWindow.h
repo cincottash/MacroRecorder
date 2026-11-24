@@ -9,8 +9,10 @@
 
 #include <functional>
 
+#include <QDateTime>
 #include <QHash>
 #include <QMainWindow>
+#include <QSet>
 #include <QTimer>
 
 class ActionDialog;
@@ -52,6 +54,12 @@ public:
     // File > Settings > Start Over starts the app again with this. Tests replace it so nothing is started; the
     // default starts the program (the AppImage itself on Linux) detached.
     inline static std::function<bool(const QString& program, const QStringList& args)> startAgain;
+    // Schedules: the clock they follow (tests set their own). Empty: the computer's clock.
+    inline static std::function<QDateTime()> clockForTests;
+    void checkSchedules();   // plays a schedule that's due; a timer calls it every second
+    // Plays a saved macro without opening it (Macro Hotkeys, Schedules, another start of the app). False if it
+    // can't start now (busy, a dialog open, a bad file); the reason is in the Activity log.
+    bool playFile(const QString& path, const QString& why);
 
 protected:
     bool eventFilter(QObject* watched, QEvent* e) override;
@@ -148,6 +156,12 @@ private:
     void registerHotkeys();
     void syncWidgetsFromSettings();   // after Reset settings: show the defaults right away
     void startOver();                 // every setting back to its default, then the app starts again (welcome window)
+    void editMacroHotkeys();          // Macro > Macro Hotkeys…
+    void editSchedules();             // Macro > Schedules…
+    void reschedule();                // when each schedule is next due, from now on
+    QDateTime now() const;
+    QHash<QString, QString> appHotkeys() const;   // the Hotkeys card's keys, by name
+    bool typingHotkey() const;        // a hotkey field has the keyboard: global hotkeys step aside so it gets the keys
     void onHotkey(int id);
     core::PlayOptions playOptions() const;
     core::RecordOptions recordOptions() const;
@@ -172,6 +186,13 @@ private:
     bool m_quitWhenDone = false;
     bool m_hotkeysEnabled = true;
     bool m_startingOver = false;   // Start Over: closing without saving the settings again
+    QString m_playingOther;              // playing a macro file that isn't the open one (hotkey, schedule): its path
+    QList<core::Action> m_otherActions;  // ...and its steps
+    QTimer m_scheduleTimer;
+    QList<QDateTime> m_due;              // per schedule: when it's next due (invalid: not again)
+    QSet<int> m_waitLogged;              // schedules whose "waiting" line is already in the log
+    int m_macroHotkeysRegistered = 0;
+    bool m_hotkeysPaused = false;        // a hotkey field has the keyboard (see typingHotkey)
     QString m_recordTo;
     QMessageBox* m_msgBox = nullptr;       // a Message box step waiting for OK
     class QDialog* m_askBox = nullptr;     // an Ask for Text step waiting for an answer

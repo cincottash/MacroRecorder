@@ -2,8 +2,32 @@
 #pragma once
 
 #include <QByteArray>
+#include <QDateTime>
+#include <QList>
 #include <QString>
 #include <QStringList>
+
+// Macro > Macro Hotkeys: a hotkey that plays a saved macro without opening it.
+struct MacroHotkey {
+    QString file;
+    QString key;   // QKeySequence portable text
+    bool operator==(const MacroHotkey&) const = default;
+};
+
+// Macro > Schedules: a saved macro played at set times while the app runs.
+struct Schedule {
+    QString file;
+    bool enabled = true;
+    QString repeat = QStringLiteral("daily");   // once / daily / days / minutes
+    QDateTime at;          // once: when; daily and days: the time of day (its date is ignored); minutes: the first run
+    int days = 0x1F;       // days: Monday = 1, Tuesday = 2, Wednesday = 4, ... Sunday = 64
+    int minutes = 60;      // minutes: how often
+    QDateTime lastRun;
+    bool operator==(const Schedule&) const = default;
+    // The first time after `after` it's due; invalid if never again (a past "once", no days ticked)
+    QDateTime nextRun(const QDateTime& after) const;
+    QString describe() const;   // "Every day at 08:00", "Mon, Wed, Fri at 17:30", "Every 15 min"...
+};
 
 struct Settings {
     // View options (View > Reset view options)
@@ -61,6 +85,10 @@ struct Settings {
 
     // Imported themes, one JSON text each (kept by both resets: they're the user's own files)
     QStringList customThemes;
+
+    // Macros played without opening them (kept by both resets, like the themes)
+    QList<MacroHotkey> macroHotkeys;
+    QList<Schedule> schedules;
 
     // Files
     QStringList recent;

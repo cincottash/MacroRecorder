@@ -4,6 +4,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLocale>
 #include <QSaveFile>
 
 namespace {
@@ -59,6 +60,56 @@ void fields(Settings& s, F&& f)
     f("scan_codes", s.scanCodes);
     f("recent", s.recent);
     f("last_folder", s.lastFolder);
+    f("macro_hotkeys", s.macroHotkeys);
+    f("schedules", s.schedules);
+}
+
+const char* const kRepeats[] = {"once", "daily", "days", "minutes"};
+
+void get(const QJsonObject& o, const char* k, QList<MacroHotkey>& v)
+{
+    if (!o.value(QLatin1String(k)).isArray()) return;
+    v.clear();
+    for (const QJsonValue& x : o.value(QLatin1String(k)).toArray()) {
+        const QJsonObject h = x.toObject();
+        MacroHotkey m{h.value(QStringLiteral("file")).toString(), h.value(QStringLiteral("key")).toString()};
+        if (!m.file.isEmpty()) v << m;
+    }
+}
+void put(QJsonObject& o, const char* k, const QList<MacroHotkey>& v)
+{
+    QJsonArray a;
+    for (const MacroHotkey& m : v) a.append(QJsonObject{{QStringLiteral("file"), m.file}, {QStringLiteral("key"), m.key}});
+    o[QLatin1String(k)] = a;
+}
+void get(const QJsonObject& o, const char* k, QList<Schedule>& v)
+{
+    if (!o.value(QLatin1String(k)).isArray()) return;
+    v.clear();
+    for (const QJsonValue& x : o.value(QLatin1String(k)).toArray()) {
+        const QJsonObject j = x.toObject();
+        Schedule s;
+        s.file = j.value(QStringLiteral("file")).toString();
+        s.enabled = j.value(QStringLiteral("enabled")).toBool(true);
+        const QString r = j.value(QStringLiteral("repeat")).toString();
+        for (const char* known : kRepeats) if (r == QLatin1String(known)) s.repeat = r;
+        s.at = QDateTime::fromString(j.value(QStringLiteral("at")).toString(), Qt::ISODate);
+        s.days = j.value(QStringLiteral("days")).toInt(0x1F) & 0x7F;
+        s.minutes = qBound(1, j.value(QStringLiteral("minutes")).toInt(60), 100000);
+        s.lastRun = QDateTime::fromString(j.value(QStringLiteral("last_run")).toString(), Qt::ISODate);
+        if (!s.file.isEmpty() && s.at.isValid()) v << s;
+    }
+}
+void put(QJsonObject& o, const char* k, const QList<Schedule>& v)
+{
+    QJsonArray a;
+    for (const Schedule& s : v) {
+        QJsonObject j{{QStringLiteral("file"), s.file}, {QStringLiteral("enabled"), s.enabled}, {QStringLiteral("repeat"), s.repeat},
+                      {QStringLiteral("at"), s.at.toString(Qt::ISODate)}, {QStringLiteral("days"), s.days}, {QStringLiteral("minutes"), s.minutes}};
+        if (s.lastRun.isValid()) j[QStringLiteral("last_run")] = s.lastRun.toString(Qt::ISODate);
+        a.append(j);
+    }
+    o[QLatin1String(k)] = a;
 }
 
 void get(const QJsonObject& o, const char* k, QString& v) { if (o.value(QLatin1String(k)).isString()) v = o.value(QLatin1String(k)).toString(); }
@@ -82,6 +133,43 @@ void put(QJsonObject& o, const char* k, const QByteArray& v) { o[QLatin1String(k
 void put(QJsonObject& o, const char* k, const QStringList& v) { o[QLatin1String(k)] = QJsonArray::fromStringList(v); }
 
 }  // namespace
+
+QDateTime Schedule::nextRun(const QDateTime& after) const
+{
+    if (!at.isValid()) return {};
+    if (repeat == QLatin1String("once")) return at > after ? at : QDateTime();
+    if (repeat == QLatin1String("minutes")) {
+        // Every N minutes from the first run on, at steady times (12:00, 12:15, ...) however late the app started
+        if (at > after) return at;
+        const qint64 step = qint64(qMax(1, minutes)) * 60;
+        return at.addSecs((at.secsTo(after) / step + 1) * step);
+    }
+    const QTime t = QTime(at.time().hour(), at.time().minute());
+    for (int d = 0; d <= 8; ++d) {
+        const QDate day = after.date().addDays(d);
+        const QDateTime when(day, t);
+        if (when <= after) continue;
+        if (repeat == QLatin1String("daily") || (days & (1 << (day.dayOfWeek() - 1)))) return when;
+    }
+    return {};
+}
+
+QString Schedule::describe() const
+{
+    const QLocale loc;
+    const QString time = loc.toString(at.time(), QLocale::ShortFormat);
+    if (repeat == QLatin1String("once")) return QStringLiteral("Once, %1").arg(loc.toString(at, QLocale::ShortFormat));
+    if (repeat == QLatin1String("minutes"))
+        return QStringLiteral("Every %1 min from %2").arg(loc.toString(minutes), loc.toString(at, QLocale::ShortFormat));
+    if (repeat == QLatin1String("daily") || (days & 0x7F) == 0x7F) return QStringLiteral("Every day at %1").arg(time);
+    if ((days & 0x7F) == 0x1F) return QStringLiteral("Weekdays at %1").arg(time);
+    if ((days & 0x7F) == 0x60) return QStringLiteral("Weekends at %1").arg(time);
+    QStringList names;
+    for (int d = 1; d <= 7; ++d)
+        if (days & (1 << (d - 1))) names << loc.dayName(d, QLocale::ShortFormat);
+    if (names.isEmpty()) return QStringLiteral("No days chosen");
+    return QStringLiteral("%1 at %2").arg(names.join(QStringLiteral(", ")), time);
+}
 
 bool Settings::load(const QString& path)
 {
@@ -141,10 +229,14 @@ void Settings::resetOptions()
     const bool keepLog = showLog, keepDetail = detailedLog, keepTop = alwaysOnTop;
     const int keepOpacity = windowOpacity;
     const QStringList keepThemes = customThemes;
+    const QList<MacroHotkey> keepHotkeys = macroHotkeys;
+    const QList<Schedule> keepSchedules = schedules;
     const QByteArray keepGeo = geometry, keepTable = tableState;
     *this = d;
     windowOpacity = keepOpacity;
     customThemes = keepThemes;
+    macroHotkeys = keepHotkeys;
+    schedules = keepSchedules;
     recent = keepRecent;
     lastFolder = keepFolder;
     theme = keepTheme;

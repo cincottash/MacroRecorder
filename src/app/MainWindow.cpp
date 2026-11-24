@@ -4,6 +4,7 @@
 #include "ActionPreview.h"
 #include "ActionTable.h"
 #include "AppData.h"
+#include "AutoRunDialogs.h"
 #include "FileDialogs.h"
 #include "ThemeFile.h"
 #include "Themes.h"
@@ -66,6 +67,7 @@ const QString kMime = QStringLiteral("application/x-" APP_NAME "-actions");
 const QString kExt = QStringLiteral("macro");
 enum HotkeyId { HkRecord = 1, HkPlay = 2, HkStop = 3, HkNewRecording = 4, HkPlayFrom = 5, HkPlaySelection = 6, HkCapture = 7 };
 constexpr int kWaitForImage = 100;   // addAction() variant: a Find Image step that waits for its picture
+constexpr int kMacroHotkeyBase = 100;   // Macro > Macro Hotkeys: hotkey ids 100, 101, ...
 
 // A ring on the screen at the selected step's position. Click-through, never takes focus.
 class PositionMarker : public QWidget {
@@ -193,6 +195,14 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
         updateHeader();
     });
     connect(m_player, &core::Player::step, this, [this](int index, int round, int rounds) {
+        if (!m_playingOther.isEmpty()) {   // a macro file that isn't the one in the list: no row to mark
+            if (m_s.detailedLog && index < m_otherActions.size())
+                log(QStringLiteral("Step %1: %2").arg(index + 1).arg(m_otherActions.at(index).typeName()), true);
+            setPill(QStringLiteral("▶ %1 · Step %2 of %3").arg(QFileInfo(m_playingOther).completeBaseName()).arg(index + 1)
+                        .arg(m_otherActions.size()), QStringLiteral("ok"));
+            return;
+        }
+        if (index >= m_model.rowCount()) return;
         m_model.setPlayingRow(index);
         if (m_s.detailedLog) log(QStringLiteral("Step %1: %2").arg(index + 1).arg(m_model.at(index).typeName()), true);
         const QString r = rounds > 0 ? QStringLiteral("%1 of %2").arg(round).arg(rounds) : QStringLiteral("round %1").arg(round);
@@ -219,12 +229,17 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
         if (m_msgBox) m_msgBox->done(0);   // stopped while a Message box step was waiting
         if (m_askBox) m_askBox->done(QDialog::Rejected);
         m_model.setPlayingRow(-1);
-        if (!why.isEmpty()) log(QStringLiteral("Stopped: %1").arg(why));
-        else log(stopped ? QStringLiteral("Playback stopped.") : QStringLiteral("Playback finished."));
+        const QString other = m_playingOther;
+        m_playingOther.clear();
+        m_otherActions.clear();
+        const QString what = other.isEmpty() ? QString() : QFileInfo(other).fileName() + QStringLiteral(": ");
+        if (!why.isEmpty()) log(QStringLiteral("Stopped: %1%2").arg(what, why));
+        else log(what + (stopped ? QStringLiteral("Playback stopped.") : QStringLiteral("Playback finished.")));
         setState(State::Idle);
         registerHotkeys();   // releases the Stop hotkey (Esc) so it works normally in other programs again
-        if (isMinimized() && m_s.hideWhilePlaying) showNormal();
-        if (!stopped && why.isEmpty()) runAfterPlayback();
+        if (isMinimized() && m_s.hideWhilePlaying && other.isEmpty()) showNormal();
+        // "When Finished" (close, shut down...) belongs to the open macro: a hotkey or a schedule never shuts the PC down
+        if (!stopped && why.isEmpty() && other.isEmpty()) runAfterPlayback();
         if (m_quitWhenDone) qApp->quit();
     });
 
@@ -242,6 +257,13 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
     connect(&m_themePreviewTimer, &QTimer::timeout, this, [this] {
         if (!m_themePreviewing.isEmpty()) themes::apply(themes::forChoice(m_themePreviewing), centralWidget());
     });
+    m_scheduleTimer.setInterval(1000);
+    connect(&m_scheduleTimer, &QTimer::timeout, this, [this] { checkSchedules(); });
+    reschedule();
+    m_scheduleTimer.start();
+    // A hotkey field getting (or losing) the keyboard: global hotkeys step aside so the field receives the keys
+    connect(qApp, &QApplication::focusChanged, this, [this] { if (typingHotkey() != m_hotkeysPaused) registerHotkeys(); });
+    connect(qApp, &QGuiApplication::applicationStateChanged, this, [this] { if (typingHotkey() != m_hotkeysPaused) registerHotkeys(); });
     m_saveTimer.setSingleShot(true);
     m_saveTimer.setInterval(400);
     connect(&m_saveTimer, &QTimer::timeout, this, [this] { m_s.save(appdata::settingsFile()); });
@@ -388,6 +410,11 @@ void MainWindow::buildMenus()
     macro->addMenu(add);
     macro->addAction(QStringLiteral("&Clean Up"), this, [this] { cleanUp(); })
         ->setToolTip(QStringLiteral("Merges back-to-back waits and moves, and removes empty ones."));
+    macro->addSeparator();
+    macro->addAction(QStringLiteral("Macro &Hotkeys…"), this, [this] { editMacroHotkeys(); })
+        ->setToolTip(QStringLiteral("Hotkeys that play a saved macro from any program, without opening it."));
+    macro->addAction(QStringLiteral("Sc&hedules…"), this, [this] { editSchedules(); })
+        ->setToolTip(QStringLiteral("Plays saved macros at set times while the app runs."));
 
     QMenu* edit = menuBar()->addMenu(QStringLiteral("&Edit"));
     m_undoAct = edit->addAction(QStringLiteral("&Undo"), QKeySequence::Undo, this, [this] { undo(); });
@@ -1974,9 +2001,27 @@ void MainWindow::syncWidgetsFromSettings()
     }
 }
 
+QHash<QString, QString> MainWindow::appHotkeys() const
+{
+    return {{QStringLiteral("Record / Stop"), m_s.hkRecord},     {QStringLiteral("New Recording"), m_s.hkNewRecording},
+            {QStringLiteral("Play / Pause"), m_s.hkPlay},        {QStringLiteral("Play From Selected"), m_s.hkPlayFrom},
+            {QStringLiteral("Play Selection"), m_s.hkPlaySelection}, {QStringLiteral("Stop"), m_s.hkStop},
+            {QStringLiteral("Capture Position"), m_s.hkCapture}};
+}
+
+bool MainWindow::typingHotkey() const
+{
+    if (m_state != State::Idle || QGuiApplication::applicationState() != Qt::ApplicationActive) return false;
+    const QWidget* f = QApplication::focusWidget();
+    return f && (qobject_cast<const QKeySequenceEdit*>(f) || (f->parentWidget() && qobject_cast<const QKeySequenceEdit*>(f->parentWidget())));
+}
+
 void MainWindow::registerHotkeys()
 {
     if (!m_hotkeysEnabled) return;   // screenshot / test mode: show the hotkeys, never register them
+    // While a hotkey field has the keyboard, no hotkey is registered: pressing F10 there must enter F10 in the field
+    // instead of starting playback (the system gives a registered hotkey to the app, never to the field)
+    m_hotkeysPaused = typingHotkey();
     struct Hk { int id; QString key; QString name; bool active; };
     // Stop is registered only while something runs, and Capture position only while a step editor with a position
     // is open, so those keys work normally in other programs the rest of the time.
@@ -1989,13 +2034,22 @@ void MainWindow::registerHotkeys()
         {HkStop, m_s.hkStop, QStringLiteral("Stop"), m_state != State::Idle},
         {HkCapture, m_s.hkCapture, QStringLiteral("Capture Position"), m_openDialog && m_openDialog->hasPosition()},
     };
+    QList<Hk> all = list;
+    for (int i = 0; i < m_s.macroHotkeys.size(); ++i)   // Macro > Macro Hotkeys
+        all.append({kMacroHotkeyBase + i, m_s.macroHotkeys.at(i).key,
+                    QStringLiteral("Macro %1").arg(QFileInfo(m_s.macroHotkeys.at(i).file).completeBaseName()), true});
+    for (int i = int(m_s.macroHotkeys.size()); i < m_macroHotkeysRegistered; ++i) {   // removed ones
+        QString err;
+        m_backend->setHotkey(kMacroHotkeyBase + i, QKeySequence(), &err);
+    }
+    m_macroHotkeysRegistered = int(m_s.macroHotkeys.size());
     QStringList problems;
     QHash<QString, QString> owner;   // key -> the first hotkey that uses it; a second one with the same key is ignored
-    for (const Hk& h : list) {
+    for (const Hk& h : std::as_const(all)) {
         const bool duplicate = !h.key.isEmpty() && owner.contains(h.key);
         if (duplicate) problems << QStringLiteral("%1: %2 is already the %3 hotkey.").arg(h.name, h.key, owner.value(h.key));
         else if (!h.key.isEmpty()) owner.insert(h.key, h.name);
-        const bool want = h.active && !h.key.isEmpty() && !duplicate;
+        const bool want = h.active && !h.key.isEmpty() && !duplicate && !m_hotkeysPaused;
         QString err;
         if (!m_backend->setHotkey(h.id, want ? QKeySequence(h.key) : QKeySequence(), &err) && want)
             problems << h.name + QStringLiteral(": ") + err;
@@ -2014,6 +2068,18 @@ void MainWindow::onHotkey(int id)
     if (id == HkStop) { stopAll(); return; }
     // While a dialog is open (a step editor, a file dialog, a question), starting something would be confusing.
     if (m_state == State::Idle && QApplication::activeModalWidget()) return;
+    if (id >= kMacroHotkeyBase) {
+        const int i = id - kMacroHotkeyBase;
+        if (i >= m_s.macroHotkeys.size()) return;
+        const QString file = m_s.macroHotkeys.at(i).file;
+        if (m_state == State::Playing && m_playingOther == file) { stopAll(QStringLiteral("Its hotkey was pressed again.")); return; }
+        if (m_state != State::Idle) {
+            log(QStringLiteral("%1 wasn't played: something else is recording or playing.").arg(QFileInfo(file).fileName()));
+            return;
+        }
+        playFile(file, QStringLiteral("its hotkey"));
+        return;
+    }
     switch (id) {
     case HkRecord:
         if (m_state == State::Recording) stopRecording();
@@ -2194,6 +2260,109 @@ void MainWindow::playFromCommandLine(int repeat, bool quitWhenDone)
 {
     m_quitWhenDone = quitWhenDone;
     startPlaying(PlayRange::All, repeat);
+}
+
+bool MainWindow::playFile(const QString& path, const QString& why)
+{
+    const QString name = QFileInfo(path).fileName();
+    if (m_state != State::Idle) {
+        log(QStringLiteral("%1 (%2) wasn't played: something else is recording or playing.").arg(name, why));
+        return false;
+    }
+    if (QApplication::activeModalWidget()) {
+        log(QStringLiteral("%1 (%2) wasn't played: a window of this app is waiting for an answer.").arg(name, why));
+        return false;
+    }
+    const QString reason = m_backend->unavailableReason();
+    if (!reason.isEmpty()) { log(QStringLiteral("%1 (%2) wasn't played: %3").arg(name, why, reason)); return false; }
+    core::Macro m;
+    QString err;
+    if (!QFileInfo::exists(path)) { log(QStringLiteral("%1 (%2) wasn't played: the file isn't there any more (%3).").arg(name, why, QDir::toNativeSeparators(path))); return false; }
+    if (!core::Macro::load(path, &m, &err)) { log(QStringLiteral("%1 (%2) wasn't played: %3").arg(name, why, err)); return false; }
+    if (!err.isEmpty()) log(QStringLiteral("%1: %2").arg(name, err));
+    if (m.actions.isEmpty()) { log(QStringLiteral("%1 (%2) wasn't played: it has no steps.").arg(name, why)); return false; }
+    m_playingOther = path;
+    m_otherActions = m.actions;
+    m_pending = playOptions();
+    m_pending.repeatMode = core::RepeatMode::Times;   // once: the macro's own Repeat steps still work
+    m_pending.repeatCount = 1;
+    setState(State::Playing);
+    registerHotkeys();
+    m_player->setPaused(false);
+    applyWatch();
+    log(QStringLiteral("Playing %1 (%2).").arg(name, why));
+    m_player->setClipboardCache(QApplication::clipboard()->text());
+    m_player->start(m, m_pending);
+    return true;
+}
+
+QDateTime MainWindow::now() const { return clockForTests ? clockForTests() : QDateTime::currentDateTime(); }
+
+void MainWindow::reschedule()
+{
+    const QDateTime t = now();
+    m_due.clear();
+    m_waitLogged.clear();
+    for (const Schedule& s : std::as_const(m_s.schedules)) m_due << (s.enabled ? s.nextRun(t) : QDateTime());
+}
+
+void MainWindow::checkSchedules()
+{
+    if (!m_hotkeysEnabled) return;   // screenshot mode
+    const QDateTime t = now();
+    for (int i = 0; i < m_s.schedules.size() && i < m_due.size(); ++i) {
+        if (!m_due[i].isValid() || t < m_due[i]) continue;
+        Schedule& s = m_s.schedules[i];
+        const QString name = QFileInfo(s.file).fileName();
+        if (m_due[i].secsTo(t) > 15 * 60) {   // busy (or the computer asleep) for a long time: don't play it late
+            log(QStringLiteral("Schedule: %1 wasn't played at %2 (the app was busy or the computer asleep).")
+                    .arg(name, QLocale().toString(m_due[i].time(), QLocale::ShortFormat)));
+            m_due[i] = s.nextRun(t);
+            m_waitLogged.remove(i);
+            continue;
+        }
+        const bool busy = m_state != State::Idle || QApplication::activeModalWidget();
+        if (busy) {
+            if (!m_waitLogged.contains(i)) {
+                m_waitLogged.insert(i);
+                log(QStringLiteral("Schedule: %1 is due; it plays when the app is free (finish recording or playing, or close "
+                                   "the open window).").arg(name));
+            }
+            continue;
+        }
+        m_waitLogged.remove(i);
+        s.lastRun = t;
+        if (s.repeat == QLatin1String("once")) s.enabled = false;
+        m_due[i] = s.enabled ? s.nextRun(t) : QDateTime();
+        saveSettingsSoon();
+        playFile(s.file, QStringLiteral("schedule: %1").arg(s.describe()));
+        return;   // one at a time; the next waits for this one
+    }
+}
+
+void MainWindow::editMacroHotkeys()
+{
+    MacroHotkeysDialog d(m_s.macroHotkeys, appHotkeys(), m_s.lastFolder, this);
+    if (d.exec() != QDialog::Accepted || d.result() == m_s.macroHotkeys) return;
+    m_s.macroHotkeys = d.result();
+    m_s.save(appdata::settingsFile());
+    registerHotkeys();
+    log(QStringLiteral("Macro hotkeys: %1 set.").arg(m_s.macroHotkeys.size()));
+}
+
+void MainWindow::editSchedules()
+{
+    SchedulesDialog d(m_s.schedules, [this] { return now(); }, m_s.lastFolder, this);
+    if (d.exec() != QDialog::Accepted || d.result() == m_s.schedules) return;
+    m_s.schedules = d.result();
+    m_s.save(appdata::settingsFile());
+    reschedule();
+    int on = 0;
+    QDateTime first;
+    for (const QDateTime& due : std::as_const(m_due))
+        if (due.isValid()) { ++on; if (!first.isValid() || due < first) first = due; }
+    log(on ? QStringLiteral("Schedules: %1 on; the next one plays %2.").arg(on).arg(autorun::whenText(first, now()).toLower())
+           : QStringLiteral("Schedules: none on."));
 }
 
 // ------------------------------------------------------------------------------------------------ more editing
@@ -2578,7 +2747,8 @@ void MainWindow::startOver()
                     QMessageBox::Yes | QMessageBox::Cancel, this);
     box.setInformativeText(
         QStringLiteral("Every setting goes back to its default: the theme and imported themes, the layout, Window Opacity, "
-                       "hotkeys, playback and recording options, and recent files. Start at Login is turned off.\n\n")
+                       "hotkeys, macro hotkeys and schedules, playback and recording options, and recent files. "
+                       "Start at Login is turned off.\n\n")
         + (portable ? QStringLiteral("Then %1 starts again with the same app data folder.").arg(QStringLiteral(APP_NAME))
                     : QStringLiteral("Then %1 starts again and shows the welcome window, which asks where to keep its "
                                      "settings.").arg(QStringLiteral(APP_NAME)))
