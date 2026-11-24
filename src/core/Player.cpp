@@ -1,11 +1,16 @@
 #include "Player.h"
 
+#include "ImageFind.h"
+
 #include <QColor>
 #include <QDateTime>
+#include <QDir>
 #include <QElapsedTimer>
 #include <QFileInfo>
 #include <QHash>
 #include <QProcess>
+#include <QRandomGenerator>
+#include <QStandardPaths>
 
 namespace core {
 
@@ -61,6 +66,182 @@ bool Player::start(const Macro& m, const PlayOptions& o)
 }
 
 void Player::stop() { m_stop = true; }
+
+void Player::answerAsk(const QString& text, bool ok)
+{
+    {
+        QMutexLocker l(&m_mx);
+        m_answer = text;
+    }
+    m_askOk = ok;
+    m_askOpen = false;
+}
+
+void Player::setClipboardCache(const QString& text)
+{
+    QMutexLocker l(&m_mx);
+    m_clipboard = text;
+}
+
+QHash<QString, Value> Player::variables() const
+{
+    QMutexLocker l(&m_mx);
+    return m_running ? QHash<QString, Value>() : m_scope.vars;
+}
+
+Player::Blocks Player::blocks(const QList<Action>& acts, int first, int last)
+{
+    Blocks b;
+    QList<int> ifs, groups;
+    QHash<int, int> elseOf;   // If -> its Else
+    auto stepName = [](int i) { return QStringLiteral("Step %1").arg(i + 1); };
+    for (int i = first; i <= last && i < acts.size(); ++i) {
+        switch (acts.at(i).type) {
+        case ActionType::If: ifs << i; break;
+        case ActionType::Else:
+            if (ifs.isEmpty()) { b.problems << QStringLiteral("%1: Else without an If before it.").arg(stepName(i)); break; }
+            if (elseOf.contains(ifs.last())) { b.problems << QStringLiteral("%1: a second Else for the same If.").arg(stepName(i)); break; }
+            elseOf.insert(ifs.last(), i);
+            b.next.insert(ifs.last(), i);
+            break;
+        case ActionType::EndIf: {
+            if (ifs.isEmpty()) { b.problems << QStringLiteral("%1: End If without an If before it.").arg(stepName(i)); break; }
+            const int top = ifs.takeLast();
+            if (!b.next.contains(top)) b.next.insert(top, i);
+            b.endOf.insert(top, i);
+            if (elseOf.contains(top)) b.next.insert(elseOf.value(top), i);
+            break;
+        }
+        case ActionType::Group: groups << i; break;
+        case ActionType::EndGroup:
+            if (groups.isEmpty()) { b.problems << QStringLiteral("%1: End Group without a Group before it.").arg(stepName(i)); break; }
+            b.next.insert(groups.takeLast(), i);
+            break;
+        default: break;
+        }
+    }
+    const int end = last + 1;
+    for (int top : std::as_const(ifs)) {   // an If that's never closed runs to the end of the list
+        b.problems << QStringLiteral("%1: If without an End If after it.").arg(stepName(top));
+        if (!b.next.contains(top)) b.next.insert(top, end);
+        b.endOf.insert(top, end);
+        if (elseOf.contains(top)) b.next.insert(elseOf.value(top), end);
+    }
+    for (int g : std::as_const(groups)) b.next.insert(g, end);   // a group without an end: to the end of the list
+    return b;
+}
+
+QString Player::sub(const QString& text)
+{
+    if (!text.contains(QLatin1Char('{'))) return text;
+    QStringList errors;
+    const QString out = expr::substitute(text, m_scope, &errors);
+    for (const QString& e : std::as_const(errors)) emit message(QStringLiteral("In “%1”: %2").arg(text, e), true);
+    return out;
+}
+
+bool Player::condition(const QString& src, const QString& what)
+{
+    Value v;
+    QString e;
+    if (!expr::evaluate(src, m_scope, &v, &e)) {
+        emit message(QStringLiteral("%1 “%2”: %3 Treated as false.").arg(what, src, e), true);
+        return false;
+    }
+    emit detail(QStringLiteral("%1 %2: %3").arg(what, src, v.truthy() ? QStringLiteral("true") : QStringLiteral("false")));
+    return v.truthy();
+}
+
+void Player::setVar(const QString& name, const Value& v)
+{
+    {
+        QMutexLocker l(&m_mx);
+        m_scope.vars.insert(name.toLower(), v);
+    }
+    emit detail(QStringLiteral("%1 = %2").arg(name, v.kind == Value::Text ? QStringLiteral("“%1”").arg(v.str) : v.toText()));
+}
+
+bool Player::findImage(const Action& a)
+{
+    QImage needle;
+    needle.loadFromData(a.image);
+    if (needle.isNull()) {
+        emit message(QStringLiteral("%1: the step has no picture to look for; skipped.").arg(a.typeName()), true);
+        setVar(QStringLiteral("found"), Value::number(0));
+        return true;
+    }
+    const QRect area = a.area.isEmpty() ? m_inj->screenBounds() : a.area;
+    QElapsedTimer t;
+    t.start();
+    while (true) {
+        const QImage shot = m_inj->grabScreen(area);
+        if (shot.isNull()) {
+            emit message(QStringLiteral("%1: pictures of the screen can't be taken here; skipped.").arg(a.typeName()), true);
+            setVar(QStringLiteral("found"), Value::number(0));
+            return true;
+        }
+        const ImageMatch m = core::findImage(shot, needle, a.tolerance);
+        if (a.waitGone && !m.found) { setVar(QStringLiteral("found"), Value::number(0)); return true; }
+        if (!a.waitGone && m.found) {
+            const QPoint at = area.topLeft() + m.topLeft + QPoint(needle.width() / 2, needle.height() / 2) + a.offset;
+            setVar(QStringLiteral("found"), Value::number(1));
+            setVar(QStringLiteral("found_x"), Value::number(at.x()));
+            setVar(QStringLiteral("found_y"), Value::number(at.y()));
+            emit detail(QStringLiteral("Picture found at %1, %2 px (difference %3 %).").arg(at.x()).arg(at.y()).arg(m.score / 2.55, 0, 'f', 1));
+            if (a.findDo == FindDo::Nothing) return true;
+            if (m_inj->cursor() != at) m_inj->moveTo(at);
+            if (a.findDo == FindDo::Move) return true;
+            const MouseButton b = a.findDo == FindDo::RightClick ? MouseButton::Right : MouseButton::Left;
+            const int clicks = a.findDo == FindDo::DoubleClick ? 2 : 1;
+            for (int i = 0; i < clicks; ++i) {
+                if (i > 0 && !waitMs(kDoubleGapMs)) return false;
+                m_inj->button(b, true);
+                if (!waitMs(kClickHoldMs)) { m_inj->button(b, false); return false; }
+                m_inj->button(b, false);
+            }
+            return true;
+        }
+        if (t.elapsed() >= a.ms) break;
+        if (!waitMs(qMin<qint64>(200, qMax<qint64>(1, a.ms - t.elapsed())))) return false;
+    }
+    const QString secs = QString::number(a.ms / 1000.0, 'f', 1);
+    if (a.waitGone) {
+        emit message(QStringLiteral("%1: the picture was still there after %2 s; continuing.").arg(a.typeName(), secs), true);
+        return true;
+    }
+    setVar(QStringLiteral("found"), Value::number(0));
+    if (a.stopIfMissing) {
+        m_stopWhy = a.ms > 0 ? QStringLiteral("The picture of the %1 step wasn't found within %2 s.").arg(a.typeName(), secs)
+                             : QStringLiteral("The picture of the %1 step wasn't on the screen.").arg(a.typeName());
+        return false;
+    }
+    emit message(QStringLiteral("%1: the picture wasn't found; continuing (found = 0).").arg(a.typeName()), true);
+    return true;
+}
+
+bool Player::saveScreenshot(const Action& a)
+{
+    const QRect area = a.area.isEmpty() ? m_inj->screenBounds() : a.area;
+    const QImage shot = m_inj->grabScreen(area);
+    if (shot.isNull()) {
+        emit message(QStringLiteral("Save Screenshot: pictures of the screen can't be taken here; skipped."), true);
+        return true;
+    }
+    QString path = sub(a.file).trimmed();
+    if (path.isEmpty()) path = QStringLiteral("Screenshot %1.png").arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH.mm.ss")));
+    if (QFileInfo(path).isRelative())
+        path = QDir(QStandardPaths::writableLocation(QStandardPaths::PicturesLocation)).absoluteFilePath(path);
+    const QString suffix = QFileInfo(path).suffix().toLower();
+    if (suffix != QLatin1String("png") && suffix != QLatin1String("bmp")) path += QStringLiteral(".png");
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    if (!shot.save(path)) {
+        emit message(QStringLiteral("Save Screenshot: couldn't save “%1”.").arg(QDir::toNativeSeparators(path)), true);
+        return true;
+    }
+    emit detail(QStringLiteral("Screenshot saved: %1").arg(QDir::toNativeSeparators(path)));
+    setVar(QStringLiteral("screenshot"), Value::text(QDir::toNativeSeparators(path)));
+    return true;
+}
 
 bool Player::waitMs(double ms)
 {
@@ -181,7 +362,8 @@ bool Player::playAction(const Action& a, int index)
         break;
     }
     case ActionType::Text: {
-        if (m_o.typingAsRecorded && a.strokes.size() > 0) {
+        const QString text = sub(a.text);   // with variables filled in, the recorded rhythm no longer fits
+        if (m_o.typingAsRecorded && a.strokes.size() > 0 && text == a.text) {
             double elapsed = 0;
             for (const Stroke& s : a.strokes) {
                 const double due = s.t / sp;
@@ -190,31 +372,35 @@ bool Player::playAction(const Action& a, int index)
                 m_inj->typeText(s.ch);
             }
         } else {
-            for (int i = 0; i < a.text.size(); ++i) {
-                QString ch = a.text.mid(i, 1);
-                if (a.text.at(i).isHighSurrogate() && i + 1 < a.text.size()) ch = a.text.mid(i++, 2);
+            for (int i = 0; i < text.size(); ++i) {
+                QString ch = text.mid(i, 1);
+                if (text.at(i).isHighSurrogate() && i + 1 < text.size()) ch = text.mid(i++, 2);
                 m_inj->typeText(ch);
                 if (!waitMs(2)) return false;
             }
         }
         break;
     }
-    case ActionType::Wait:
-        if (!waitMs(a.ms / sp)) return false;
+    case ActionType::Wait: {
+        int ms = a.ms;
+        if (a.maxMs > a.ms) ms = int(m_scope.random ? m_scope.random(a.ms, a.maxMs) : a.ms + QRandomGenerator::global()->bounded(a.maxMs - a.ms + 1));
+        if (!waitMs(ms / sp)) return false;
         break;
+    }
     case ActionType::WindowFocus: {
         QElapsedTimer t;
         t.start();
         bool loose = false;
+        const QString exe = sub(a.exe), title = sub(a.title);
         while (true) {
-            if (m_inj->focusWindow(a.exe, a.title, loose ? TitleMatch::Any : a.titleMatch)) {
-                if (loose) emit message(QStringLiteral("No window titled “%1”; used another %2 window.").arg(a.title, a.exe), true);
+            if (m_inj->focusWindow(exe, title, loose ? TitleMatch::Any : a.titleMatch)) {
+                if (loose) emit message(QStringLiteral("No window titled “%1”; used another %2 window.").arg(title, exe), true);
                 break;
             }
-            if (!loose && a.titleMatch != TitleMatch::Any && t.elapsed() >= kWindowFallbackMs && !a.exe.isEmpty()) loose = true;
+            if (!loose && a.titleMatch != TitleMatch::Any && t.elapsed() >= kWindowFallbackMs && !exe.isEmpty()) loose = true;
             if (a.ms > 0 && t.elapsed() >= a.ms) {
                 m_stopWhy = QStringLiteral("Couldn't find the window “%1” (%2) within %3 s.")
-                                .arg(a.title, a.exe).arg(a.ms / 1000.0, 0, 'f', 1);
+                                .arg(title, exe).arg(a.ms / 1000.0, 0, 'f', 1);
                 return false;
             }
             if (!waitMs(kPollMs * 2)) return false;
@@ -251,27 +437,86 @@ bool Player::playAction(const Action& a, int index)
         break;
     }
     case ActionType::RunProgram: {
-        if (!QProcess::startDetached(a.program, QProcess::splitCommand(a.arguments)))
-            emit message(QStringLiteral("Couldn't start “%1”.").arg(a.program), true);
+        const QString program = sub(a.program);
+        if (!QProcess::startDetached(program, QProcess::splitCommand(sub(a.arguments))))
+            emit message(QStringLiteral("Couldn't start “%1”.").arg(program), true);
         break;
     }
-    case ActionType::Notify: emit notify(a.message); break;
+    case ActionType::Notify: emit notify(sub(a.message)); break;
     case ActionType::MessageBox:
         m_boxOpen = true;
-        emit messageBox(a.message);
+        emit messageBox(sub(a.message));
         while (m_boxOpen)
             if (!waitMs(20)) { m_boxOpen = false; return false; }
         break;
+    case ActionType::AskText: {
+        m_askOk = false;
+        m_askOpen = true;
+        emit askText(sub(a.message), sub(a.text));
+        while (m_askOpen)
+            if (!waitMs(20)) { m_askOpen = false; return false; }
+        if (!m_askOk) {
+            m_stopWhy = QStringLiteral("The question “%1” was cancelled.").arg(sub(a.message));
+            return false;
+        }
+        QString answer;
+        {
+            QMutexLocker l(&m_mx);
+            answer = m_answer;
+        }
+        setVar(a.var, Value::text(answer));
+        break;
+    }
+    case ActionType::SetVariable: {
+        Value v;
+        QString e;
+        if (!expr::evaluate(a.expr, m_scope, &v, &e)) {
+            emit message(QStringLiteral("Set Variable %1 = %2: %3 The variable wasn't changed.").arg(a.var, a.expr, e), true);
+            break;
+        }
+        setVar(a.var, v);
+        break;
+    }
+    case ActionType::SetClipboard: {
+        const QString t = sub(a.text);
+        setClipboardCache(t);
+        emit clipboard(t);
+        break;
+    }
+    case ActionType::WindowMove: {
+        QElapsedTimer t;
+        t.start();
+        const QString exe = sub(a.exe), title = sub(a.title);
+        while (!m_inj->moveWindow(exe, title, a.titleMatch, a.windowState, a.rect)) {
+            if (t.elapsed() >= a.ms) {
+                emit message(QStringLiteral("Move / Resize Window: no window matched %1%2; continuing.")
+                                 .arg(exe.isEmpty() ? QStringLiteral("(any program)") : exe,
+                                      title.isEmpty() || a.titleMatch == TitleMatch::Any ? QString() : QStringLiteral(" · “%1”").arg(title)), true);
+                break;
+            }
+            if (!waitMs(kPollMs * 2)) return false;
+        }
+        if (!waitMs(60)) return false;   // let the window settle before input reaches it
+        break;
+    }
+    case ActionType::FindImage: return findImage(a);
+    case ActionType::Screenshot: return saveScreenshot(a);
+    case ActionType::If:
+    case ActionType::Else:
+    case ActionType::EndIf:
+    case ActionType::Group:
+    case ActionType::EndGroup: break;   // handled by playList()
     case ActionType::Beep: emit beep(); break;
     case ActionType::WaitFile: {
         QElapsedTimer t;
         t.start();
-        const QFileInfo start(a.file);
+        const QString file = sub(a.file);
+        const QFileInfo start(file);
         const bool existed = start.exists();
         const QDateTime startTime = existed ? start.lastModified() : QDateTime();
         const qint64 startSize = existed ? start.size() : -1;
         auto met = [&] {
-            const QFileInfo f(a.file);
+            const QFileInfo f(file);
             switch (a.fileWhen) {
             case FileCondition::Exists: return f.exists();
             case FileCondition::Gone: return !f.exists();
@@ -284,7 +529,7 @@ bool Player::playAction(const Action& a, int index)
             if (a.ms > 0 && t.elapsed() >= a.ms) {
                 const QString what = a.fileWhen == FileCondition::Exists ? QStringLiteral("appear")
                                      : a.fileWhen == FileCondition::Gone ? QStringLiteral("go away") : QStringLiteral("change");
-                emit message(QStringLiteral("“%1” didn't %2 within %3 s; continuing.").arg(a.file, what).arg(a.ms / 1000.0, 0, 'f', 1), true);
+                emit message(QStringLiteral("“%1” didn't %2 within %3 s; continuing.").arg(file, what).arg(a.ms / 1000.0, 0, 'f', 1), true);
                 break;
             }
             if (!waitMs(100)) return false;
@@ -299,8 +544,9 @@ bool Player::playAction(const Action& a, int index)
         }
         Macro inner;
         QString err;
-        if (!Macro::load(a.file, &inner, &err)) {
-            emit message(QStringLiteral("Couldn't run the macro “%1”: %2").arg(a.file, err), true);
+        const QString file = sub(a.file);
+        if (!Macro::load(file, &inner, &err)) {
+            emit message(QStringLiteral("Couldn't run the macro “%1”: %2").arg(file, err), true);
             break;
         }
         if (!err.isEmpty()) emit message(err, true);
@@ -325,12 +571,33 @@ bool Player::playList(const QList<Action>& acts, int first, int last, int round,
     QHash<int, qint64> repeatStarted;     // Repeat action index -> when its timed repeat began
     QElapsedTimer roundTimer;
     roundTimer.start();
+    const Blocks b = blocks(acts, first, last);
+    if (round == 1)   // a list's structure problems: once per playback, not once per round
+        for (const QString& p : b.problems) emit message(p, true);
     int pc = first;
     while (pc <= last) {
         if (m_stop) return false;
         const Action& a = acts[pc];
-        if (!a.enabled) { ++pc; continue; }
+        if (!a.enabled) {
+            // A disabled If or Group skips everything inside it; a disabled Else or End If still ends its part.
+            if (a.type == ActionType::If) { pc = b.endOf.value(pc, last) + 1; continue; }
+            if (a.type == ActionType::Group) { pc = b.next.value(pc, last) + 1; continue; }
+            if (a.type != ActionType::Else && a.type != ActionType::EndIf) { ++pc; continue; }
+        }
         if (depth == 0) emit step(pc, round, rounds);   // steps of a macro run from this one aren't rows in the list
+        if (a.type == ActionType::If) {
+            pc = condition(a.expr, QStringLiteral("If")) ? pc + 1 : b.next.value(pc, last) + 1;   // false: the Else part
+            if (!waitMs(0)) return false;   // honors pause; never spins without a stop check
+            continue;
+        }
+        if (a.type == ActionType::Else) {   // reached at the end of the If part: skip the Else part
+            pc = b.next.contains(pc) ? b.next.value(pc) + 1 : pc + 1;   // an Else without an If: nothing to skip
+            continue;
+        }
+        if (a.type == ActionType::Goto && !a.expr.trimmed().isEmpty() && !condition(a.expr, QStringLiteral("Go To if"))) {
+            ++pc;
+            continue;
+        }
         if (a.type == ActionType::Goto || a.type == ActionType::Repeat) {
             const int to = labels.value(a.target, -1);
             if (to < 0) {
@@ -379,6 +646,11 @@ void Player::run()
     const int last = m_o.last < 0 ? int(acts.size()) - 1 : qMin(m_o.last, int(acts.size()) - 1);
 
     m_depth = 0;
+    {
+        QMutexLocker l(&m_mx);
+        m_scope.vars.clear();   // every playback starts without variables
+    }
+    m_scope.clipboard = [this] { QMutexLocker l(&m_mx); return m_clipboard; };
     QElapsedTimer total;
     total.start();
     const int rounds = m_o.repeatMode == RepeatMode::Times ? qMax(1, m_o.repeatCount) : 0;
@@ -386,6 +658,10 @@ void Player::run()
     for (int round = 1; !stopped; ++round) {
         if (m_o.repeatMode == RepeatMode::Times && round > rounds) break;
         if (m_o.repeatMode == RepeatMode::Seconds && round > 1 && total.elapsed() >= qint64(m_o.repeatCount) * 1000) break;
+        {
+            QMutexLocker l(&m_mx);
+            m_scope.vars.insert(QStringLiteral("round"), Value::number(round));   // which time through the macro: 1, 2, ...
+        }
         if (!playList(acts, first, last, round, rounds, 0)) stopped = true;
     }
     // Never leave buttons or modifier keys held down.

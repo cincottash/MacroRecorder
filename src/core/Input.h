@@ -4,6 +4,7 @@
 
 #include "Action.h"
 
+#include <QImage>
 #include <QMetaType>
 
 #include <climits>
@@ -50,6 +51,22 @@ public:
     virtual void keyRepeat(int* delayMs, int* intervalMs) { *delayMs = 500; *intervalMs = 33; }
     // Windows: send keys as hardware scan codes only (some games read nothing else). Ignored elsewhere.
     virtual void setScanCodesOnly(bool on) { Q_UNUSED(on) }
+
+    // Move / Resize Window: the first window that matches (empty exe and TitleMatch::Any: the active window).
+    // `r` is used for WindowState::Normal (screen pixels, the window's outer frame). False: no such window.
+    virtual bool moveWindow(const QString& exe, const QString& title, TitleMatch match, WindowState state, const QRect& r)
+    {
+        Q_UNUSED(exe) Q_UNUSED(title) Q_UNUSED(match) Q_UNUSED(state) Q_UNUSED(r)
+        return false;
+    }
+    // The top-level window at a screen point: its program, title and frame. False: none (or not supported here).
+    virtual bool windowAt(QPoint p, QString* exe, QString* title, QRect* frame)
+    {
+        Q_UNUSED(p) Q_UNUSED(exe) Q_UNUSED(title) Q_UNUSED(frame)
+        return false;
+    }
+    virtual QRect screenBounds() { return {}; }                  // every screen together, in screen pixels
+    virtual QImage grabScreen(const QRect& r) { Q_UNUSED(r) return {}; }   // screen pixels; null: not supported here
 };
 
 }  // namespace core

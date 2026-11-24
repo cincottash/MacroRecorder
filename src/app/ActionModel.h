@@ -29,12 +29,29 @@ public:
     void setPlayingRow(int row);
     int playingRow() const { return m_playing; }
     static QString glyph(core::ActionType t);
-    static QPixmap icon(core::ActionType t, const QColor& color);
+    static QString glyph(const core::Action& a);   // a group's arrow shows whether it's folded
+    // indent: steps inside If and Group blocks; the picture gets wider, so the symbol and the text move right.
+    static QPixmap icon(const QString& glyph, const QColor& color, int indent = 0);
+    static QPixmap icon(core::ActionType t, const QColor& color) { return icon(glyph(t), color); }
+    static constexpr int IndentPx = 16;
+
+    static constexpr int DepthRole = Qt::UserRole + 1;   // how far the step is indented (inside If and Group blocks)
+    static constexpr int GroupRole = Qt::UserRole + 2;   // Group rows: true when folded; other rows: nothing
+    int depth(int row) const { return row >= 0 && row < m_depth.size() ? m_depth.at(row) : 0; }
+    bool foldedAway(int row) const { return row >= 0 && row < m_folded.size() && m_folded.at(row); }
+    int groupEnd(int row) const { return m_groupEnd.value(row, -1); }   // a Group's End Group row (rowCount: none)
+    void setCollapsed(int row, bool collapsed);   // folds or unfolds a group (not an edit: undo doesn't see it)
 
 signals:
     void edited();   // a label or comment was changed in place
+    void foldingChanged();
 
 private:
+    void recompute();   // indentation, folding and group sizes after any change
+
     QList<core::Action> m_actions;
     int m_playing = -1;
+    QVector<int> m_depth;
+    QVector<bool> m_folded;
+    QHash<int, int> m_groupEnd;
 };

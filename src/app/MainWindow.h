@@ -110,7 +110,11 @@ private:
     void redo();
     QList<int> selectedRows() const;
     int insertRow() const;          // where new actions go: after the selection, or at the end
-    void addAction(core::ActionType t);
+    void addAction(core::ActionType t, int variant = -1);   // variant: Find Image's kind (see buildAddMenu)
+    int groupCount() const;
+    void groupSelected();     // Edit > Group Selected Steps
+    void ungroupSelected();
+    void foldAll(bool fold);
     void editRow(int row);
     void deleteSelected(bool ask = true);
     void copySelected(bool cut);
@@ -134,6 +138,7 @@ private:
     void applyWatch();          // while playing: watch for the user's input / block the keyboard, as the options say
     void runAfterPlayback();    // "When finished": close, lock, sleep, log off, restart or shut down
     void showMessageBox(const QString& text);
+    void showAskBox(const QString& question, const QString& defaultText);   // an Ask for Text step
     void updateMarker();        // the selected step's position, marked on the screen
     void showPreview(int row);  // -1 hides it
     int execDialog(ActionDialog& d);
@@ -169,6 +174,7 @@ private:
     bool m_startingOver = false;   // Start Over: closing without saving the settings again
     QString m_recordTo;
     QMessageBox* m_msgBox = nullptr;       // a Message box step waiting for OK
+    class QDialog* m_askBox = nullptr;     // an Ask for Text step waiting for an answer
     ActionDialog* m_openDialog = nullptr;  // a step editor that's open (for the Capture position hotkey)
     QWidget* m_marker = nullptr;
     QHash<int, bool> m_effectsDefault;   // the system's menu/drop-down/tooltip animations (Qt::UIEffect), at start

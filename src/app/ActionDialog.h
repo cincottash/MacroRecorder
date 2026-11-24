@@ -46,4 +46,25 @@ private:
     QLineEdit *m_label = nullptr, *m_comment = nullptr, *m_file = nullptr;
     QComboBox* m_fileWhen = nullptr;
     QPlainTextEdit* m_text = nullptr;
+
+    // Variables, waits, windows, pictures
+    QLineEdit *m_var = nullptr, *m_expr = nullptr, *m_default = nullptr;
+    QSpinBox* m_maxMs = nullptr;
+    QComboBox* m_state = nullptr;
+    QSpinBox *m_rx = nullptr, *m_ry = nullptr, *m_rw = nullptr, *m_rh = nullptr;
+    QComboBox* m_lookIn = nullptr;
+    QSpinBox *m_ax = nullptr, *m_ay = nullptr, *m_aw = nullptr, *m_ah = nullptr;
+    QWidget* m_areaRow = nullptr;
+    QComboBox* m_findDo = nullptr;
+    QSpinBox *m_ox = nullptr, *m_oy = nullptr;
+    QCheckBox *m_waitGone = nullptr, *m_stopMissing = nullptr;
+    QLabel *m_imageView = nullptr, *m_imageInfo = nullptr;
+    QByteArray m_image;   // PNG
+    void setImage(const QImage& img);
+    void pickArea();
+    void pickWindow();
+
+public:
+    // Tests: the editor's picture (Find Image)
+    QByteArray imageBytes() const { return m_image; }
 };

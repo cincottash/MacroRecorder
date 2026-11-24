@@ -15,10 +15,14 @@ public:
     bool selecting() const { return m_band != nullptr && m_active; }
     int hoverRow() const { return m_hover; }   // the row under the pointer (-1: none)
 
+    int groupArrowAt(QPoint viewportPos) const;   // the Group row whose fold arrow is at this point; -1: none
+
 signals:
     void hoveredRow(int row);   // the pointer is over this step (any column); -1: over none
+    void groupToggled(int row, bool fold);   // the user clicked a group's arrow, or pressed Left / Right on it
 
 protected:
+    void keyPressEvent(QKeyEvent* e) override;
     void mousePressEvent(QMouseEvent* e) override;
     void mouseMoveEvent(QMouseEvent* e) override;
     void mouseReleaseEvent(QMouseEvent* e) override;

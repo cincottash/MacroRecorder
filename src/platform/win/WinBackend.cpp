@@ -186,6 +186,94 @@ public:
             sendInputs(2, in);
         }
     }
+    bool moveWindow(const QString& exe, const QString& title, core::TitleMatch match, core::WindowState state, const QRect& r) override
+    {
+        const bool active = exe.isEmpty() && (match == core::TitleMatch::Any || title.isEmpty());
+        HWND h = active ? GetForegroundWindow() : findWindow(exe, title, match);
+        if (!h || isOwnProcess(h)) return false;
+        switch (state) {
+        case core::WindowState::Maximized: ShowWindow(h, SW_MAXIMIZE); return true;
+        case core::WindowState::Minimized: ShowWindow(h, SW_MINIMIZE); return true;
+        case core::WindowState::Restore: ShowWindow(h, SW_RESTORE); return true;
+        case core::WindowState::Normal: break;
+        }
+        if (IsIconic(h) || IsZoomed(h)) ShowWindow(h, SW_RESTORE);
+        // The rectangle is the window as seen (Windows 10 adds an invisible resize border around it)
+        RECT wr{}, fr{};
+        GetWindowRect(h, &wr);
+        if (FAILED(DwmGetWindowAttribute(h, DWMWA_EXTENDED_FRAME_BOUNDS, &fr, sizeof(fr)))) fr = wr;
+        const int ml = fr.left - wr.left, mt = fr.top - wr.top, mr = wr.right - fr.right, mb = wr.bottom - fr.bottom;
+        return SetWindowPos(h, nullptr, r.x() - ml, r.y() - mt, r.width() + ml + mr, r.height() + mt + mb,
+                            SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+    }
+    bool windowAt(QPoint p, QString* exe, QString* title, QRect* frame) override
+    {
+        HWND h = WindowFromPoint(POINT{p.x(), p.y()});
+        if (h) h = GetAncestor(h, GA_ROOT);
+        if (!h || isOwnProcess(h) || h == GetShellWindow() || h == GetDesktopWindow()) return false;
+        RECT fr{};
+        if (FAILED(DwmGetWindowAttribute(h, DWMWA_EXTENDED_FRAME_BOUNDS, &fr, sizeof(fr)))) GetWindowRect(h, &fr);
+        if (exe) *exe = exeOfAnyThread(h);
+        if (title) *title = titleOf(h);
+        if (frame) *frame = QRect(QPoint(fr.left, fr.top), QPoint(fr.right - 1, fr.bottom - 1));
+        return true;
+    }
+    QRect screenBounds() override
+    {
+        return QRect(GetSystemMetrics(SM_XVIRTUALSCREEN), GetSystemMetrics(SM_YVIRTUALSCREEN), GetSystemMetrics(SM_CXVIRTUALSCREEN),
+                     GetSystemMetrics(SM_CYVIRTUALSCREEN));
+    }
+    QImage grabScreen(const QRect& r) override
+    {
+        if (r.isEmpty()) return {};
+        HDC screen = GetDC(nullptr);
+        HDC mem = CreateCompatibleDC(screen);
+        BITMAPINFO bi{};
+        bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bi.bmiHeader.biWidth = r.width();
+        bi.bmiHeader.biHeight = -r.height();   // top-down rows, as QImage has them
+        bi.bmiHeader.biPlanes = 1;
+        bi.bmiHeader.biBitCount = 32;
+        bi.bmiHeader.biCompression = BI_RGB;
+        void* bits = nullptr;
+        HBITMAP bmp = CreateDIBSection(screen, &bi, DIB_RGB_COLORS, &bits, nullptr, 0);
+        QImage out;
+        if (bmp && bits) {
+            HGDIOBJ old = SelectObject(mem, bmp);
+            if (BitBlt(mem, 0, 0, r.width(), r.height(), screen, r.x(), r.y(), SRCCOPY | CAPTUREBLT)) {
+                GdiFlush();
+                out = QImage(static_cast<const uchar*>(bits), r.width(), r.height(), r.width() * 4, QImage::Format_RGB32).copy();
+            }
+            SelectObject(mem, old);
+        }
+        if (bmp) DeleteObject(bmp);
+        DeleteDC(mem);
+        ReleaseDC(nullptr, screen);
+        return out;
+    }
+
+    static HWND findWindow(const QString& exe, const QString& title, core::TitleMatch match)
+    {
+        struct Ctx { QString exe, title; core::TitleMatch match; HWND found = nullptr; } ctx{exe, title, match};
+        EnumWindows([](HWND h, LPARAM lp) -> BOOL {
+            auto* c = reinterpret_cast<Ctx*>(lp);
+            if (!IsWindowVisible(h) || GetWindow(h, GW_OWNER) || isOwnProcess(h)) return TRUE;
+            const QString t = titleOf(h);
+            if (t.isEmpty()) return TRUE;
+            bool ok = true;
+            switch (c->match) {
+            case core::TitleMatch::Exact: ok = t == c->title; break;
+            case core::TitleMatch::StartsWith: ok = t.startsWith(c->title, Qt::CaseInsensitive); break;
+            case core::TitleMatch::Contains: ok = t.contains(c->title, Qt::CaseInsensitive); break;
+            case core::TitleMatch::Any: break;
+            }
+            if (ok && !c->exe.isEmpty()) ok = exeOfAnyThread(h).compare(c->exe, Qt::CaseInsensitive) == 0;
+            if (ok) { c->found = h; return FALSE; }
+            return TRUE;
+        }, reinterpret_cast<LPARAM>(&ctx));
+        return ctx.found;
+    }
+
     bool focusWindow(const QString& exe, const QString& title, core::TitleMatch match) override
     {
         struct Ctx { QString exe, title; core::TitleMatch match; HWND found = nullptr; } ctx{exe, title, match};

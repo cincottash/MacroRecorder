@@ -43,6 +43,8 @@ qt_standard_project_setup()
 
 set(SOURCES
     src/core/Action.cpp
+    src/core/Expr.cpp
+    src/core/ImageFind.cpp
     src/core/Paths.cpp
     src/core/Player.cpp
     src/core/Recorder.cpp
