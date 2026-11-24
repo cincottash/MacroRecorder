@@ -19,6 +19,13 @@ Free and open source (GPL-3.0). One file to download: nothing to install.
 - **Plays it back exactly:** clicks land on the same pixel, and the timing is kept. Faster, slower, or repeated.
 - **Previews a step** when you point at it: a mouse move's path, or the spot where a click lands.
 - **Global hotkeys** work from any program: **F9** records, **F10** plays, **Esc** stops.
+- **Decides as it plays:** variables, If / Else, loops that end, calculations, random waits and values, and
+  questions that ask you for a text while playing.
+- **Sees the screen:** finds a picture or a word on the screen, waits for it and clicks it wherever it is, and
+  reads text into a variable. Clicks recorded with **Find Clicked Buttons by Picture** still hit their button
+  after a window has moved.
+- **Runs without opening it:** a hotkey for each macro, schedules, and desktop shortcuts.
+- **Ask AI** steps, answered by an AI model on your own PC (free, with LM Studio).
 - **Safe to stop:** moving the mouse or pressing a key stops playback, and held buttons or keys are always
   released.
 - **38 color themes**, including popular editor schemes (see the credits below).
@@ -55,8 +62,10 @@ Your macros are saved wherever you choose when you save them.
 | **Play** | Press **▶ Play** (or **F10**). **F10** pauses and resumes; **Esc** or **■ Stop** stops. |
 | **Play part of it** | Select some steps and press **▶ Play Selection**. The **Macro** menu can also play from the selected step, up to it, or only that step. |
 | **Record more** | **Macro ▸ Record After Selected Step** adds the new steps there; **Macro ▸ New Recording** starts over. |
+| **Play without opening it** | Give a saved macro its own hotkey, a schedule or a desktop shortcut (see [Playing macros without opening them](#playing-macros-without-opening-them)). |
 
-Clicks on the app's own window and the hotkeys themselves are never recorded.
+Clicks on the app's own window and the hotkeys themselves are never recorded. A macro started by a hotkey such
+as Ctrl+Alt+1 waits until you let go of Ctrl and Alt, so its first keys aren't taken as shortcuts.
 
 ## The step list
 
@@ -66,7 +75,8 @@ Clicks on the app's own window and the hotkeys themselves are never recorded.
 
 Click a step, Ctrl+click to add one, Shift+click for a range. Or press anywhere in the list, including the empty
 space below the steps, and drag a box over the steps you want, as in File Explorer. Hold Ctrl to add to the
-selection; drag past the top or bottom edge to scroll. Clicking empty space clears the selection.
+selection; drag past the top or bottom edge to scroll. Clicking empty space clears the selection. Right-click a
+step for its commands (edit, play from it, cut, copy, group…).
 
 ### Previewing a step
 
@@ -100,11 +110,12 @@ on the screen with a red ring (**View ▸ Mark Selected Step on Screen**).
 
 | Group | Steps |
 |---|---|
-| Mouse | Click, Move, Scroll, Button Down / Up (drags) |
+| Mouse | Click, Click Image, Click Text, Move, Scroll, Button Down / Up (drags) |
 | Keyboard | Key Press / Shortcut, Text, Key Down / Up |
-| Wait | Wait, Wait for Pixel Color, Wait for Key, Wait for File |
-| Flow | Repeat, Go To, Run Another Macro |
-| Programs and Windows | Window Focus, Run Program, Notification, Message Box, Beep |
+| Wait | Wait (a fixed or a random time), Wait for Image, Wait for Text, Wait for Pixel Color, Wait for Key, Wait for File, Ask for Text |
+| Flow | Repeat, Go To (with an optional condition), Run Another Macro, Group |
+| Variables and Conditions | Set Variable, If, Else, End If, Read Text From Screen, Ask AI |
+| Programs and Windows | Window Focus, Move / Resize Window, Run Program, Notification, Message Box, Beep, Find Image, Save Screenshot, Set Clipboard |
 
 ### Repeating part of a macro
 
@@ -112,6 +123,63 @@ on the screen with a red ring (**View ▸ Mark Selected Step on Screen**).
 
 Give the first step of the part a **Label** (for example `start`), then add **Flow ▸ Repeat** after the part and
 pick that label. "3 times" plays the part three times in total.
+
+<br clear="right">
+
+### Variables, conditions and groups
+
+![A macro with a Log In group, a Read Text step, an If with an Ask AI step inside and an Else, and a folded Report group](.github/readme/list-logic.png)
+
+![The Add menu, with Variables and Conditions open: Set Variable, If, Else, End If, Read Text From Screen, Ask AI](.github/readme/menu-add-logic.png)
+
+- **Set Variable** gives a name a value: a number, `"some text"`, or a calculation such as `count + 1`,
+  `random(1, 10)` or `item("red, green, blue", round)` (the next item each time the macro repeats).
+- In any text a step types or shows, **`{name}`** puts in a variable's value and **`{=expression}`** a
+  calculation, for example `Order {=count * 10}`.
+- **If … Else … End If** plays steps only when a condition is true: `count < 10`, `answer = "yes"`,
+  `found` (after a Find step), `contains(status, "Paid")`. **Go To** can take a condition too, which makes a loop
+  that ends.
+- **Ask for Text** asks a question while playing and keeps the answer; **Wait** can wait a random time between
+  two values.
+- **Groups:** select steps and press **Ctrl+G** to give them a name. Click a group's arrow (or press ← / →) to
+  fold it away; a disabled group skips all its steps.
+
+<details>
+<summary><b>Everything a value or a condition can use</b></summary>
+
+Numbers (`2.5`), text in quotes, variables, `true` and `false`. `+ - * / %` calculate; `+` also joins text and `&`
+always joins. Comparisons: `=` (or `==`), `!=` (or `<>`), `<`, `<=`, `>`, `>=` (text is compared without regard
+to case), combined with `and`, `or`, `not`. Ready-made variables: `round` (which time through the macro),
+`found`, `found_x`, `found_y` (after Find Image or Find Text).
+
+| Function | Gives |
+|---|---|
+| `random(1, 10)`, `pick("a, b, c")` | a whole number from 1 to 10; one item at random |
+| `item(list, n)`, `count(list)` | the nth item (starting over after the last); how many items |
+| `line("C:\names.txt", n)`, `lines(file)` | the nth line of a text file; how many lines |
+| `round(x, digits)`, `floor`, `ceil`, `abs`, `min`, `max` | numbers |
+| `len`, `upper`, `lower`, `trim`, `left(t, n)`, `right(t, n)`, `mid(t, start, n)` | text |
+| `find(t, part)`, `contains(t, part)`, `replace(t, old, new)` | searching and replacing in text |
+| `number(t)`, `text(x)`, `if(condition, a, b)` | conversions; a choice |
+| `exists(file)`, `now("yyyy-MM-dd HH:mm")`, `clipboard()` | a file check; the date and time; the clipboard's text |
+
+The **Functions…** button in the editors lists them too.
+
+</details>
+
+### Finding things on the screen
+
+<img src=".github/readme/dialog-find_image.png" alt="The Click Image editor: the picture to find, where to look, tolerance, what to do, how long to wait" width="420" align="right">
+
+- **Find Image / Click Image / Wait for Image:** **Capture From Screen…** shows a still picture of your screens;
+  drag a box around a button or an icon. Playing, the step looks for that picture (in an area, or everywhere),
+  can wait for it, and moves to it or clicks it wherever it is now.
+- **Find Text / Click Text / Wait for Text / Read Text From Screen** read the screen with Windows' own text
+  recognition: click a word or phrase, wait until it appears, or keep everything an area shows in a variable.
+- **Find Clicked Buttons by Picture** (Recording card): each recorded click also keeps a small picture of what
+  it landed on, and when playing it clicks that picture wherever it is.
+- **Move / Resize Window** puts a program's window at a position and size, or maximizes, minimizes or restores
+  it. **Save Screenshot** saves the screen or an area as a PNG file.
 
 <br clear="right">
 
@@ -127,6 +195,30 @@ pick that label. "3 times" plays the part three times in total.
 | **Ctrl+A** | Select all steps |
 | **Ctrl+Z** / **Ctrl+Y** | Undo, redo |
 | **Ctrl+H** | Find and Replace |
+| **Ctrl+G** / **Ctrl+Shift+G** | Group the selected steps; ungroup |
+| **←** / **→** on a group | Fold it; show its steps |
+
+## Playing macros without opening them
+
+<img src=".github/readme/dialog-schedules.png" alt="The Schedules window: a report every weekday at 8:30 AM, and an orders macro every 30 minutes, with the next time each plays" width="460" align="right">
+
+- **Macro ▸ Macro Hotkeys…:** a hotkey for a saved macro plays it from any program, without opening it.
+  Pressing it again while that macro plays stops it.
+- **Macro ▸ Schedules…:** once, every day, on chosen days, or every few minutes. The app must be running
+  (minimized is fine; **File ▸ Settings ▸ Start at Login** makes sure of it). A schedule that comes due while
+  something else plays waits for it.
+- **File ▸ Create Desktop Shortcut…:** double-click the shortcut to play the macro. If the app is already
+  running, the macro plays there; otherwise the app starts, plays it and closes.
+
+<br clear="right">
+
+## Ask AI
+
+**Variables and Conditions ▸ Ask AI** sends a prompt (with variables in it, for example
+`Write a short reply to: {=clipboard()}`) to an AI model and keeps the answer in a variable, ready for a Text
+step or an If. By default it asks [LM Studio](https://lmstudio.ai)'s local server on your own PC: free and
+private. Load a model in LM Studio and start its server in its Developer tab. **File ▸ Settings ▸ AI Server…**
+can point it at any other server that speaks the OpenAI API (Ollama: `http://localhost:11434/v1`).
 
 ## Options
 
@@ -162,6 +254,8 @@ Each card folds to its title with **Hide ▾** / **Show ▴**.
 - **Show Pauses From:** longer pauses become their own *Wait* steps. Shorter ones stay with the next step
   ("+120 ms before"), so timing stays exact.
 - **Positions Relative to Window:** the macro still works when the window has moved.
+- **Find Clicked Buttons by Picture:** each click also keeps a small picture of what it landed on; playing, the
+  click finds that picture first, so it still hits its button when a window has moved or a list has scrolled.
 - **Minimize While Recording.**
 
 <br clear="right">
@@ -260,20 +354,22 @@ played.
 <summary><b>Menus</b></summary>
 
 - **File**: New, Open, Open Recent, Save, Save As, Export to CSV (separated the way your region's spreadsheets
-  expect: commas in the US, semicolons in most of Europe), Copy Command Line (plays the saved macro and
-  closes; for a shortcut or Windows Task Scheduler), Settings, Quit.
-  - **Settings**: Change App Data Folder, Reset Settings to Defaults, Start Over (every setting back to its
+  expect: commas in the US, semicolons in most of Europe), Create Desktop Shortcut, Copy Command Line (plays the
+  saved macro and closes; for Windows Task Scheduler), Settings, Quit.
+  - **Settings**: Change App Data Folder, Reset Settings to Defaults, AI Server (for Ask AI steps), Start Over (every setting back to its
     default, then the app restarts on the welcome window; your saved macros aren't touched), Confirm Before Deleting Steps, Start
     Minimized, Start at Login, and on Windows: Send Keys as Scan Codes (for games that ignore normal key presses),
     Restart as Administrator (needed to control programs running as administrator).
 - **Macro**: Record, Record After Selected Step, New Recording, Play, Play Selection, Play From Selected Step,
   Play Up to Selected Step, Play This Step Only, Pause / Resume, Stop, Add Action, Clean Up (merges back-to-back
-  waits and moves).
+  waits and moves), Macro Hotkeys, Schedules.
 - **Edit**: Undo, Redo, Cut, Copy, Paste, Delete, Select All, Edit Step, Enable / Disable, Move Up / Down,
-  Combine Into Click or Key Press (a button down + up, or key down + up), Find and Replace.
+  Combine Into Click or Key Press (a button down + up, or key down + up), Find and Replace, Group Selected Steps,
+  Ungroup, Fold All Groups, Unfold All Groups.
 - **View**: Theme (including Import Theme, Export Current Theme and Remove Custom Theme), Show Activity Log, Detailed Activity Log (also lists every step played), Always on Top, Window Opacity, Mark
   Selected Step on Screen, Preview Steps on Hover, Reset View Options.
-- **Help**: Project Website, Open App Data Folder, Report a Problem, About.
+- **Help**: Project Website, Open App Data Folder, Report a Problem, Check for Updates (asks GitHub for the
+  latest release; nothing is downloaded by itself), About.
 
 </details>
 
@@ -296,6 +392,10 @@ MacroRecorder.exe [file] [--play] [--repeat N] [--quit] [--minimized] [--data-fo
 | `--screenshot FILE.png` | Saves a picture of the window and exits (used by the automatic build checks). |
 
 Example: `MacroRecorder.exe "C:\path\to\daily-report.macro" --play --repeat 3 --quit`
+
+Only one copy runs at a time (per settings folder): starting the app again hands its file to the copy that's
+running, which opens it (or plays it, with `--play`), and the new start closes at once. `--record` always runs
+on its own.
 
 </details>
 
@@ -326,11 +426,15 @@ Plasma 6). Wayland doesn't let one program see or control others, so there:
   don't work.
 - **Global hotkeys** (F9, F10, Esc) only work while an XWayland program is in front.
 - **Window opacity** usually does nothing.
+- **Find Image, Find Text, Save Screenshot and Find Clicked Buttons by Picture** see only XWayland windows.
 - **Playback** reaches every program only after the one-time setup below; otherwise only XWayland programs.
 
 **For the best results, log in with an X11 session** ("Xorg" or "X11" on the login screen's settings button).
 On X11, recording and playback work in every program, but the Linux version is still far less tested than the
 Windows one.
+
+**Find Text** steps on Linux need Tesseract (`sudo apt install tesseract-ocr`). **Find Clicked Buttons by
+Picture** is Windows-only for now.
 
 **Requirements:** a 64-bit x86 PC with a recent distribution (Ubuntu 22.04 or newer, or the same age). If the
 AppImage says it can't load `libfuse.so.2`, install FUSE 2 (`sudo apt install libfuse2t64`, or `libfuse2` on
@@ -414,9 +518,9 @@ both start. On Linux it also records and plays back for real on a virtual X11 di
 
 | Folder | What's there |
 |---|---|
-| `src/core` | Macro steps and file format (`Action`), recording logic (`Recorder`), playback (`Player`), mouse paths (`Paths`). No operating-system code. |
-| `src/platform` | The operating-system layer: `win/` (hooks, input, hotkeys, windows), `linux/` (X11 with XRecord and XTest, `/dev/uinput` for Wayland, and the choice between them). |
-| `src/app` | The window, cards, menus, step editor, themes, settings and app data folder. |
+| `src/core` | Macro steps and file format (`Action`), recording logic (`Recorder`), playback (`Player`), mouse paths (`Paths`), variables and expressions (`Expr`), finding pictures and phrases on the screen (`ImageFind`). No operating-system code. |
+| `src/platform` | The operating-system layer: `win/` (hooks, input, hotkeys, windows, screen pictures, text recognition in `WinOcr`), `linux/` (X11 with XRecord and XTest, `/dev/uinput` for Wayland, and the choice between them). |
+| `src/app` | The window, cards, menus, step editor, themes, settings and app data folder; Macro Hotkeys and Schedules (`AutoRunDialogs`); the screen-area picker (`ScreenPicker`). |
 | `resources` | Icon and small images used by the themes. |
 | `packaging` | Windows icon and version info, the icon tool, the Linux desktop entry. |
 
