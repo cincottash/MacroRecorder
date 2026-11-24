@@ -17,6 +17,7 @@
 
 class ActionDialog;
 class ActionPreview;
+class QJsonObject;
 class ActionTable;
 class QAction;
 class QActionGroup;
@@ -60,6 +61,11 @@ public:
     // Plays a saved macro without opening it (Macro Hotkeys, Schedules, another start of the app). False if it
     // can't start now (busy, a dialog open, a bad file); the reason is in the Activity log.
     bool playFile(const QString& path, const QString& why);
+    // Another start of the app handed this over (main.cpp: one running copy): {"file": path, "play": true/false,
+    // "show": true/false}. Plays or opens the file, or comes to the front.
+    void handOver(const QJsonObject& msg);
+    inline static QString desktopForTests;     // Create Desktop Shortcut writes here instead of the desktop
+    inline static QString updateUrlForTests;   // Check for Updates asks this address instead of GitHub
 
 protected:
     bool eventFilter(QObject* watched, QEvent* e) override;
@@ -156,6 +162,8 @@ private:
     void registerHotkeys();
     void syncWidgetsFromSettings();   // after Reset settings: show the defaults right away
     void startOver();                 // every setting back to its default, then the app starts again (welcome window)
+    void createDesktopShortcut();     // File > Create Desktop Shortcut…
+    void checkForUpdates();           // Help > Check for Updates…
     void editMacroHotkeys();          // Macro > Macro Hotkeys…
     void editSchedules();             // Macro > Schedules…
     void reschedule();                // when each schedule is next due, from now on
@@ -193,6 +201,8 @@ private:
     QSet<int> m_waitLogged;              // schedules whose "waiting" line is already in the log
     int m_macroHotkeysRegistered = 0;
     bool m_hotkeysPaused = false;        // a hotkey field has the keyboard (see typingHotkey)
+    class QNetworkAccessManager* m_net = nullptr;   // Check for Updates (made when first used)
+    bool m_checkingUpdates = false;
     QString m_recordTo;
     QMessageBox* m_msgBox = nullptr;       // a Message box step waiting for OK
     class QDialog* m_askBox = nullptr;     // an Ask for Text step waiting for an answer

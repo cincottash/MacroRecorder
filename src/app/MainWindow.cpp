@@ -35,6 +35,11 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QStandardPaths>
+#include <QVersionNumber>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QLineEdit>
@@ -313,6 +318,9 @@ void MainWindow::buildMenus()
     file->addAction(QStringLiteral("Save &As…"), QKeySequence::SaveAs, this, [this] { save(true); });
     file->addSeparator();
     file->addAction(QStringLiteral("&Export to CSV…"), this, [this] { exportCsv(); });
+    file->addAction(QStringLiteral("Create &Desktop Shortcut…"), this, [this] { createDesktopShortcut(); })
+        ->setToolTip(QStringLiteral("A shortcut on the desktop that plays the saved macro (and then closes the app, if it "
+                                    "wasn't already running)."));
     file->addAction(QStringLiteral("Copy &Command Line"), this, [this] { copyCommandLine(); })
         ->setToolTip(QStringLiteral("For a desktop shortcut or Windows Task Scheduler: plays the saved macro, then closes."));
     file->addSeparator();
@@ -562,6 +570,8 @@ void MainWindow::buildMenus()
         QDesktopServices::openUrl(QUrl::fromLocalFile(appdata::folder()));
     });
     help->addAction(QStringLiteral("&Report a Problem"), this, [] { QDesktopServices::openUrl(QUrl(kRepoUrl + QStringLiteral("/issues"))); });
+    help->addAction(QStringLiteral("Check for &Updates…"), this, [this] { checkForUpdates(); })
+        ->setToolTip(QStringLiteral("Asks GitHub for the latest release. Nothing is downloaded or installed by itself."));
     help->addSeparator();
     help->addAction(QStringLiteral("&About " APP_NAME), this, [this] {
         QMessageBox::about(this, QStringLiteral("About " APP_NAME),
@@ -2294,6 +2304,112 @@ bool MainWindow::playFile(const QString& path, const QString& why)
     m_player->setClipboardCache(QApplication::clipboard()->text());
     m_player->start(m, m_pending);
     return true;
+}
+
+void MainWindow::handOver(const QJsonObject& msg)
+{
+    const QString file = msg.value(QStringLiteral("file")).toString();
+    if (msg.value(QStringLiteral("play")).toBool() && !file.isEmpty()) {
+        playFile(file, QStringLiteral("started again with --play"));   // in the background: the macro's target keeps the focus
+        return;
+    }
+    if (!file.isEmpty()) {
+        if (m_state != State::Idle || QApplication::activeModalWidget())
+            log(QStringLiteral("%1 wasn't opened: finish what's running (or close the open window) first.").arg(QFileInfo(file).fileName()));
+        else if (maybeSave()) openFile(file);
+    }
+    if (!file.isEmpty() || msg.value(QStringLiteral("show")).toBool()) {
+        m_quitWhenDone = false;   // started from a shortcut with --quit, and now opened on purpose: stay open
+        if (isMinimized()) showNormal();
+        show();
+        raise();
+        activateWindow();
+    }
+}
+
+void MainWindow::createDesktopShortcut()
+{
+    if (m_state != State::Idle) return;
+    if (m_file.isEmpty() || m_dirty) {
+        QMessageBox box(QMessageBox::Information, QStringLiteral("Create Desktop Shortcut"),
+                        QStringLiteral("The shortcut plays the saved macro file. Save the macro first?"),
+                        QMessageBox::Save | QMessageBox::Cancel, this);
+        if (box.exec() != QMessageBox::Save || !save(m_file.isEmpty()) || m_file.isEmpty()) return;
+    }
+    const QString dir = desktopForTests.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) : desktopForTests;
+    const QString name = QFileInfo(m_file).completeBaseName();
+    const QString link = QDir(dir).filePath(name + platform::sys::shortcutExtension());
+    if (QFileInfo::exists(link)
+        && QMessageBox::question(this, QStringLiteral("Create Desktop Shortcut"),
+                                 QStringLiteral("There's already a shortcut named “%1” on the desktop. Replace it?").arg(name))
+               != QMessageBox::Yes)
+        return;
+    const QString appImage = qEnvironmentVariable("APPIMAGE");
+    const QString program = appImage.isEmpty() ? QApplication::applicationFilePath() : appImage;
+    QStringList args{QDir::toNativeSeparators(m_file), QStringLiteral("--play"), QStringLiteral("--quit"), QStringLiteral("--minimized")};
+    if (appdata::usesOverride())   // portable: the same settings folder
+        args << QStringLiteral("--data-folder") << (appdata::isTemporary() ? QStringLiteral("<none>") : QDir::toNativeSeparators(appdata::folder()));
+    QString err;
+    if (!m_backend->createShortcut(link, program, args, QStringLiteral("Plays the macro %1 with %2.").arg(name, QStringLiteral(APP_NAME)), &err)) {
+        QMessageBox::warning(this, QStringLiteral("Create Desktop Shortcut"), QStringLiteral("The shortcut couldn't be made: %1").arg(err));
+        return;
+    }
+    log(QStringLiteral("Desktop shortcut made: %1. Double-click it to play %2 (it plays in this window if the app is already "
+                       "running).").arg(QDir::toNativeSeparators(link), QFileInfo(m_file).fileName()));
+}
+
+void MainWindow::checkForUpdates()
+{
+    if (m_checkingUpdates) return;
+    m_checkingUpdates = true;
+    if (!m_net) m_net = new QNetworkAccessManager(this);
+    QNetworkRequest req(QUrl(updateUrlForTests.isEmpty() ? QStringLiteral("https://api.github.com/repos/cincottash/MacroRecorder/releases/latest")
+                                                         : updateUrlForTests));
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral(APP_NAME));
+    req.setRawHeader("Accept", "application/vnd.github+json");
+    req.setTransferTimeout(15000);
+    log(QStringLiteral("Checking for updates…"));
+    QNetworkReply* r = m_net->get(req);
+    connect(r, &QNetworkReply::finished, this, [this, r] {
+        r->deleteLater();
+        m_checkingUpdates = false;
+        const QString title = QStringLiteral("Check for Updates");
+        const QString current = QStringLiteral(APP_VERSION);
+        if (r->error() != QNetworkReply::NoError) {
+            const QString why = r->error() == QNetworkReply::OperationCanceledError ? QStringLiteral("no answer within 15 seconds") : r->errorString();
+            log(QStringLiteral("Couldn't check for updates: %1").arg(why));
+            QMessageBox::warning(this, title, QStringLiteral("Couldn't check for updates: %1.\n\nThe releases are also listed on the "
+                                                             "project's website (Help > Project Website).").arg(why));
+            return;
+        }
+        const QJsonObject o = QJsonDocument::fromJson(r->readAll()).object();
+        const QString tag = o.value(QStringLiteral("tag_name")).toString();
+        QString page = o.value(QStringLiteral("html_url")).toString();
+        if (!page.startsWith(QLatin1String("https://github.com/"))) page = kRepoUrl + QStringLiteral("/releases/latest");
+        const QVersionNumber latest = QVersionNumber::fromString(tag.startsWith(QLatin1Char('v')) ? tag.mid(1) : tag);
+        if (tag.isEmpty() || latest.isNull()) {
+            log(QStringLiteral("Couldn't check for updates: GitHub's answer had no version in it."));
+            QMessageBox::warning(this, title, QStringLiteral("Couldn't check for updates: GitHub's answer had no version in it."));
+            return;
+        }
+        const QVersionNumber mine = QVersionNumber::fromString(current.section(QLatin1Char('-'), 0, 0));
+        const bool dev = current.contains(QLatin1Char('-'));   // a local or test build, not a release
+        const QString latestText = latest.toString();
+        if (latest > mine || dev) {
+            const QString text = dev ? QStringLiteral("This is a test build (%1). The latest release is %2 %3.").arg(current, QStringLiteral(APP_NAME), latestText)
+                                     : QStringLiteral("%1 %2 is available. This is %3.").arg(QStringLiteral(APP_NAME), latestText, current);
+            log(text);
+            QMessageBox box(QMessageBox::Information, title, text, QMessageBox::Close, this);
+            QPushButton* open = box.addButton(QStringLiteral("Open Download Page"), QMessageBox::AcceptRole);
+            box.setDefaultButton(open);
+            box.exec();
+            if (box.clickedButton() == open) QDesktopServices::openUrl(QUrl(page));
+            return;
+        }
+        const QString text = QStringLiteral("%1 %2 is the latest version.").arg(QStringLiteral(APP_NAME), current);
+        log(text);
+        QMessageBox::information(this, title, text);
+    });
 }
 
 QDateTime MainWindow::now() const { return clockForTests ? clockForTests() : QDateTime::currentDateTime(); }

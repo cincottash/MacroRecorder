@@ -49,6 +49,11 @@ public:
     virtual bool isElevated() const { return sys::isElevated(); }
     virtual bool restartElevated(const QStringList& args, QString* error) { return sys::restartElevated(args, error); }
     virtual void beep() { sys::beep(); }
+    virtual bool createShortcut(const QString& path, const QString& program, const QStringList& args, const QString& description,
+                                QString* error)
+    {
+        return sys::createShortcut(path, program, args, description, error);
+    }
     static qint64 now();                                     // ms on the same clock as RawEvent::t
     static void earlyInit();                                 // call first thing in main(), before QApplication
 

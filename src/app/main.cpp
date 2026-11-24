@@ -5,9 +5,14 @@
 
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QCryptographicHash>
 #include <QDir>
 #include <QFileInfo>
 #include <QFont>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QLocalServer>
+#include <QLocalSocket>
 
 #include <cstdio>
 #include <QMessageBox>
@@ -38,6 +43,27 @@ static bool chooseDisplayPlugin()
     return false;
 }
 #endif
+
+// The name the running copy listens on: per user, and per settings folder when --data-folder is given (portable
+// copies and tests run side by side).
+static QString instanceName(const QString& dataFolderArg)
+{
+    QByteArray key = qgetenv("USERNAME") + '|' + qgetenv("USER") + '|' + QDir::homePath().toUtf8();
+    if (!dataFolderArg.isEmpty()) key += '|' + QDir::cleanPath(QDir::current().absoluteFilePath(dataFolderArg)).toLower().toUtf8();
+    return QStringLiteral(APP_NAME "-") + QString::fromLatin1(QCryptographicHash::hash(key, QCryptographicHash::Sha1).toHex().left(16));
+}
+
+// True if a running copy took the message (this start then has nothing more to do).
+static bool handToRunningCopy(const QString& name, const QJsonObject& msg)
+{
+    QLocalSocket s;
+    s.connectToServer(name);
+    if (!s.waitForConnected(500)) return false;
+    s.write(QJsonDocument(msg).toJson(QJsonDocument::Compact) + '\n');
+    if (!s.waitForBytesWritten(2000)) return false;
+    if (!s.canReadLine()) s.waitForReadyRead(3000);
+    return s.readAll().startsWith("ok");
+}
 
 int main(int argc, char* argv[])
 {
@@ -111,13 +137,48 @@ int main(int argc, char* argv[])
         return rc;
     }
 
+    // One running copy per settings folder: a second start hands its file (or "come to the front") to the first, which
+    // already holds the global hotkeys. --record runs on its own (it records, saves and quits).
+    const QStringList files = cli.positionalArguments();
+    const QString instance = instanceName(cli.value(dataFolder));
+    if (!cli.isSet(record)) {
+        QJsonObject msg;
+        if (!files.isEmpty()) msg[QStringLiteral("file")] = QDir::current().absoluteFilePath(files.first());
+        msg[QStringLiteral("play")] = cli.isSet(play);
+        msg[QStringLiteral("show")] = !cli.isSet(minimized);
+        if (handToRunningCopy(instance, msg)) {
+            printf("%s is already running: %s\n", APP_NAME,
+                   files.isEmpty() ? "brought it to the front." : cli.isSet(play) ? "it plays the macro." : "it opens the macro.");
+            return 0;
+        }
+    }
+
     const QString folder = appdata::resolve(cli.value(dataFolder), nullptr);
     if (folder.isEmpty()) return 0;  // first-run dialog cancelled
     Settings settings;
     settings.load(appdata::settingsFile());
 
     MainWindow w(settings);
-    const QStringList files = cli.positionalArguments();
+    QLocalServer server;
+    if (!cli.isSet(record)) {
+        QLocalServer::removeServer(instance);   // a socket file left by a crash (Linux); no copy answered above
+        server.setSocketOptions(QLocalServer::UserAccessOption);
+        if (server.listen(instance)) {
+            QObject::connect(&server, &QLocalServer::newConnection, &w, [&server, &w] {
+                while (QLocalSocket* c = server.nextPendingConnection()) {
+                    QObject::connect(c, &QLocalSocket::disconnected, c, &QObject::deleteLater);
+                    QObject::connect(c, &QLocalSocket::readyRead, &w, [c, &w] {
+                        if (!c->canReadLine()) return;
+                        const QJsonObject msg = QJsonDocument::fromJson(c->readLine().trimmed()).object();
+                        c->write("ok\n");
+                        c->flush();
+                        c->disconnectFromServer();
+                        QTimer::singleShot(0, &w, [&w, msg] { w.handOver(msg); });
+                    });
+                }
+            });
+        }
+    }
     if (!files.isEmpty()) w.openFile(QDir::current().absoluteFilePath(files.first()));
     // --record is for recording other programs, so the window starts out of the way
     if (cli.isSet(minimized) || cli.isSet(record) || settings.startMinimized) w.showMinimized(); else w.show();

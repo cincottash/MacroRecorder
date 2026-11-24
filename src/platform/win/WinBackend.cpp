@@ -16,7 +16,9 @@
 #include <windows.h>
 #include <dwmapi.h>
 #include <mmsystem.h>
+#include <objbase.h>
 #include <shellapi.h>
+#include <shlobj.h>
 
 #include <atomic>
 #include <chrono>
@@ -714,6 +716,35 @@ bool restartElevated(const QStringList& args, QString* error)
 }
 
 void beep() { MessageBeep(MB_OK); }
+
+QString shortcutExtension() { return QStringLiteral(".lnk"); }
+
+bool createShortcut(const QString& path, const QString& program, const QStringList& args, const QString& description, QString* error)
+{
+    const HRESULT init = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);   // usually already done by Qt: S_FALSE
+    IShellLinkW* link = nullptr;
+    HRESULT hr = CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_IShellLinkW, reinterpret_cast<void**>(&link));
+    if (SUCCEEDED(hr)) {
+        QStringList quoted;
+        for (const QString& a : args) quoted << (a.contains(QLatin1Char(' ')) || a.isEmpty() ? QLatin1Char('"') + a + QLatin1Char('"') : a);
+        const QString native = QDir::toNativeSeparators(program);
+        link->SetPath(reinterpret_cast<const wchar_t*>(native.utf16()));
+        link->SetArguments(reinterpret_cast<const wchar_t*>(quoted.join(QLatin1Char(' ')).utf16()));
+        link->SetWorkingDirectory(reinterpret_cast<const wchar_t*>(QDir::toNativeSeparators(QFileInfo(program).absolutePath()).utf16()));
+        link->SetDescription(reinterpret_cast<const wchar_t*>(description.left(255).utf16()));
+        link->SetIconLocation(reinterpret_cast<const wchar_t*>(native.utf16()), 0);
+        IPersistFile* file = nullptr;
+        hr = link->QueryInterface(IID_IPersistFile, reinterpret_cast<void**>(&file));
+        if (SUCCEEDED(hr)) {
+            hr = file->Save(reinterpret_cast<const wchar_t*>(QDir::toNativeSeparators(path).utf16()), TRUE);
+            file->Release();
+        }
+        link->Release();
+    }
+    if (SUCCEEDED(init)) CoUninitialize();
+    if (FAILED(hr) && error) *error = QStringLiteral("Windows couldn't create the shortcut (error 0x%1).").arg(quint32(hr), 8, 16, QLatin1Char('0'));
+    return SUCCEEDED(hr);
+}
 
 bool centerWindowAt(quintptr windowId, QPoint p)
 {
