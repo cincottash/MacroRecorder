@@ -1159,6 +1159,13 @@ QWidget* MainWindow::buildActionsCard()
         m_model.setCollapsed(row, fold);
         applyFilter();
     });
+    m_table->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_table, &QWidget::customContextMenuRequested, this, [this](QPoint p) {
+        if (QMenu* m = stepMenu(p)) {
+            m->setAttribute(Qt::WA_DeleteOnClose);
+            m->popup(m_table->viewport()->mapToGlobal(p));
+        }
+    });
     connect(&m_model, &QAbstractItemModel::modelReset, this, [this] { showPreview(-1); });
     connect(&m_model, &QAbstractItemModel::layoutChanged, this, [this] { showPreview(-1); });
     connect(&m_model, &QAbstractItemModel::rowsRemoved, this, [this] { showPreview(-1); });
@@ -1745,6 +1752,66 @@ void MainWindow::addAction(ActionType t, int variant)
     setDirty(true);
     applyFilter();
     updateUi();
+}
+
+QMenu* MainWindow::stepMenu(QPoint viewportPos)
+{
+    if (m_state != State::Idle) return nullptr;
+    auto named = [this](const QString& text) -> QAction* {
+        for (QAction* a : findChildren<QAction*>()) {
+            QString t = a->text();
+            t.remove(QLatin1Char('&'));
+            if (!a->menu() && t == text) return a;
+        }
+        return nullptr;
+    };
+    const int row = m_table->rowAt(viewportPos.y());
+    // The step right-clicked becomes the chosen one, unless it's already part of the selection (File Explorer)
+    if (row >= 0 && !m_table->selectionModel()->isRowSelected(row, {})) selectRows(row, row);
+    if (row < 0 && !selectedRows().isEmpty()) m_table->clearSelection();
+    updateUi();
+    auto* menu = new QMenu(this);
+    menu->setProperty("testId", QStringLiteral("stepMenu"));
+    auto add = [&](const QString& text) {
+        if (QAction* a = named(text)) menu->addAction(a);
+    };
+    if (row >= 0) {
+        add(QStringLiteral("Edit Step…"));
+        if (m_model.at(row).type == ActionType::Group) {
+            const bool folded = m_model.at(row).collapsed;
+            menu->addAction(folded ? QStringLiteral("Show Group's Steps") : QStringLiteral("Fold Group"), this, [this, row, folded] {
+                m_model.setCollapsed(row, !folded);
+                applyFilter();
+            });
+        }
+        menu->addSeparator();
+        add(QStringLiteral("Play This Step Only"));
+        add(QStringLiteral("Play Selection"));
+        add(QStringLiteral("Play From Selected Step"));
+        add(QStringLiteral("Play Up to Selected Step"));
+        add(QStringLiteral("Record After Selected Step"));
+        menu->addSeparator();
+        add(QStringLiteral("Cut"));
+        add(QStringLiteral("Copy"));
+        add(QStringLiteral("Paste"));
+        add(QStringLiteral("Delete"));
+        menu->addSeparator();
+        add(QStringLiteral("Enable / Disable"));
+        add(QStringLiteral("Move Up"));
+        add(QStringLiteral("Move Down"));
+        add(QStringLiteral("Group Selected Steps"));
+        if (m_model.at(row).type == ActionType::Group) add(QStringLiteral("Ungroup"));
+    } else {
+        add(QStringLiteral("Paste"));
+        add(QStringLiteral("Select All"));
+    }
+    menu->addSeparator();
+    QMenu* addMenu = buildAddMenu(menu);
+    addMenu->setTitle(QStringLiteral("Add Action"));
+    menu->addMenu(addMenu);
+    // The Play Selection button's state decides that item (it mirrors the button)
+    for (auto& [act, btn] : m_buttonActions) act->setEnabled(btn && btn->isEnabled());
+    return menu;
 }
 
 int MainWindow::groupCount() const

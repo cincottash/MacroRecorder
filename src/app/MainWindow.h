@@ -65,6 +65,9 @@ public:
     // "show": true/false}. Plays or opens the file, or comes to the front.
     void handOver(const QJsonObject& msg);
     void showAskBox(const QString& question, const QString& defaultText);   // an Ask for Text step (public for the UI audit)
+    // The step list's right-click menu at this point of its viewport (null while recording or playing). The caller
+    // shows it; public so tests can read it without opening it.
+    QMenu* stepMenu(QPoint viewportPos);
     inline static QString desktopForTests;     // Create Desktop Shortcut writes here instead of the desktop
     inline static QString updateUrlForTests;   // Check for Updates asks this address instead of GitHub
 
