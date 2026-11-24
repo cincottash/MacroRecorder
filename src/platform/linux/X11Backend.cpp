@@ -3,11 +3,14 @@
 #include "X11Backend.h"
 #include "LinuxKeys.h"
 
+#include <QBuffer>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QHash>
 #include <QMutex>
+#include <QProcess>
 #include <QSet>
+#include <QStandardPaths>
 #include <QStyleHints>
 
 #include <atomic>
@@ -337,6 +340,44 @@ public:
         if (exe) *exe = exeOfPid(getCardinal(m_d, w, "_NET_WM_PID"));
         if (title) *title = windowTitle(m_d, w);
         if (frame) *frame = QRect(o, QSize(at.width + int(ext[0] + ext[1]), at.height + int(ext[2] + ext[3])));
+        return true;
+    }
+    // Find Text on Linux: Tesseract's command-line program, where it's installed (no library linked in)
+    bool readText(const QImage& img, QVector<core::TextWord>* words, QString* error) override
+    {
+        const QString exe = QStandardPaths::findExecutable(QStringLiteral("tesseract"));
+        if (exe.isEmpty()) {
+            if (error) *error = QStringLiteral("reading text on Linux needs Tesseract: install it (for example: sudo apt install tesseract-ocr).");
+            return false;
+        }
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        // Twice as large: small screen text is read better
+        img.scaled(img.size() * 2, Qt::IgnoreAspectRatio, Qt::SmoothTransformation).save(&buf, "PNG");
+        QProcess p;
+        p.start(exe, {QStringLiteral("stdin"), QStringLiteral("stdout"), QStringLiteral("tsv")});
+        if (!p.waitForStarted(5000)) { if (error) *error = QStringLiteral("Tesseract didn't start."); return false; }
+        p.write(png);
+        p.closeWriteChannel();
+        if (!p.waitForFinished(30000) || p.exitCode() != 0) {
+            p.kill();
+            if (error) *error = QStringLiteral("Tesseract couldn't read the picture.");
+            return false;
+        }
+        // TSV: level page block par line word left top width height conf text; words are level 5
+        QHash<QString, int> lineIds;
+        const QList<QByteArray> rows = p.readAllStandardOutput().split('\n');
+        for (const QByteArray& row : rows) {
+            const QList<QByteArray> c = row.split('\t');
+            if (c.size() < 12 || c[0] != "5") continue;
+            const QString text = QString::fromUtf8(c[11]).trimmed();
+            if (text.isEmpty() || c[10].toDouble() < 0) continue;
+            const QString key = QString::fromLatin1(c[2] + '.' + c[3] + '.' + c[4]);
+            if (!lineIds.contains(key)) lineIds.insert(key, int(lineIds.size()));
+            words->append({text, QRect(c[6].toInt() / 2, c[7].toInt() / 2, qMax(1, c[8].toInt() / 2), qMax(1, c[9].toInt() / 2)),
+                           lineIds.value(key)});
+        }
         return true;
     }
     QRect screenBounds() override
