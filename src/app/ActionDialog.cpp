@@ -193,6 +193,17 @@ void ActionDialog::build()
         m_clicks->addItems({QStringLiteral("Single Click"), QStringLiteral("Double-Click")});
         m_clicks->setCurrentIndex(m_a.clicks >= 2 ? 1 : 0);
         m_form->addRow(QStringLiteral("Click:"), m_clicks);
+        if (!m_a.image.isEmpty()) {   // recorded with Find Clicked Buttons by Picture
+            auto* pic = new QLabel;
+            const QImage img = QImage::fromData(m_a.image);
+            pic->setPixmap(QPixmap::fromImage(img.scaled(img.size() * 2, Qt::KeepAspectRatio, Qt::FastTransformation)));
+            pic->setFrameShape(QFrame::StyledPanel);
+            m_usePicture = new QCheckBox(QStringLiteral("Find by Picture First"));
+            m_usePicture->setChecked(true);
+            m_usePicture->setToolTip(QStringLiteral("Looks for this picture and clicks it wherever it is now; if it isn't on the "
+                                                    "screen, clicks the position above. Unticked: the picture is dropped."));
+            m_form->addRow(QStringLiteral("Picture:"), hrow({pic, m_usePicture}));
+        }
     }
     if (t == ActionType::Wheel) {
         m_notches = spin(-100, 100, m_a.notches == 0 ? -1 : m_a.notches, QStringLiteral("notches"));
@@ -710,6 +721,10 @@ void ActionDialog::accept()
     if (m_rel) a.relativeToWindow = m_rel->isChecked();
     if (m_button) a.button = core::MouseButton(m_button->currentIndex());
     if (m_clicks) a.clicks = m_clicks->currentIndex() == 1 ? 2 : 1;
+    if (m_usePicture && !m_usePicture->isChecked()) {
+        a.image.clear();
+        a.offset = {};
+    }
     if (m_notches) {
         if (m_notches->value() == 0) return fail(QStringLiteral("Scroll at least one notch (use a negative number to scroll down)."));
         a.notches = m_notches->value();

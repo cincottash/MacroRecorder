@@ -440,6 +440,8 @@ public:
     }
     bool canBlockKeyboard() const override { return true; }
     void setBlockKeyboard(bool on) override { m_block = on; }
+    void setSmartClicks(bool on) override { m_smart = on; }
+    static constexpr int kSmartW = 80, kSmartH = 36;   // the picture kept for a smart click: about a button's size
 
 private:
     struct Hotkey { unsigned vk, mods; };
@@ -556,6 +558,10 @@ private:
             e.windowId = quint64(reinterpret_cast<quintptr>(top));
             e.exe = exeOf(top);
             e.title = titleOf(top);
+            if (m_smart) {   // before the program under the pointer has seen the press: the screen as it was clicked
+                e.around = m_inj.grabScreen(QRect(pos - QPoint(kSmartW / 2, kSmartH / 2), QSize(kSmartW, kSmartH)));
+                e.aroundAt = QPoint(kSmartW / 2, kSmartH / 2);
+            }
         } else if (release) {
             e.kind = core::RawEvent::Up;
         }
@@ -629,6 +635,7 @@ private:
     QSet<unsigned> m_swallowUp;            // hook thread
     std::atomic<bool> m_userKeySignalled{false}, m_userMouseSignalled{false};
     std::atomic<bool> m_block{false};
+    std::atomic<bool> m_smart{false};
     QSet<unsigned> m_passUp;               // hook thread: hotkeys let through while blocking; their releases too
     WinInjector m_inj;
 };

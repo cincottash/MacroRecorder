@@ -86,6 +86,8 @@ private:
     bool findImage(const Action& a);
     bool findText(const Action& a);
     bool actAt(const Action& a, QPoint at);   // a Find step's "Then": point at it, click it...
+    QPoint smartTarget(const Action& a, QPoint recorded, int index);   // a click with a picture: where that picture is now
+    QSet<int> m_smartMissed;                   // smart clicks already reported as not found (once per playback)
     bool saveScreenshot(const Action& a);
     void setVar(const QString& name, const Value& v);
 

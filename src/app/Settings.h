@@ -66,6 +66,7 @@ struct Settings {
     int shortestPauseMs = 500;
     bool hideWhileRecording = false;
     bool relativePositions = false;   // record positions relative to the window
+    bool smartClicks = false;         // keep a picture of what each click lands on; playing, the click finds it first
     int pathDetail = 100;             // % of mouse path points kept (100 = all)
 
     // Hotkeys (QKeySequence portable text; empty = none)

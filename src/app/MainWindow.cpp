@@ -1056,11 +1056,19 @@ QWidget* MainWindow::buildRecordingCard()
     m_relPos->setChecked(m_s.relativePositions);
     m_relPos->setToolTip(QStringLiteral("Clicks are recorded from the window's top-left corner instead of the screen's, so the macro "
                                         "still works when the window is somewhere else."));
+    m_smartClicks = new QCheckBox(QStringLiteral("Find Clicked Buttons by Picture"));
+    m_smartClicks->setChecked(m_s.smartClicks);
+    m_smartClicks->setProperty("testId", QStringLiteral("smartClicks"));
+    m_smartClicks->setToolTip(QStringLiteral("Keeps a small picture of what each click lands on. Playing, the click looks for that "
+                                             "picture first and clicks it wherever it is now (a window that moved, a list that "
+                                             "scrolled); if it isn't on the screen, it clicks where it was recorded."));
     m_hideRec = new QCheckBox(QStringLiteral("Minimize While Recording"));
     m_hideRec->setChecked(m_s.hideWhileRecording);
     b->addWidget(m_relPos);
+    b->addWidget(m_smartClicks);
     b->addWidget(m_hideRec);
     auto changed = [this] {
+        m_s.smartClicks = m_smartClicks->isChecked();
         m_s.recordMoves = m_recMoves->isChecked();
         m_s.minMovePx = m_minMove->value();
         m_s.pathDetail = m_pathDetail->value();
@@ -1073,7 +1081,7 @@ QWidget* MainWindow::buildRecordingCard()
         m_pathDetailValue->setText(QStringLiteral("%1 %").arg(m_s.pathDetail));
         saveSettingsSoon();
     };
-    for (QCheckBox* c : {m_recMoves, m_recKeys, m_mergeTyping, m_relPos, m_hideRec}) connect(c, &QCheckBox::toggled, this, changed);
+    for (QCheckBox* c : {m_recMoves, m_recKeys, m_mergeTyping, m_relPos, m_smartClicks, m_hideRec}) connect(c, &QCheckBox::toggled, this, changed);
     for (QSpinBox* sb : {m_minMove, m_shortestPause}) connect(sb, &QSpinBox::valueChanged, this, changed);
     connect(m_pathDetail, &QSlider::valueChanged, this, changed);
     connect(m_minMove, &QSpinBox::valueChanged, this, [this] { m_recMoves->setChecked(true); });
@@ -2085,7 +2093,7 @@ void MainWindow::syncWidgetsFromSettings()
     const QList<QWidget*> all = {m_speed, m_repeatTimes, m_repeatSecs, m_countdownSecs, m_rTimes, m_rSecs, m_rForever, m_pathStyle,
                                  m_typing, m_after, m_countdownCheck, m_stopOnKey, m_stopOnMouse, m_blockKeys, m_restoreMouse,
                                  m_showNotif, m_hidePlay, m_recMoves, m_minMove, m_pathDetail, m_recKeys, m_mergeTyping,
-                                 m_shortestPause, m_relPos, m_hideRec, m_hkRecord, m_hkNewRec, m_hkPlay, m_hkPlayFrom, m_hkPlaySel,
+                                 m_shortestPause, m_relPos, m_smartClicks, m_hideRec, m_hkRecord, m_hkNewRec, m_hkPlay, m_hkPlayFrom, m_hkPlaySel,
                                  m_hkStop, m_hkCapture};
     for (QWidget* w : all) w->blockSignals(true);
     m_speed->setValue(m_s.speedPct);
@@ -2114,6 +2122,7 @@ void MainWindow::syncWidgetsFromSettings()
     m_mergeTyping->setEnabled(m_s.recordKeyboard);
     m_shortestPause->setValue(m_s.shortestPauseMs);
     m_relPos->setChecked(m_s.relativePositions);
+    m_smartClicks->setChecked(m_s.smartClicks);
     m_hideRec->setChecked(m_s.hideWhileRecording);
     m_hkRecord->setKeySequence(QKeySequence(m_s.hkRecord));
     m_hkNewRec->setKeySequence(QKeySequence(m_s.hkNewRecording));
@@ -2254,6 +2263,7 @@ void MainWindow::startRecording(RecordWhere where)
     m_recordInsert = where == RecordWhere::AfterSelection ? insertRow() : m_model.rowCount();
     m_table->clearSelection();
     m_recorder.start(recordOptions(), platform::Backend::now(), m_backend->injector()->cursor());
+    m_backend->setSmartClicks(m_s.smartClicks);
     m_backend->setCapture(platform::CaptureMode::Record);
     setState(State::Recording);
     registerHotkeys();

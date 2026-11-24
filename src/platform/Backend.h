@@ -34,6 +34,8 @@ public:
     // The character the system's spreadsheets expect between CSV fields ("," or ";"); virtual so tests can change it.
     virtual QChar listSeparator() const { return sys::listSeparator(); }
     virtual void setCapture(CaptureMode m) = 0;
+    // Recording: a small picture of what each button press lands on (RawEvent::around), for smart clicks
+    virtual void setSmartClicks(bool on) { Q_UNUSED(on) }
     virtual core::Injector* injector() = 0;
     // Register a global hotkey (empty sequence clears it). False with a reason if another program has it.
     virtual bool setHotkey(int id, const QKeySequence& seq, QString* error) = 0;

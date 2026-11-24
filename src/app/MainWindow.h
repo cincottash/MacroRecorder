@@ -240,6 +240,7 @@ private:
     QCheckBox *m_countdownCheck = nullptr, *m_stopOnKey = nullptr, *m_stopOnMouse = nullptr, *m_blockKeys = nullptr;
     QCheckBox *m_restoreMouse = nullptr, *m_hidePlay = nullptr, *m_showNotif = nullptr;
     QCheckBox *m_recMoves = nullptr, *m_recKeys = nullptr, *m_mergeTyping = nullptr, *m_hideRec = nullptr, *m_relPos = nullptr;
+    QCheckBox* m_smartClicks = nullptr;
     QSpinBox *m_minMove = nullptr, *m_shortestPause = nullptr;
     QSlider* m_pathDetail = nullptr;
     QLabel* m_pathDetailValue = nullptr;

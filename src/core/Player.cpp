@@ -218,6 +218,37 @@ bool Player::findImage(const Action& a)
     return true;
 }
 
+QPoint Player::smartTarget(const Action& a, QPoint recorded, int index)
+{
+    QImage needle;
+    needle.loadFromData(a.image);
+    if (needle.isNull()) return recorded;
+    const QRect all = m_inj->screenBounds();
+    const QPoint half(needle.width() / 2, needle.height() / 2);
+    // Where it was recorded first (most of the time nothing moved: one quick comparison), then around it, then
+    // every screen. A little tolerance: the button was lit up under the pointer when it was recorded.
+    const QRect spots[] = {QRect(recorded - a.offset - half, needle.size()),
+                           QRect(recorded - QPoint(300, 300), QSize(600, 600)).intersected(all), all};
+    for (const QRect& area : spots) {
+        if (area.width() < needle.width() || area.height() < needle.height()) continue;
+        const QImage shot = m_inj->grabScreen(area);
+        if (shot.isNull()) return recorded;
+        const ImageMatch m = core::findImage(shot, needle, 12);
+        if (m.found) {
+            const QPoint at = area.topLeft() + m.topLeft + half + a.offset;
+            if (at != recorded) emit detail(QStringLiteral("Smart click: found what was clicked %1, %2 px from where it was recorded.")
+                                                .arg(at.x() - recorded.x()).arg(at.y() - recorded.y()));
+            return at;
+        }
+    }
+    if (!m_smartMissed.contains(index)) {
+        m_smartMissed.insert(index);
+        emit message(QStringLiteral("Step %1 (smart click): what was clicked when recording isn't on the screen; clicked where it "
+                                    "was recorded.").arg(index + 1), true);
+    }
+    return recorded;
+}
+
 bool Player::actAt(const Action& a, QPoint at)
 {
     if (a.findDo == FindDo::Nothing) return true;
@@ -404,7 +435,7 @@ bool Player::playAction(const Action& a, int index)
         break;
     }
     case ActionType::MouseClick:
-        moveInstant(target(a));
+        moveInstant(a.image.isEmpty() ? target(a) : smartTarget(a, target(a), index));
         for (int i = 0; i < a.clicks; ++i) {
             if (i > 0 && !waitMs(a.gapMs > 0 ? a.gapMs / sp : kDoubleGapMs)) return false;
             m_inj->button(a.button, true);
@@ -768,6 +799,7 @@ void Player::run()
     m_problemShown = false;
     m_late = 0;
     m_pausedNs = 0;
+    m_smartMissed.clear();
     m_heldKeys.clear();
     m_clock.start();
     m_inj->keyRepeat(&m_repeatDelay, &m_repeatInterval);

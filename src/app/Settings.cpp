@@ -46,6 +46,7 @@ void fields(Settings& s, F&& f)
     f("shortest_pause_ms", s.shortestPauseMs);
     f("hide_while_recording", s.hideWhileRecording);
     f("relative_positions", s.relativePositions);
+    f("smart_clicks", s.smartClicks);
     f("path_detail", s.pathDetail);
     f("hotkey_record", s.hkRecord);
     f("hotkey_play", s.hkPlay);

@@ -29,6 +29,10 @@ struct RawEvent {
     // Top-left of the window this event belongs to (the window under the pointer for button presses and
     // releases, the active window otherwise), for "positions relative to the window". Unset: not known.
     QPoint windowOrigin{INT_MIN, INT_MIN};
+    // Button presses while recording smart clicks: a small picture of the screen around the pointer, taken before
+    // the click changed anything, and where the pointer is in it
+    QImage around;
+    QPoint aroundAt;
 };
 
 // A word read from a picture of the screen (Find Text steps): its text, where it is in the picture, its line.

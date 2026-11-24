@@ -1,5 +1,6 @@
 #include "Recorder.h"
 
+#include <QBuffer>
 #include <QtMath>
 
 namespace core {
@@ -213,7 +214,7 @@ void Recorder::feed(const RawEvent& e)
                 m_modUsed = true;
             }
         }
-        m_down.insert(int(e.button), {e.pos, e.t, false, e.windowOrigin});
+        m_down.insert(int(e.button), {e.pos, e.t, false, e.windowOrigin, e.around, e.aroundAt});
         m_cursor = e.pos;
         m_haveCursor = true;
         break;
@@ -246,6 +247,12 @@ void Recorder::feed(const RawEvent& e)
             c.button = e.button;
             c.pos = h.pos;
             c.holdMs = int(e.t - h.t);
+            if (!h.around.isNull()) {   // smart click: what was clicked, to find it again when playing
+                QBuffer buf(&c.image);
+                buf.open(QIODevice::WriteOnly);
+                h.around.save(&buf, "PNG");
+                c.offset = h.aroundAt - QPoint(h.around.width() / 2, h.around.height() / 2);
+            }
             emitAction(c, h.t, e.t, h.origin);
             m_lastClickT = e.t;
         }

@@ -57,7 +57,7 @@ private:
     QWidget* m_areaRow = nullptr;
     QComboBox* m_findDo = nullptr;
     QSpinBox *m_ox = nullptr, *m_oy = nullptr;
-    QCheckBox *m_waitGone = nullptr, *m_stopMissing = nullptr;
+    QCheckBox *m_waitGone = nullptr, *m_stopMissing = nullptr, *m_usePicture = nullptr;
     QLabel *m_imageView = nullptr, *m_imageInfo = nullptr;
     QByteArray m_image;   // PNG
     void setImage(const QImage& img);

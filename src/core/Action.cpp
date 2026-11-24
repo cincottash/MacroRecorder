@@ -173,7 +173,7 @@ QString Action::valueText() const
     case ActionType::MouseMove:
         return QStringLiteral("%1, %2 → %3").arg(from.x()).arg(from.y()).arg(at)
                + (ms > 0 ? QStringLiteral(" · ") + msText(ms) : QString());
-    case ActionType::MouseClick:
+    case ActionType::MouseClick: return image.isEmpty() ? at : at + QStringLiteral(" · finds its picture");
     case ActionType::MouseDown:
     case ActionType::MouseUp: return at;
     case ActionType::Wheel: {
@@ -299,6 +299,10 @@ QJsonObject Action::toJson() const
         o[QStringLiteral("at")] = point(pos);
         o[QStringLiteral("button")] = QString::fromLatin1(kButtons[int(button)]);
         if (type == ActionType::MouseClick && clicks != 1) o[QStringLiteral("clicks")] = clicks;
+        if (type == ActionType::MouseClick && !image.isEmpty()) {   // a smart click: what was clicked
+            o[QStringLiteral("image")] = QString::fromLatin1(image.toBase64());
+            if (!offset.isNull()) o[QStringLiteral("offset")] = point(offset);
+        }
         break;
     case ActionType::Wheel:
         o[QStringLiteral("at")] = point(pos);
