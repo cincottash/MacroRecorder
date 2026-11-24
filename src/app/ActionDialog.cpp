@@ -69,6 +69,8 @@ QString describe(ActionType t)
                                                       "and click it wherever it is.");
     case ActionType::Screenshot: return QStringLiteral("Saves a picture of the screen, or a part of it, as a PNG file.");
     case ActionType::SetClipboard: return QStringLiteral("Puts text on the clipboard, ready to paste (Ctrl+V).");
+    case ActionType::AskAI: return QStringLiteral("Asks an AI model a question while playing and keeps the answer in a variable: "
+                                                  "a reply to write, a summary, a decision for an If step.");
     }
     return {};
 }
@@ -418,6 +420,21 @@ void ActionDialog::build()
         m_form->addRow(QString(), note(QStringLiteral("Afterwards found is 1 (or 0 if it wasn't found), and found_x, found_y "
                                                       "hold its position: use them in an If step.")));
     }
+    if (t == ActionType::AskAI) {
+        m_text = new QPlainTextEdit(m_a.message);
+        m_text->setTabChangesFocus(true);
+        m_text->setMinimumHeight(90);
+        m_text->setPlaceholderText(QStringLiteral("e.g. Write a one-line reply to this message: {=clipboard()}"));
+        m_form->addRow(QStringLiteral("Prompt:"), m_text);
+        m_var = new QLineEdit(m_a.var.isEmpty() ? QStringLiteral("answer") : m_a.var);
+        m_form->addRow(QStringLiteral("Save Answer In:"), m_var);
+        m_ms = spin(1, 3600, m_a.ms > 0 ? m_a.ms / 1000 : 60, QStringLiteral("s"));
+        m_ms->setToolTip(QStringLiteral("Playback stops if there's no answer by then."));
+        m_form->addRow(QStringLiteral("Give Up After:"), m_ms);
+        m_form->addRow(QString(), note(kVarTip + QStringLiteral(" The prompt goes to the AI server in File > Settings > AI Server… "
+                                                                 "(LM Studio on this PC unless changed). A Text step types the answer "
+                                                                 "with the variable's name in braces, for example {answer}.")));
+    }
     if (t == ActionType::SetClipboard) {
         m_text = new QPlainTextEdit(m_a.text);
         m_text->setTabChangesFocus(true);
@@ -692,7 +709,10 @@ void ActionDialog::accept()
         for (QCheckBox* c : std::as_const(m_mods))
             if (c->isChecked() && c->text() != a.key) a.mods << c->text();
     }
-    if (m_text) {
+    if (m_text && t == ActionType::AskAI) {
+        a.message = m_text->toPlainText().trimmed();
+        if (a.message.isEmpty()) return fail(QStringLiteral("Enter the prompt: what to ask the AI."));
+    } else if (m_text) {
         const QString s = m_text->toPlainText();
         if (s.isEmpty() && t == ActionType::Text) return fail(QStringLiteral("Enter the text to type."));
         if (s != a.text) a.strokes.clear();
@@ -700,7 +720,7 @@ void ActionDialog::accept()
     }
     if (m_ms) {
         const bool seconds = t == ActionType::WindowFocus || t == ActionType::WaitPixel || t == ActionType::WaitKey || t == ActionType::WaitFile
-                             || t == ActionType::WindowMove || t == ActionType::FindImage;
+                             || t == ActionType::WindowMove || t == ActionType::FindImage || t == ActionType::AskAI;
         a.ms = seconds ? m_ms->value() * 1000 : m_ms->value();
         if (t == ActionType::MouseMove && a.ms != m_a.ms) a.path.clear();  // a new duration can't keep the recorded path
     }

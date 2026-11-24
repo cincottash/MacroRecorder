@@ -166,6 +166,8 @@ private:
     void syncWidgetsFromSettings();   // after Reset settings: show the defaults right away
     void startOver();                 // every setting back to its default, then the app starts again (welcome window)
     void createDesktopShortcut();     // File > Create Desktop Shortcut…
+    void askAI(const QString& prompt, int timeoutMs);   // an Ask AI step: one request to the AI server
+    void editAiServer();              // File > Settings > AI Server…
     void checkForUpdates();           // Help > Check for Updates…
     void editMacroHotkeys();          // Macro > Macro Hotkeys…
     void editSchedules();             // Macro > Schedules…
@@ -207,6 +209,7 @@ private:
     bool m_hotkeysPaused = false;        // a hotkey field has the keyboard (see typingHotkey)
     class QNetworkAccessManager* m_net = nullptr;   // Check for Updates (made when first used)
     bool m_checkingUpdates = false;
+    class QNetworkReply* m_aiReply = nullptr;      // an Ask AI step waiting for the server
     bool m_fittingColumns = false;       // the app itself is resizing the list's columns (not the user)
     QString m_recordTo;
     QMessageBox* m_msgBox = nullptr;       // a Message box step waiting for OK

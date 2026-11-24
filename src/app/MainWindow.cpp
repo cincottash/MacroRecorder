@@ -48,6 +48,7 @@
 #include <QProcess>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QScreen>
 #include <QScrollArea>
@@ -223,6 +224,7 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
     });
     connect(m_player, &core::Player::messageBox, this, [this](const QString& t) { showMessageBox(t); });
     connect(m_player, &core::Player::askText, this, [this](const QString& q, const QString& d) { showAskBox(q, d); });
+    connect(m_player, &core::Player::askAI, this, [this](const QString& p, int ms) { askAI(p, ms); });
     connect(m_player, &core::Player::detail, this, [this](const QString& t) { log(t, true); });
     connect(m_player, &core::Player::clipboard, this, [](const QString& t) { QApplication::clipboard()->setText(t); });
     // The player's thread can't read the clipboard: it gets a copy whenever the clipboard changes
@@ -233,6 +235,7 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
         m_backend->setCapture(platform::CaptureMode::Off);
         if (m_msgBox) m_msgBox->done(0);   // stopped while a Message box step was waiting
         if (m_askBox) m_askBox->done(QDialog::Rejected);
+        if (m_aiReply) m_aiReply->abort();   // stopped while waiting for the AI server
         m_model.setPlayingRow(-1);
         const QString other = m_playingOther;
         m_playingOther.clear();
@@ -343,6 +346,8 @@ void MainWindow::buildMenus()
         m_backend->injector()->setScanCodesOnly(m_s.scanCodes);
         log(QStringLiteral("Settings reset to defaults."));
     });
+    settings->addAction(QStringLiteral("AI Server…"), this, [this] { editAiServer(); })
+        ->setToolTip(QStringLiteral("Where Ask AI steps send their questions: LM Studio on this PC (free) unless changed."));
     settings->addAction(QStringLiteral("Start Over…"), this, [this] { startOver(); })
         ->setToolTip(QStringLiteral("Every setting back to its default, as if the app had just been installed. "
                                     "Your saved macros aren't touched."));
@@ -628,6 +633,8 @@ QMenu* MainWindow::buildAddMenu(QWidget* parent)
     add(logic, QStringLiteral("If"), ActionType::If);
     add(logic, QStringLiteral("Else"), ActionType::Else);
     add(logic, QStringLiteral("End If"), ActionType::EndIf);
+    logic->addSeparator();
+    add(logic, QStringLiteral("Ask AI"), ActionType::AskAI);
     QMenu* other = menu->addMenu(QStringLiteral("Programs and Windows"));
     add(other, QStringLiteral("Window Focus"), ActionType::WindowFocus);
     add(other, QStringLiteral("Move / Resize Window"), ActionType::WindowMove);
@@ -1711,6 +1718,7 @@ void MainWindow::addAction(ActionType t, int variant)
     case ActionType::Repeat: a.count = 2; break;
     case ActionType::KeyPress: case ActionType::KeyDown: case ActionType::KeyUp: case ActionType::WaitKey: a.key = QStringLiteral("Enter"); break;
     case ActionType::AskText: a.var = QStringLiteral("answer"); break;
+    case ActionType::AskAI: a.var = QStringLiteral("answer"); a.ms = 60000; break;
     case ActionType::Group: a.label = QStringLiteral("Group %1").arg(groupCount() + 1); break;
     case ActionType::Screenshot: a.file = QStringLiteral("Screenshot {=now(\"yyyy-MM-dd HH.mm.ss\")}.png"); break;
     case ActionType::FindImage:
@@ -2503,6 +2511,136 @@ void MainWindow::checkForUpdates()
         log(text);
         QMessageBox::information(this, title, text);
     });
+}
+
+namespace {
+QString aiBase(const QString& url)
+{
+    QString b = url.trimmed();
+    while (b.endsWith(QLatin1Char('/'))) b.chop(1);
+    return b;
+}
+// What went wrong, in a sentence: no server, the server's own error message, or the network's
+QString aiError(QNetworkReply* r, const QByteArray& body, const QString& base)
+{
+    if (r->error() == QNetworkReply::ConnectionRefusedError || r->error() == QNetworkReply::HostNotFoundError)
+        return QStringLiteral("no AI server answered at %1. Start LM Studio's local server (its Developer tab), or set another "
+                              "server in File > Settings > AI Server…").arg(base);
+    if (r->error() == QNetworkReply::OperationCanceledError) return QStringLiteral("no answer from the AI server in time.");
+    const QJsonObject o = QJsonDocument::fromJson(body).object();
+    QString said = o.value(QStringLiteral("error")).isObject() ? o.value(QStringLiteral("error")).toObject().value(QStringLiteral("message")).toString()
+                                                               : o.value(QStringLiteral("error")).toString();
+    if (!said.isEmpty()) return QStringLiteral("the AI server said: %1").arg(said);
+    return r->errorString();
+}
+}  // namespace
+
+void MainWindow::askAI(const QString& prompt, int timeoutMs)
+{
+    if (!m_net) m_net = new QNetworkAccessManager(this);
+    const QString base = aiBase(m_s.aiUrl);
+    QNetworkRequest req(QUrl(base + QStringLiteral("/chat/completions")));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral(APP_NAME));
+    req.setTransferTimeout(timeoutMs);
+    QJsonObject body{{QStringLiteral("messages"), QJsonArray{QJsonObject{{QStringLiteral("role"), QStringLiteral("user")},
+                                                                          {QStringLiteral("content"), prompt}}}},
+                     {QStringLiteral("temperature"), 0.2},
+                     {QStringLiteral("stream"), false}};
+    if (!m_s.aiModel.trimmed().isEmpty()) body[QStringLiteral("model")] = m_s.aiModel.trimmed();
+    log(QStringLiteral("Ask AI: waiting for the answer from %1…").arg(base));
+    QNetworkReply* r = m_net->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    m_aiReply = r;
+    connect(r, &QNetworkReply::finished, this, [this, r, base] {
+        r->deleteLater();
+        if (m_aiReply == r) m_aiReply = nullptr;
+        const QByteArray data = r->readAll();
+        if (r->error() != QNetworkReply::NoError) { m_player->answerAI(aiError(r, data, base), false); return; }
+        const QJsonObject o = QJsonDocument::fromJson(data).object();
+        QString text = o.value(QStringLiteral("choices")).toArray().first().toObject().value(QStringLiteral("message")).toObject()
+                           .value(QStringLiteral("content")).toString();
+        // Models that think aloud put it in <think>…</think> first: only the answer is kept
+        static const QRegularExpression think(QStringLiteral("<think>.*?</think>"), QRegularExpression::DotMatchesEverythingOption);
+        text.remove(think);
+        text = text.trimmed();
+        if (text.isEmpty()) { m_player->answerAI(QStringLiteral("the AI server's answer was empty."), false); return; }
+        log(QStringLiteral("Ask AI: answered (%1 characters).").arg(text.size()), true);
+        m_player->answerAI(text, true);
+    });
+}
+
+void MainWindow::editAiServer()
+{
+    QDialog d(this);
+    d.setWindowTitle(QStringLiteral("AI Server"));
+    auto* lay = new QVBoxLayout(&d);
+    auto* intro = new QLabel(QStringLiteral("Ask AI steps send their questions here. Free and private: LM Studio (lmstudio.ai) runs "
+                                            "models on this PC; start its server in its Developer tab. Any server that speaks the "
+                                            "OpenAI API works too, for example Ollama at http://localhost:11434/v1."));
+    intro->setWordWrap(true);
+    lay->addWidget(intro);
+    auto* form = new QFormLayout;
+    form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    form->setHorizontalSpacing(12);
+    auto* url = new QLineEdit(m_s.aiUrl);
+    url->setPlaceholderText(QStringLiteral("http://localhost:1234/v1"));
+    auto* model = new QComboBox;
+    model->setEditable(true);
+    model->addItem(m_s.aiModel);
+    model->setCurrentText(m_s.aiModel);
+    model->lineEdit()->setPlaceholderText(QStringLiteral("empty: the model the server has loaded"));
+    auto* test = new QPushButton(QStringLiteral("List Models"));
+    test->setToolTip(QStringLiteral("Asks the server which models it has (nothing is loaded or downloaded)."));
+    auto* modelRow = new QWidget;
+    auto* mh = new QHBoxLayout(modelRow);
+    mh->setContentsMargins(0, 0, 0, 0);
+    mh->addWidget(model, 1);
+    mh->addWidget(test);
+    form->addRow(QStringLiteral("Server Address:"), url);
+    form->addRow(QStringLiteral("Model:"), modelRow);
+    lay->addLayout(form);
+    auto* status = new QLabel;
+    status->setObjectName(QStringLiteral("muted"));
+    status->setWordWrap(true);
+    status->setProperty("testId", QStringLiteral("aiStatus"));
+    lay->addWidget(status);
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    lay->addWidget(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, &d, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &d, &QDialog::reject);
+    connect(test, &QPushButton::clicked, &d, [this, url, model, status, test] {
+        if (!m_net) m_net = new QNetworkAccessManager(this);
+        const QString base = aiBase(url->text());
+        QNetworkRequest req(QUrl(base + QStringLiteral("/models")));
+        req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral(APP_NAME));
+        req.setTransferTimeout(10000);
+        status->setText(QStringLiteral("Asking %1…").arg(base));
+        test->setEnabled(false);
+        QNetworkReply* r = m_net->get(req);
+        connect(r, &QNetworkReply::finished, status, [r, base, model, status, test] {
+            r->deleteLater();
+            test->setEnabled(true);
+            const QByteArray data = r->readAll();
+            if (r->error() != QNetworkReply::NoError) { status->setText(QStringLiteral("Couldn't list the models: %1").arg(aiError(r, data, base))); return; }
+            QStringList ids;
+            for (const QJsonValue& v : QJsonDocument::fromJson(data).object().value(QStringLiteral("data")).toArray())
+                ids << v.toObject().value(QStringLiteral("id")).toString();
+            ids.removeAll(QString());
+            const QString keep = model->currentText();
+            model->clear();
+            model->addItem(QString());
+            model->addItems(ids);
+            model->setCurrentText(keep);
+            status->setText(ids.isEmpty() ? QStringLiteral("The server answered, but has no models.")
+                                          : QStringLiteral("The server has %1 model%2.").arg(ids.size()).arg(ids.size() == 1 ? QString() : QStringLiteral("s")));
+        });
+    });
+    d.resize(600, d.sizeHint().height());
+    if (d.exec() != QDialog::Accepted) return;
+    m_s.aiUrl = url->text().trimmed().isEmpty() ? Settings().aiUrl : url->text().trimmed();
+    m_s.aiModel = model->currentText().trimmed();
+    m_s.save(appdata::settingsFile());
+    log(QStringLiteral("AI server: %1%2.").arg(m_s.aiUrl, m_s.aiModel.isEmpty() ? QString() : QStringLiteral(" (") + m_s.aiModel + QLatin1Char(')')));
 }
 
 QDateTime MainWindow::now() const { return clockForTests ? clockForTests() : QDateTime::currentDateTime(); }

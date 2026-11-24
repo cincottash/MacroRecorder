@@ -77,6 +77,16 @@ void Player::answerAsk(const QString& text, bool ok)
     m_askOpen = false;
 }
 
+void Player::answerAI(const QString& text, bool ok)
+{
+    {
+        QMutexLocker l(&m_mx);
+        m_aiAnswer = text;
+    }
+    m_aiOk = ok;
+    m_aiOpen = false;
+}
+
 void Player::setClipboardCache(const QString& text)
 {
     QMutexLocker l(&m_mx);
@@ -491,6 +501,25 @@ bool Player::playAction(const Action& a, int index)
         setVar(a.var, Value::text(answer));
         break;
     }
+    case ActionType::AskAI: {
+        const QString prompt = sub(a.message);
+        m_aiOk = false;
+        m_aiOpen = true;
+        emit askAI(prompt, a.ms > 0 ? a.ms : 60000);
+        while (m_aiOpen)
+            if (!waitMs(20)) { m_aiOpen = false; return false; }
+        QString answer;
+        {
+            QMutexLocker l(&m_mx);
+            answer = m_aiAnswer;
+        }
+        if (!m_aiOk) {
+            m_stopWhy = QStringLiteral("Ask AI: %1").arg(answer);
+            return false;
+        }
+        setVar(a.var, Value::text(answer));
+        break;
+    }
     case ActionType::SetVariable: {
         Value v;
         QString e;
@@ -667,7 +696,7 @@ bool Player::playList(const QList<Action>& acts, int first, int last, int round,
         if (!playAction(a, pc)) return false;
         switch (a.type) {   // steps that wait for something outside: their end is a fresh start for the timing
         case ActionType::WindowFocus: case ActionType::WaitPixel: case ActionType::WaitKey: case ActionType::WaitFile:
-        case ActionType::FindImage: case ActionType::AskText: case ActionType::MessageBox: m_late = 0; break;
+        case ActionType::FindImage: case ActionType::AskText: case ActionType::MessageBox: case ActionType::AskAI: m_late = 0; break;
         default: break;
         }
         const QString problem = m_inj->takeProblem();

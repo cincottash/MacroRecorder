@@ -63,6 +63,8 @@ void fields(Settings& s, F&& f)
     f("last_folder", s.lastFolder);
     f("macro_hotkeys", s.macroHotkeys);
     f("schedules", s.schedules);
+    f("ai_url", s.aiUrl);
+    f("ai_model", s.aiModel);
 }
 
 const char* const kRepeats[] = {"once", "daily", "days", "minutes"};
@@ -233,12 +235,15 @@ void Settings::resetOptions()
     const QStringList keepThemes = customThemes;
     const QList<MacroHotkey> keepHotkeys = macroHotkeys;
     const QList<Schedule> keepSchedules = schedules;
+    const QString keepAiUrl = aiUrl, keepAiModel = aiModel;
     const QByteArray keepGeo = geometry, keepTable = tableState;
     *this = d;
     windowOpacity = keepOpacity;
     customThemes = keepThemes;
     macroHotkeys = keepHotkeys;
     schedules = keepSchedules;
+    aiUrl = keepAiUrl;
+    aiModel = keepAiModel;
     recent = keepRecent;
     lastFolder = keepFolder;
     theme = keepTheme;

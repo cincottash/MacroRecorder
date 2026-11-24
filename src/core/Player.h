@@ -42,6 +42,8 @@ public:
     void answerMessageBox() { m_boxOpen = false; }   // the user pressed OK on a Message box step
     // The user answered an Ask for Text step (ok false: cancelled, which stops playback).
     void answerAsk(const QString& text, bool ok);
+    // The AI server answered an Ask AI step (ok false: `text` says what went wrong; playback stops).
+    void answerAI(const QString& text, bool ok);
     // The clipboard's text, kept up to date by the window (the player's thread can't read the clipboard itself).
     void setClipboardCache(const QString& text);
     // The variables when playback ended (for the window's log and for tests). Read after finished().
@@ -65,6 +67,7 @@ signals:
     void notify(const QString& text);
     void messageBox(const QString& text);              // show it, then call answerMessageBox()
     void askText(const QString& question, const QString& defaultText);   // show it, then call answerAsk()
+    void askAI(const QString& prompt, int timeoutMs);  // send it to the AI server, then call answerAI()
     void clipboard(const QString& text);               // put this text on the clipboard
     void beep();
     void finished(bool stopped, const QString& why);
@@ -101,7 +104,8 @@ private:
     Scope m_scope;
     mutable QMutex m_mx;           // m_clipboard, m_answer, the variables after playback
     QString m_clipboard, m_answer;
-    std::atomic<bool> m_askOpen{false}, m_askOk{false};
+    std::atomic<bool> m_askOpen{false}, m_askOk{false}, m_aiOpen{false}, m_aiOk{false};
+    QString m_aiAnswer;            // guarded by m_mx
 };
 
 }  // namespace core

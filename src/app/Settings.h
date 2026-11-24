@@ -91,6 +91,10 @@ struct Settings {
     QList<MacroHotkey> macroHotkeys;
     QList<Schedule> schedules;
 
+    // Ask AI steps: an OpenAI-compatible server. The default is LM Studio's local server (free, on this PC).
+    QString aiUrl = QStringLiteral("http://localhost:1234/v1");
+    QString aiModel;   // empty: the server's loaded model
+
     // Files
     QStringList recent;
     QString lastFolder;

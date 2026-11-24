@@ -47,6 +47,7 @@ QString ActionModel::glyph(ActionType t)
     case ActionType::FindImage: return QStringLiteral("⌖");
     case ActionType::Screenshot: return QStringLiteral("⎙");
     case ActionType::SetClipboard: return QStringLiteral("⎘");
+    case ActionType::AskAI: return QStringLiteral("✦");
     }
     return {};
 }

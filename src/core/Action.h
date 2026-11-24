@@ -44,7 +44,9 @@ enum class ActionType {
     FindImage,    // look for a picture on the screen (image), optionally wait for it and click it
     Screenshot,   // save a picture of the screen (or a part of it) to a file
     SetClipboard, // put text on the clipboard
+    AskAI,        // send a prompt (message) to the AI server set in the settings; the answer goes into var
 };
+constexpr ActionType kLastActionType = ActionType::AskAI;
 
 enum class MouseButton { Left, Right, Middle, X1, X2 };
 enum class TitleMatch { Exact, StartsWith, Contains, Any };

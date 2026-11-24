@@ -28,7 +28,7 @@ constexpr TypeInfo kTypes[] = {
     {ActionType::AskText, "ask_text"},         {ActionType::Group, "group"},
     {ActionType::EndGroup, "end_group"},       {ActionType::WindowMove, "window_move"},
     {ActionType::FindImage, "find_image"},     {ActionType::Screenshot, "screenshot"},
-    {ActionType::SetClipboard, "set_clipboard"},
+    {ActionType::SetClipboard, "set_clipboard"}, {ActionType::AskAI, "ask_ai"},
 };
 
 const char* const kButtons[] = {"left", "right", "middle", "x1", "x2"};
@@ -148,6 +148,7 @@ QString Action::typeName() const
         return QStringLiteral("Find Image");
     case ActionType::Screenshot: return QStringLiteral("Save Screenshot");
     case ActionType::SetClipboard: return QStringLiteral("Set Clipboard");
+    case ActionType::AskAI: return QStringLiteral("Ask AI");
     }
     return {};
 }
@@ -229,6 +230,11 @@ QString Action::valueText() const
     }
     case ActionType::Screenshot: return file + (area.isEmpty() ? QString() : QStringLiteral(" · ") + rectText(area));
     case ActionType::SetClipboard: return text;
+    case ActionType::AskAI: {
+        QString p = message.simplified();
+        if (p.size() > 80) p = p.left(79) + QStringLiteral("…");
+        return QStringLiteral("“%1” → %2").arg(p, var);
+    }
     }
     return {};
 }
@@ -372,6 +378,11 @@ QJsonObject Action::toJson() const
         if (!area.isEmpty()) o[QStringLiteral("area")] = rectJson(area);
         break;
     case ActionType::SetClipboard: o[QStringLiteral("text")] = text; break;
+    case ActionType::AskAI:
+        o[QStringLiteral("message")] = message;
+        o[QStringLiteral("variable")] = var;
+        o[QStringLiteral("timeout_ms")] = ms;
+        break;
     }
     if (relativeToWindow) o[QStringLiteral("relative_to_window")] = true;
     return o;
