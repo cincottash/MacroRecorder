@@ -72,6 +72,8 @@ signals:
 private:
     void run();
     bool waitMs(double ms);              // sleeps, honoring pause and stop; false if stopped
+    bool waitPlanned(double ms);         // a planned pause, shortened by any time lost earlier (m_late)
+    double activeMs(const QElapsedTimer& t, qint64 pausedAtStart) const;   // t's time minus time spent paused since
     bool playAction(const Action& a, int index);
     // Plays acts[first..last] once; false if stopped. depth > 0: inside a "Run macro" step.
     bool playList(const QList<Action>& acts, int first, int last, int round, int rounds, int depth);
@@ -94,6 +96,8 @@ private:
     QElapsedTimer m_clock;
     int m_repeatDelay = 500, m_repeatInterval = 33;
     bool m_problemShown = false;   // mouse buttons pressed by MouseDown and not yet released
+    double m_late = 0;             // ms behind the recording's timing (slow input); taken out of the next planned pauses
+    qint64 m_pausedNs = 0;         // time spent paused during this playback
     Scope m_scope;
     mutable QMutex m_mx;           // m_clipboard, m_answer, the variables after playback
     QString m_clipboard, m_answer;

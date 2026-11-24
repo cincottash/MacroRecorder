@@ -255,6 +255,7 @@ bool Player::waitMs(double ms)
             p.start();
             while (m_paused && !m_stop) QThread::msleep(10);
             pausedFor += p.elapsed();
+            m_pausedNs += p.nsecsElapsed();
             continue;
         }
         const double left = ms - double(t.nsecsElapsed()) / 1e6 + double(pausedFor);
@@ -278,6 +279,19 @@ bool Player::waitMs(double ms)
     }
 }
 
+double Player::activeMs(const QElapsedTimer& t, qint64 pausedAtStart) const
+{
+    return double(t.nsecsElapsed() - (m_pausedNs - pausedAtStart)) / 1e6;
+}
+
+bool Player::waitPlanned(double ms)
+{
+    // Time lost earlier (input that took longer than recorded) comes off planned pauses, so it never adds up
+    const double cut = qMin(ms, m_late);
+    m_late -= cut;
+    return waitMs(ms - cut);
+}
+
 QPoint Player::target(const Action& a)
 {
     return a.relativeToWindow ? a.pos + m_inj->activeWindowOrigin() : a.pos;
@@ -287,11 +301,16 @@ bool Player::playAction(const Action& a, int index)
 {
     Q_UNUSED(index)
     const double sp = m_o.speed;
-    if (m_o.exactTiming && a.delayMs > 0 && !waitMs(a.delayMs / sp)) return false;
+    if (m_o.exactTiming && a.delayMs > 0 && !waitPlanned(a.delayMs / sp)) return false;
 
     auto moveInstant = [&](QPoint p) {
         if (m_inj->cursor() != p) m_inj->moveTo(p);
     };
+    // How long the input itself takes is measured: sending a click or a key can cost real time (Windows takes
+    // up to a timer tick per event when other programs watch the input), and over a macro that added up
+    QElapsedTimer stepClock;
+    stepClock.start();
+    const qint64 stepPaused = m_pausedNs;
 
     switch (a.type) {
     case ActionType::MouseMove: {
@@ -305,17 +324,19 @@ bool Player::playAction(const Action& a, int index)
         const auto pts = makePath(m_o.path, from, to, int(a.ms / sp), recorded, quint32(index * 7919 + 1));
         QElapsedTimer t;
         t.start();
+        const qint64 paused0 = m_pausedNs;
         const double scale = (m_o.path == PathStyle::AsRecorded && a.path.size() >= 2) ? 1.0 / sp : 1.0;
-        double elapsed = 0;
+        // Each point at its time on the real clock: moving the pointer takes a little time itself (more when another
+        // program watches the mouse), and counting only the planned waits let that time add up over a macro.
         for (const PathPoint& p : pts) {
-            const double due = p.t * scale;
-            if (due > elapsed && !waitMs(due - elapsed)) return false;
-            elapsed = qMax(elapsed, due);
+            const double due = p.t * scale, now = activeMs(t, paused0);
+            if (due > now && !waitMs(due - now)) return false;
             m_inj->moveTo(QPoint(p.x, p.y));
         }
         // The move's recorded time includes any rest at the end (pointer arrived, then a pause before the click).
-        const double total = a.ms / sp;
-        if (total > elapsed && !waitMs(total - elapsed)) return false;
+        const double total = a.ms / sp, now = activeMs(t, paused0);
+        if (total > now) { if (!waitMs(total - now)) return false; }
+        else m_late += now - total;
         break;
     }
     case ActionType::MouseClick:
@@ -364,13 +385,16 @@ bool Player::playAction(const Action& a, int index)
     case ActionType::Text: {
         const QString text = sub(a.text);   // with variables filled in, the recorded rhythm no longer fits
         if (m_o.typingAsRecorded && a.strokes.size() > 0 && text == a.text) {
-            double elapsed = 0;
-            for (const Stroke& s : a.strokes) {
-                const double due = s.t / sp;
-                if (due > elapsed && !waitMs(due - elapsed)) return false;
-                elapsed = qMax(elapsed, due);
+            QElapsedTimer t;
+            t.start();
+            const qint64 paused0 = m_pausedNs;
+            for (const Stroke& s : a.strokes) {   // on the real clock, like a mouse path
+                const double due = s.t / sp, now = activeMs(t, paused0);
+                if (due > now && !waitMs(due - now)) return false;
                 m_inj->typeText(s.ch);
             }
+            const double late = activeMs(t, paused0) - a.strokes.last().t / sp;
+            if (late > 0) m_late += late;
         } else {
             for (int i = 0; i < text.size(); ++i) {
                 QString ch = text.mid(i, 1);
@@ -384,7 +408,7 @@ bool Player::playAction(const Action& a, int index)
     case ActionType::Wait: {
         int ms = a.ms;
         if (a.maxMs > a.ms) ms = int(m_scope.random ? m_scope.random(a.ms, a.maxMs) : a.ms + QRandomGenerator::global()->bounded(a.maxMs - a.ms + 1));
-        if (!waitMs(ms / sp)) return false;
+        if (!waitPlanned(ms / sp)) return false;
         break;
     }
     case ActionType::WindowFocus: {
@@ -559,6 +583,24 @@ bool Player::playAction(const Action& a, int index)
     case ActionType::Repeat:
     case ActionType::Goto: break;  // handled by playList()
     }
+    // Clicks, keys and scrolling: the time beyond what they wait for themselves comes off the next planned pauses
+    double planned = -1;
+    switch (a.type) {
+    case ActionType::MouseClick: {
+        const double hold = a.holdMs > 0 ? qMax(8.0, a.holdMs / sp) : kClickHoldMs;
+        const double gap = a.gapMs > 0 ? a.gapMs / sp : kDoubleGapMs;
+        planned = a.clicks * hold + qMax(0, a.clicks - 1) * gap;
+        break;
+    }
+    case ActionType::KeyPress: planned = a.holdMs > 0 ? qMax(8.0, a.holdMs / sp) : kKeyHoldMs; break;
+    case ActionType::Wheel: planned = qMax(0, qAbs(a.notches) - 1) * (a.gapMs > 0 ? a.gapMs : kWheelGapMs) / sp; break;
+    case ActionType::MouseDown: case ActionType::MouseUp: case ActionType::KeyDown: case ActionType::KeyUp: planned = 0; break;
+    default: break;
+    }
+    if (planned >= 0) {
+        const double excess = activeMs(stepClock, stepPaused) - planned;
+        if (excess > 0) m_late += excess;
+    }
     return true;
 }
 
@@ -623,6 +665,11 @@ bool Player::playList(const QList<Action>& acts, int first, int last, int round,
             continue;
         }
         if (!playAction(a, pc)) return false;
+        switch (a.type) {   // steps that wait for something outside: their end is a fresh start for the timing
+        case ActionType::WindowFocus: case ActionType::WaitPixel: case ActionType::WaitKey: case ActionType::WaitFile:
+        case ActionType::FindImage: case ActionType::AskText: case ActionType::MessageBox: m_late = 0; break;
+        default: break;
+        }
         const QString problem = m_inj->takeProblem();
         if (!problem.isEmpty() && !m_problemShown) { m_problemShown = true; emit message(problem, true); }
         ++pc;
@@ -634,6 +681,8 @@ void Player::run()
 {
     m_inj->setPreciseTiming(true);
     m_problemShown = false;
+    m_late = 0;
+    m_pausedNs = 0;
     m_heldKeys.clear();
     m_clock.start();
     m_inj->keyRepeat(&m_repeatDelay, &m_repeatInterval);

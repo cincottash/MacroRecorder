@@ -2421,8 +2421,9 @@ void MainWindow::checkForUpdates()
         const bool dev = current.contains(QLatin1Char('-'));   // a local or test build, not a release
         const QString latestText = latest.toString();
         if (latest > mine || dev) {
-            const QString text = dev ? QStringLiteral("This is a test build (%1). The latest release is %2 %3.").arg(current, QStringLiteral(APP_NAME), latestText)
-                                     : QStringLiteral("%1 %2 is available. This is %3.").arg(QStringLiteral(APP_NAME), latestText, current);
+            // A no-break space keeps the name and its version on one line
+            const QString text = dev ? QStringLiteral("This is a test build (%1). The latest release is %2 %3.").arg(current, QStringLiteral(APP_NAME), latestText)
+                                     : QStringLiteral("%1 %2 is available. This is %3.").arg(QStringLiteral(APP_NAME), latestText, current);
             log(text);
             QMessageBox box(QMessageBox::Information, title, text, QMessageBox::Close, this);
             QPushButton* open = box.addButton(QStringLiteral("Open Download Page"), QMessageBox::AcceptRole);
@@ -2431,7 +2432,7 @@ void MainWindow::checkForUpdates()
             if (box.clickedButton() == open) QDesktopServices::openUrl(QUrl(page));
             return;
         }
-        const QString text = QStringLiteral("%1 %2 is the latest version.").arg(QStringLiteral(APP_NAME), current);
+        const QString text = QStringLiteral("%1 %2 is the latest version.").arg(QStringLiteral(APP_NAME), current);
         log(text);
         QMessageBox::information(this, title, text);
     });
