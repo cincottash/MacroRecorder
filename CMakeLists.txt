@@ -58,7 +58,7 @@ list(APPEND SOURCES ${APP_SOURCES})
 list(REMOVE_DUPLICATES SOURCES)
 
 if(WIN32)
-    list(APPEND SOURCES src/platform/win/WinBackend.cpp src/platform/win/WinKeys.cpp packaging/app.rc)
+    list(APPEND SOURCES src/platform/win/WinBackend.cpp src/platform/win/WinKeys.cpp src/platform/win/WinOcr.cpp packaging/app.rc)
     # The build doesn't see that app.rc uses icon.ico: without this, a new icon keeps the old one in the exe
     set_source_files_properties(packaging/app.rc PROPERTIES OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/packaging/icon.ico)
 else()
@@ -92,7 +92,7 @@ qt_add_resources(app resources PREFIX "/" BASE resources FILES
     resources/down_light.svg resources/down_dark.svg resources/up_light.svg resources/up_dark.svg)
 
 if(WIN32)
-    target_link_libraries(app PRIVATE user32 dwmapi winmm ole32 uuid)
+    target_link_libraries(app PRIVATE user32 dwmapi winmm ole32 uuid runtimeobject)
     target_compile_definitions(app PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
     if(MINGW)
         # No compiler runtime DLLs next to the exe; strip debug symbols from release builds.

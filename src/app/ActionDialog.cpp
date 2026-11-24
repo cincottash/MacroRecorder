@@ -69,6 +69,8 @@ QString describe(ActionType t)
                                                       "and click it wherever it is.");
     case ActionType::Screenshot: return QStringLiteral("Saves a picture of the screen, or a part of it, as a PNG file.");
     case ActionType::SetClipboard: return QStringLiteral("Puts text on the clipboard, ready to paste (Ctrl+V).");
+    case ActionType::FindText: return QStringLiteral("Reads the text on the screen, or looks for a word or phrase there and can "
+                                                     "wait for it and click it wherever it is.");
     case ActionType::AskAI: return QStringLiteral("Asks an AI model a question while playing and keeps the answer in a variable: "
                                                   "a reply to write, a summary, a decision for an If step.");
     }
@@ -368,7 +370,15 @@ void ActionDialog::build()
         m_image = m_a.image;
         setImage(QImage::fromData(m_a.image));
     }
-    if (t == ActionType::FindImage || t == ActionType::Screenshot) {
+    if (t == ActionType::FindText) {
+        m_default = new QLineEdit(m_a.text);
+        m_default->setPlaceholderText(QStringLiteral("e.g. Save As (empty: only read the text)"));
+        m_form->addRow(QStringLiteral("Text to Find:"), m_default);
+        m_var = new QLineEdit(m_a.var);
+        m_var->setPlaceholderText(QStringLiteral("optional, e.g. screen_text"));
+        m_form->addRow(QStringLiteral("Keep the Text In:"), m_var);
+    }
+    if (t == ActionType::FindImage || t == ActionType::Screenshot || t == ActionType::FindText) {
         m_lookIn = new QComboBox;
         m_lookIn->addItems({QStringLiteral("Every Screen"), QStringLiteral("This Area")});
         m_lookIn->setCurrentIndex(m_a.area.isEmpty() ? 0 : 1);
@@ -380,7 +390,7 @@ void ActionDialog::build()
         auto* pick = new QPushButton(QStringLiteral("Pick Area…"));
         pick->setToolTip(QStringLiteral("Shows a still picture of the screen: drag a box around the area."));
         connect(pick, &QPushButton::clicked, this, [this] { pickArea(); });
-        m_form->addRow(t == ActionType::FindImage ? QStringLiteral("Look In:") : QStringLiteral("Save:"), m_lookIn);
+        m_form->addRow(t == ActionType::Screenshot ? QStringLiteral("Save:") : QStringLiteral("Look In:"), m_lookIn);
         m_areaRow = hrow({m_ax, m_ay, m_aw, m_ah, pick});
         m_areaRow->setToolTip(QStringLiteral("X, Y, width and height in screen pixels."));
         m_form->addRow(QStringLiteral("Area:"), m_areaRow);
@@ -393,6 +403,8 @@ void ActionDialog::build()
         m_tol->setToolTip(QStringLiteral("How different the screen may be from the picture: 0 % = exactly the same pixels. "
                                          "10 % allows small changes, such as a button lit up under the pointer."));
         m_form->addRow(QStringLiteral("Tolerance:"), m_tol);
+    }
+    if (t == ActionType::FindImage || t == ActionType::FindText) {
         m_findDo = new QComboBox;
         m_findDo->addItems({QStringLiteral("Nothing (Only Find It)"), QStringLiteral("Move the Pointer to It"), QStringLiteral("Click It"),
                             QStringLiteral("Double-Click It"), QStringLiteral("Right-Click It")});
@@ -403,7 +415,8 @@ void ActionDialog::build()
         m_form->addRow(QStringLiteral("Offset From Center:"), hrow({m_ox, m_oy}));
         m_ms = spin(0, 86400, m_a.ms / 1000, QStringLiteral("s"));
         m_ms->setSpecialValueText(QStringLiteral("Look Once"));
-        m_ms->setToolTip(QStringLiteral("Keeps looking until the picture appears, up to this long."));
+        m_ms->setToolTip(t == ActionType::FindText ? QStringLiteral("Keeps reading the screen until the text appears, up to this long.")
+                                                   : QStringLiteral("Keeps looking until the picture appears, up to this long."));
         m_form->addRow(QStringLiteral("Wait Up To:"), m_ms);
         m_waitGone = new QCheckBox(QStringLiteral("Wait Until It's Gone Instead"));
         m_waitGone->setChecked(m_a.waitGone);
@@ -417,8 +430,12 @@ void ActionDialog::build()
         };
         connect(m_waitGone, &QCheckBox::toggled, this, sync);
         sync();
-        m_form->addRow(QString(), note(QStringLiteral("Afterwards found is 1 (or 0 if it wasn't found), and found_x, found_y "
-                                                      "hold its position: use them in an If step.")));
+        m_form->addRow(QString(), note(t == ActionType::FindText
+            ? QStringLiteral("Reads the screen with the system's text recognition (case and spaces don't matter). Afterwards "
+                             "found is 1 (or 0), and found_x, found_y hold the text's position. A small area reads faster "
+                             "and more reliably than the whole screen.")
+            : QStringLiteral("Afterwards found is 1 (or 0 if it wasn't found), and found_x, found_y hold its position: use "
+                             "them in an If step.")));
     }
     if (t == ActionType::AskAI) {
         m_text = new QPlainTextEdit(m_a.message);
@@ -720,7 +737,8 @@ void ActionDialog::accept()
     }
     if (m_ms) {
         const bool seconds = t == ActionType::WindowFocus || t == ActionType::WaitPixel || t == ActionType::WaitKey || t == ActionType::WaitFile
-                             || t == ActionType::WindowMove || t == ActionType::FindImage || t == ActionType::AskAI;
+                             || t == ActionType::WindowMove || t == ActionType::FindImage || t == ActionType::AskAI
+                             || t == ActionType::FindText;
         a.ms = seconds ? m_ms->value() * 1000 : m_ms->value();
         if (t == ActionType::MouseMove && a.ms != m_a.ms) a.path.clear();  // a new duration can't keep the recorded path
     }
@@ -743,8 +761,8 @@ void ActionDialog::accept()
     }
     if (m_var) {
         a.var = m_var->text().trimmed();
-        if (a.var.isEmpty()) return fail(QStringLiteral("Enter the variable's name."));
-        if (!core::expr::isName(a.var))
+        if (a.var.isEmpty() && t != ActionType::FindText) return fail(QStringLiteral("Enter the variable's name."));
+        if (!a.var.isEmpty() && !core::expr::isName(a.var))
             return fail(QStringLiteral("“%1” can't be a variable's name: use letters, digits and _, starting with a letter "
                                        "(for example count or file_2).").arg(a.var));
     }
@@ -756,11 +774,15 @@ void ActionDialog::accept()
         QString e;
         if (!a.expr.isEmpty() && !core::expr::check(a.expr, &e)) return fail(e);
     }
-    if (m_default) a.text = m_default->text();
+    if (m_default) a.text = t == ActionType::FindText ? m_default->text().trimmed() : m_default->text();
+    if (t == ActionType::FindText && a.text.isEmpty() && a.var.isEmpty())
+        return fail(QStringLiteral("Enter the text to find, or a variable to keep the text read in."));
     if (t == ActionType::FindImage) {
         if (m_image.isEmpty()) return fail(QStringLiteral("Capture the picture to find from the screen first (or load it from a file)."));
         a.image = m_image;
         a.tolerance = m_tol->value();
+    }
+    if (m_findDo) {
         a.findDo = core::FindDo(m_findDo->currentIndex());
         a.offset = QPoint(m_ox->value(), m_oy->value());
         a.waitGone = m_waitGone->isChecked();

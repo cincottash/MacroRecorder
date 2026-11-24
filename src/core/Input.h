@@ -31,6 +31,13 @@ struct RawEvent {
     QPoint windowOrigin{INT_MIN, INT_MIN};
 };
 
+// A word read from a picture of the screen (Find Text steps): its text, where it is in the picture, its line.
+struct TextWord {
+    QString text;
+    QRect box;
+    int line = 0;
+};
+
 class Injector {
 public:
     virtual ~Injector() = default;
@@ -67,6 +74,13 @@ public:
     }
     virtual QRect screenBounds() { return {}; }                  // every screen together, in screen pixels
     virtual QImage grabScreen(const QRect& r) { Q_UNUSED(r) return {}; }   // screen pixels; null: not supported here
+    // Reads the words in a picture (the system's text recognition). False with the reason if it can't.
+    virtual bool readText(const QImage& img, QVector<TextWord>* words, QString* error)
+    {
+        Q_UNUSED(img) Q_UNUSED(words)
+        if (error) *error = QStringLiteral("Reading text from the screen isn't available on this system.");
+        return false;
+    }
 };
 
 }  // namespace core

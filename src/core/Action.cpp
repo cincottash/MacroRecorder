@@ -29,6 +29,7 @@ constexpr TypeInfo kTypes[] = {
     {ActionType::EndGroup, "end_group"},       {ActionType::WindowMove, "window_move"},
     {ActionType::FindImage, "find_image"},     {ActionType::Screenshot, "screenshot"},
     {ActionType::SetClipboard, "set_clipboard"}, {ActionType::AskAI, "ask_ai"},
+    {ActionType::FindText, "find_text"},
 };
 
 const char* const kButtons[] = {"left", "right", "middle", "x1", "x2"};
@@ -149,6 +150,17 @@ QString Action::typeName() const
     case ActionType::Screenshot: return QStringLiteral("Save Screenshot");
     case ActionType::SetClipboard: return QStringLiteral("Set Clipboard");
     case ActionType::AskAI: return QStringLiteral("Ask AI");
+    case ActionType::FindText:
+        if (text.isEmpty()) return QStringLiteral("Read Text");
+        if (waitGone) return QStringLiteral("Wait for Text to Go");
+        switch (findDo) {
+        case FindDo::Click: return QStringLiteral("Click Text");
+        case FindDo::DoubleClick: return QStringLiteral("Double-Click Text");
+        case FindDo::RightClick: return QStringLiteral("Right-Click Text");
+        case FindDo::Move: return QStringLiteral("Point at Text");
+        case FindDo::Nothing: break;
+        }
+        return ms > 0 ? QStringLiteral("Wait for Text") : QStringLiteral("Find Text");
     }
     return {};
 }
@@ -234,6 +246,13 @@ QString Action::valueText() const
         QString p = message.simplified();
         if (p.size() > 80) p = p.left(79) + QStringLiteral("…");
         return QStringLiteral("“%1” → %2").arg(p, var);
+    }
+    case ActionType::FindText: {
+        const QString where = area.isEmpty() ? QStringLiteral("anywhere on screen") : QStringLiteral("in ") + rectText(area);
+        QString s = text.isEmpty() ? where : QStringLiteral("“%1” %2").arg(text, where);
+        if (ms > 0) s += QStringLiteral(" · wait up to ") + msText(ms);
+        if (!var.isEmpty()) s += QStringLiteral(" → ") + var;
+        return s;
     }
     }
     return {};
@@ -382,6 +401,16 @@ QJsonObject Action::toJson() const
         o[QStringLiteral("message")] = message;
         o[QStringLiteral("variable")] = var;
         o[QStringLiteral("timeout_ms")] = ms;
+        break;
+    case ActionType::FindText:
+        if (!text.isEmpty()) o[QStringLiteral("text")] = text;
+        if (!var.isEmpty()) o[QStringLiteral("variable")] = var;
+        if (!area.isEmpty()) o[QStringLiteral("area")] = rectJson(area);
+        o[QStringLiteral("timeout_ms")] = ms;
+        o[QStringLiteral("do")] = QString::fromLatin1(kFindDo[int(findDo)]);
+        if (!offset.isNull()) o[QStringLiteral("offset")] = point(offset);
+        if (waitGone) o[QStringLiteral("wait_gone")] = true;
+        if (stopIfMissing) o[QStringLiteral("stop_if_missing")] = true;
         break;
     }
     if (relativeToWindow) o[QStringLiteral("relative_to_window")] = true;

@@ -198,18 +198,7 @@ bool Player::findImage(const Action& a)
             setVar(QStringLiteral("found_x"), Value::number(at.x()));
             setVar(QStringLiteral("found_y"), Value::number(at.y()));
             emit detail(QStringLiteral("Picture found at %1, %2 px (difference %3 %).").arg(at.x()).arg(at.y()).arg(m.score / 2.55, 0, 'f', 1));
-            if (a.findDo == FindDo::Nothing) return true;
-            if (m_inj->cursor() != at) m_inj->moveTo(at);
-            if (a.findDo == FindDo::Move) return true;
-            const MouseButton b = a.findDo == FindDo::RightClick ? MouseButton::Right : MouseButton::Left;
-            const int clicks = a.findDo == FindDo::DoubleClick ? 2 : 1;
-            for (int i = 0; i < clicks; ++i) {
-                if (i > 0 && !waitMs(kDoubleGapMs)) return false;
-                m_inj->button(b, true);
-                if (!waitMs(kClickHoldMs)) { m_inj->button(b, false); return false; }
-                m_inj->button(b, false);
-            }
-            return true;
+            return actAt(a, at);
         }
         if (t.elapsed() >= a.ms) break;
         if (!waitMs(qMin<qint64>(200, qMax<qint64>(1, a.ms - t.elapsed())))) return false;
@@ -226,6 +215,71 @@ bool Player::findImage(const Action& a)
         return false;
     }
     emit message(QStringLiteral("%1: the picture wasn't found; continuing (found = 0).").arg(a.typeName()), true);
+    return true;
+}
+
+bool Player::actAt(const Action& a, QPoint at)
+{
+    if (a.findDo == FindDo::Nothing) return true;
+    if (m_inj->cursor() != at) m_inj->moveTo(at);
+    if (a.findDo == FindDo::Move) return true;
+    const MouseButton b = a.findDo == FindDo::RightClick ? MouseButton::Right : MouseButton::Left;
+    const int clicks = a.findDo == FindDo::DoubleClick ? 2 : 1;
+    for (int i = 0; i < clicks; ++i) {
+        if (i > 0 && !waitMs(kDoubleGapMs)) return false;
+        m_inj->button(b, true);
+        if (!waitMs(kClickHoldMs)) { m_inj->button(b, false); return false; }
+        m_inj->button(b, false);
+    }
+    return true;
+}
+
+bool Player::findText(const Action& a)
+{
+    const QRect area = a.area.isEmpty() ? m_inj->screenBounds() : a.area;
+    const QString phrase = sub(a.text);
+    QElapsedTimer t;
+    t.start();
+    while (true) {
+        const QImage shot = m_inj->grabScreen(area);
+        if (shot.isNull()) {
+            emit message(QStringLiteral("%1: pictures of the screen can't be taken here; skipped.").arg(a.typeName()), true);
+            setVar(QStringLiteral("found"), Value::number(0));
+            return true;
+        }
+        QVector<TextWord> words;
+        QString err;
+        if (!m_inj->readText(shot, &words, &err)) {   // can't read at all: later steps would act on nothing
+            m_stopWhy = QStringLiteral("%1: %2").arg(a.typeName(), err);
+            return false;
+        }
+        if (!a.var.isEmpty()) setVar(a.var, Value::text(joinText(words)));
+        if (phrase.isEmpty()) return true;   // Read Text
+        const QRect box = findPhrase(words, phrase);
+        if (a.waitGone && box.isEmpty()) { setVar(QStringLiteral("found"), Value::number(0)); return true; }
+        if (!a.waitGone && !box.isEmpty()) {
+            const QPoint at = area.topLeft() + box.center() + a.offset;
+            setVar(QStringLiteral("found"), Value::number(1));
+            setVar(QStringLiteral("found_x"), Value::number(at.x()));
+            setVar(QStringLiteral("found_y"), Value::number(at.y()));
+            emit detail(QStringLiteral("“%1” found at %2, %3 px.").arg(phrase).arg(at.x()).arg(at.y()));
+            return actAt(a, at);
+        }
+        if (t.elapsed() >= a.ms) break;
+        if (!waitMs(qMin<qint64>(250, qMax<qint64>(1, a.ms - t.elapsed())))) return false;
+    }
+    const QString secs = QString::number(a.ms / 1000.0, 'f', 1);
+    if (a.waitGone) {
+        emit message(QStringLiteral("%1: “%2” was still there after %3 s; continuing.").arg(a.typeName(), phrase, secs), true);
+        return true;
+    }
+    setVar(QStringLiteral("found"), Value::number(0));
+    if (a.stopIfMissing) {
+        m_stopWhy = a.ms > 0 ? QStringLiteral("“%1” wasn't found on the screen within %2 s.").arg(phrase, secs)
+                             : QStringLiteral("“%1” wasn't on the screen.").arg(phrase);
+        return false;
+    }
+    emit message(QStringLiteral("%1: “%2” wasn't found; continuing (found = 0).").arg(a.typeName(), phrase), true);
     return true;
 }
 
@@ -553,6 +607,7 @@ bool Player::playAction(const Action& a, int index)
         break;
     }
     case ActionType::FindImage: return findImage(a);
+    case ActionType::FindText: return findText(a);
     case ActionType::Screenshot: return saveScreenshot(a);
     case ActionType::If:
     case ActionType::Else:
@@ -696,7 +751,8 @@ bool Player::playList(const QList<Action>& acts, int first, int last, int round,
         if (!playAction(a, pc)) return false;
         switch (a.type) {   // steps that wait for something outside: their end is a fresh start for the timing
         case ActionType::WindowFocus: case ActionType::WaitPixel: case ActionType::WaitKey: case ActionType::WaitFile:
-        case ActionType::FindImage: case ActionType::AskText: case ActionType::MessageBox: case ActionType::AskAI: m_late = 0; break;
+        case ActionType::FindImage: case ActionType::AskText: case ActionType::MessageBox: case ActionType::AskAI:
+        case ActionType::FindText: m_late = 0; break;
         default: break;
         }
         const QString problem = m_inj->takeProblem();

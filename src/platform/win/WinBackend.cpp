@@ -3,6 +3,7 @@
 // so the GUI being busy never delays (or drops) input.
 #include "platform/Backend.h"
 #include "WinKeys.h"
+#include "WinOcr.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -219,6 +220,10 @@ public:
         if (title) *title = titleOf(h);
         if (frame) *frame = QRect(QPoint(fr.left, fr.top), QPoint(fr.right - 1, fr.bottom - 1));
         return true;
+    }
+    bool readText(const QImage& img, QVector<core::TextWord>* words, QString* error) override
+    {
+        return win::recognizeText(img, words, error);
     }
     QRect screenBounds() override
     {

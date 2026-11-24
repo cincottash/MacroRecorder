@@ -72,7 +72,8 @@ const QString kRepoUrl = QStringLiteral("https://github.com/cincottash/MacroReco
 const QString kMime = QStringLiteral("application/x-" APP_NAME "-actions");
 const QString kExt = QStringLiteral("macro");
 enum HotkeyId { HkRecord = 1, HkPlay = 2, HkStop = 3, HkNewRecording = 4, HkPlayFrom = 5, HkPlaySelection = 6, HkCapture = 7 };
-constexpr int kWaitForImage = 100;   // addAction() variant: a Find Image step that waits for its picture
+constexpr int kWaitForImage = 100;   // addAction() variant: a Find Image (or Find Text) step that waits for it
+constexpr int kReadText = 101;       // addAction() variant: a Find Text step that only reads the text
 constexpr int kMacroHotkeyBase = 100;   // Macro > Macro Hotkeys: hotkey ids 100, 101, ...
 
 // A ring on the screen at the selected step's position. Click-through, never takes focus.
@@ -601,8 +602,13 @@ QMenu* MainWindow::buildAddMenu(QWidget* parent)
         connect(a, &QAction::triggered, this, [this, what] { addAction(ActionType::FindImage, int(what)); });
     };
     QMenu* mouse = menu->addMenu(QStringLiteral("Mouse"));
+    auto addText = [&](QMenu* m, const QString& text, int variant) {
+        QAction* a = m->addAction(text);
+        connect(a, &QAction::triggered, this, [this, variant] { addAction(ActionType::FindText, variant); });
+    };
     add(mouse, QStringLiteral("Click"), ActionType::MouseClick);
     addImage(mouse, QStringLiteral("Click Image"), core::FindDo::Click);
+    addText(mouse, QStringLiteral("Click Text"), int(core::FindDo::Click));
     add(mouse, QStringLiteral("Move"), ActionType::MouseMove);
     add(mouse, QStringLiteral("Scroll"), ActionType::Wheel);
     add(mouse, QStringLiteral("Button Down (Start a Drag)"), ActionType::MouseDown);
@@ -618,6 +624,7 @@ QMenu* MainWindow::buildAddMenu(QWidget* parent)
         QAction* a = wait->addAction(QStringLiteral("Wait for Image"));
         connect(a, &QAction::triggered, this, [this] { addAction(ActionType::FindImage, kWaitForImage); });
     }
+    addText(wait, QStringLiteral("Wait for Text"), kWaitForImage);
     add(wait, QStringLiteral("Wait for Pixel Color"), ActionType::WaitPixel);
     add(wait, QStringLiteral("Wait for Key"), ActionType::WaitKey);
     add(wait, QStringLiteral("Wait for File"), ActionType::WaitFile);
@@ -634,6 +641,7 @@ QMenu* MainWindow::buildAddMenu(QWidget* parent)
     add(logic, QStringLiteral("Else"), ActionType::Else);
     add(logic, QStringLiteral("End If"), ActionType::EndIf);
     logic->addSeparator();
+    addText(logic, QStringLiteral("Read Text From Screen"), kReadText);
     add(logic, QStringLiteral("Ask AI"), ActionType::AskAI);
     QMenu* other = menu->addMenu(QStringLiteral("Programs and Windows"));
     add(other, QStringLiteral("Window Focus"), ActionType::WindowFocus);
@@ -1719,6 +1727,18 @@ void MainWindow::addAction(ActionType t, int variant)
     case ActionType::KeyPress: case ActionType::KeyDown: case ActionType::KeyUp: case ActionType::WaitKey: a.key = QStringLiteral("Enter"); break;
     case ActionType::AskText: a.var = QStringLiteral("answer"); break;
     case ActionType::AskAI: a.var = QStringLiteral("answer"); a.ms = 60000; break;
+    case ActionType::FindText:
+        if (variant == kReadText) {
+            a.var = QStringLiteral("screen_text");
+        } else if (variant == kWaitForImage) {
+            a.ms = 30000;
+            a.stopIfMissing = true;
+        } else {
+            a.findDo = core::FindDo(qBound(0, variant, int(core::FindDo::RightClick)));
+            a.ms = a.findDo == core::FindDo::Nothing ? 0 : 10000;
+            a.stopIfMissing = a.findDo != core::FindDo::Nothing;
+        }
+        break;
     case ActionType::Group: a.label = QStringLiteral("Group %1").arg(groupCount() + 1); break;
     case ActionType::Screenshot: a.file = QStringLiteral("Screenshot {=now(\"yyyy-MM-dd HH.mm.ss\")}.png"); break;
     case ActionType::FindImage:

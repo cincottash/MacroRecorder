@@ -3,6 +3,7 @@
 #include <QVector>
 
 #include <algorithm>
+#include <climits>
 #include <cstdlib>
 
 namespace core {
@@ -113,6 +114,60 @@ ImageMatch findImage(const QImage& haystackIn, const QImage& needleIn, int toler
         }
     }
     return best;
+}
+
+namespace {
+QString squash(const QString& s)
+{
+    QString out;
+    out.reserve(s.size());
+    for (QChar c : s)
+        if (!c.isSpace()) out += c.toCaseFolded();
+    return out;
+}
+QVector<TextWord> readingOrder(const QVector<TextWord>& words)
+{
+    QVector<TextWord> w = words;
+    std::stable_sort(w.begin(), w.end(), [](const TextWord& a, const TextWord& b) {
+        return a.line != b.line ? a.line < b.line : a.box.x() < b.box.x();
+    });
+    return w;
+}
+}  // namespace
+
+QRect findPhrase(const QVector<TextWord>& words, const QString& phrase)
+{
+    const QString want = squash(phrase);
+    if (want.isEmpty()) return {};
+    const QVector<TextWord> w = readingOrder(words);
+    for (int i = 0; i < w.size(); ++i) {
+        const int first = int(squash(w[i].text).size());
+        QString run;
+        for (int j = i; j < w.size() && j < i + 40; ++j) {
+            run += squash(w[j].text);
+            const int at = int(run.indexOf(want));
+            if (at >= 0) {
+                if (at >= first) break;   // it starts in a later word: found from that word instead
+                QRect box = w[i].box;
+                for (int k = i + 1; k <= j; ++k) box = box.united(w[k].box);
+                return box;
+            }
+            if (run.size() > want.size() + first) break;   // longer than the phrase can reach from this word
+        }
+    }
+    return {};
+}
+
+QString joinText(const QVector<TextWord>& words)
+{
+    QString out;
+    int line = INT_MIN;
+    for (const TextWord& t : readingOrder(words)) {
+        if (line != INT_MIN) out += t.line == line ? QStringLiteral(" ") : QStringLiteral("\n");
+        out += t.text;
+        line = t.line;
+    }
+    return out;
 }
 
 }  // namespace core

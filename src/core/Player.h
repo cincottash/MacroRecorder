@@ -84,6 +84,8 @@ private:
     QString sub(const QString& text);              // {name} and {=expression}, problems reported once per step
     bool condition(const QString& expr, const QString& what);   // false on errors (reported)
     bool findImage(const Action& a);
+    bool findText(const Action& a);
+    bool actAt(const Action& a, QPoint at);   // a Find step's "Then": point at it, click it...
     bool saveScreenshot(const Action& a);
     void setVar(const QString& name, const Value& v);
 
