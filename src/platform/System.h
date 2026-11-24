@@ -23,6 +23,11 @@ void beep();
 QChar listSeparator();
 // Windows: centre a top-level window on a point given in physical screen pixels (exact on scaled screens).
 bool centerWindowAt(quintptr windowId, QPoint physical);
+// A shortcut that starts `program` with `args`: a .lnk file on Windows, a .desktop file elsewhere. `path` is the
+// shortcut file to write (its extension included). False with the reason in `error`.
+bool createShortcut(const QString& path, const QString& program, const QStringList& args, const QString& description,
+                    QString* error);
+QString shortcutExtension();   // ".lnk" on Windows, ".desktop" elsewhere
 }  // namespace sys
 
 }  // namespace platform

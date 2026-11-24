@@ -65,7 +65,7 @@ private:
     qint64 m_textStart = 0, m_textLast = 0;
 
     // buttons held: button -> (press position, time, already emitted as MouseDown)
-    struct Held { QPoint pos; qint64 t = 0; bool emitted = false; QPoint origin = kNoOrigin; };
+    struct Held { QPoint pos; qint64 t = 0; bool emitted = false; QPoint origin = kNoOrigin; QImage around; QPoint aroundAt; };
     QHash<int, Held> m_down;
 
     // last emitted action (for double-click / wheel merging)

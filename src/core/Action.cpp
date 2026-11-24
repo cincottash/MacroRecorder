@@ -23,12 +23,33 @@ constexpr TypeInfo kTypes[] = {
     {ActionType::Notify, "notify"},           {ActionType::WaitFile, "wait_file"},
     {ActionType::MessageBox, "message_box"},  {ActionType::Beep, "beep"},
     {ActionType::RunMacro, "run_macro"},
+    {ActionType::SetVariable, "set_variable"}, {ActionType::If, "if"},
+    {ActionType::Else, "else"},                {ActionType::EndIf, "end_if"},
+    {ActionType::AskText, "ask_text"},         {ActionType::Group, "group"},
+    {ActionType::EndGroup, "end_group"},       {ActionType::WindowMove, "window_move"},
+    {ActionType::FindImage, "find_image"},     {ActionType::Screenshot, "screenshot"},
+    {ActionType::SetClipboard, "set_clipboard"}, {ActionType::AskAI, "ask_ai"},
+    {ActionType::FindText, "find_text"},
 };
 
 const char* const kButtons[] = {"left", "right", "middle", "x1", "x2"};
 const char* const kMatches[] = {"exact", "starts_with", "contains", "any"};
 const char* const kRepeat[] = {"times", "seconds", "forever"};
 const char* const kFileWhen[] = {"exists", "gone", "changed"};
+const char* const kWindowStates[] = {"normal", "maximized", "minimized", "restore"};
+const char* const kFindDo[] = {"nothing", "move", "click", "double_click", "right_click"};
+
+QJsonArray rectJson(const QRect& r) { return QJsonArray{r.x(), r.y(), r.width(), r.height()}; }
+QRect rectFrom(const QJsonValue& v)
+{
+    const QJsonArray a = v.toArray();
+    if (a.size() != 4) return {};
+    return QRect(a.at(0).toInt(), a.at(1).toInt(), qMax(0, a.at(2).toInt()), qMax(0, a.at(3).toInt()));
+}
+QString rectText(const QRect& r)
+{
+    return QStringLiteral("%1, %2 · %3 × %4").arg(r.x()).arg(r.y()).arg(r.width()).arg(r.height());
+}
 
 template <typename E, size_t N>
 E enumFrom(const QString& s, const char* const (&names)[N], E fallback)
@@ -108,6 +129,38 @@ QString Action::typeName() const
     case ActionType::MessageBox: return QStringLiteral("Message Box");
     case ActionType::Beep: return QStringLiteral("Beep");
     case ActionType::RunMacro: return QStringLiteral("Run Macro");
+    case ActionType::SetVariable: return QStringLiteral("Set Variable");
+    case ActionType::If: return QStringLiteral("If");
+    case ActionType::Else: return QStringLiteral("Else");
+    case ActionType::EndIf: return QStringLiteral("End If");
+    case ActionType::AskText: return QStringLiteral("Ask for Text");
+    case ActionType::Group: return QStringLiteral("Group");
+    case ActionType::EndGroup: return QStringLiteral("End Group");
+    case ActionType::WindowMove: return QStringLiteral("Move / Resize Window");
+    case ActionType::FindImage:
+        if (waitGone) return QStringLiteral("Wait for Image to Go");
+        switch (findDo) {
+        case FindDo::Click: return QStringLiteral("Click Image");
+        case FindDo::DoubleClick: return QStringLiteral("Double-Click Image");
+        case FindDo::RightClick: return QStringLiteral("Right-Click Image");
+        case FindDo::Move: return QStringLiteral("Point at Image");
+        case FindDo::Nothing: break;
+        }
+        return QStringLiteral("Find Image");
+    case ActionType::Screenshot: return QStringLiteral("Save Screenshot");
+    case ActionType::SetClipboard: return QStringLiteral("Set Clipboard");
+    case ActionType::AskAI: return QStringLiteral("Ask AI");
+    case ActionType::FindText:
+        if (text.isEmpty()) return QStringLiteral("Read Text");
+        if (waitGone) return QStringLiteral("Wait for Text to Go");
+        switch (findDo) {
+        case FindDo::Click: return QStringLiteral("Click Text");
+        case FindDo::DoubleClick: return QStringLiteral("Double-Click Text");
+        case FindDo::RightClick: return QStringLiteral("Right-Click Text");
+        case FindDo::Move: return QStringLiteral("Point at Text");
+        case FindDo::Nothing: break;
+        }
+        return ms > 0 ? QStringLiteral("Wait for Text") : QStringLiteral("Find Text");
     }
     return {};
 }
@@ -120,7 +173,7 @@ QString Action::valueText() const
     case ActionType::MouseMove:
         return QStringLiteral("%1, %2 → %3").arg(from.x()).arg(from.y()).arg(at)
                + (ms > 0 ? QStringLiteral(" · ") + msText(ms) : QString());
-    case ActionType::MouseClick:
+    case ActionType::MouseClick: return image.isEmpty() ? at : at + QStringLiteral(" · finds its picture");
     case ActionType::MouseDown:
     case ActionType::MouseUp: return at;
     case ActionType::Wheel: {
@@ -131,7 +184,8 @@ QString Action::valueText() const
     case ActionType::KeyDown:
     case ActionType::KeyUp: return combo(mods, key);
     case ActionType::Text: return text;
-    case ActionType::Wait: return msText(ms);
+    case ActionType::Wait:
+        return maxMs > ms ? QStringLiteral("%1 to %2 (random)").arg(msText(ms), msText(maxMs)) : msText(ms);
     case ActionType::WindowFocus: {
         QString s = exe.isEmpty() ? QStringLiteral("any program") : exe;
         if (titleMatch != TitleMatch::Any && !title.isEmpty()) s += QStringLiteral(" · ") + title;
@@ -150,7 +204,8 @@ QString Action::valueText() const
         }
         return QStringLiteral("from “%1” %2").arg(target, how);
     }
-    case ActionType::Goto: return QStringLiteral("“%1”").arg(target);
+    case ActionType::Goto:
+        return QStringLiteral("“%1”").arg(target) + (expr.trimmed().isEmpty() ? QString() : QStringLiteral(" if ") + expr.trimmed());
     case ActionType::RunProgram: return arguments.isEmpty() ? program : program + QLatin1Char(' ') + arguments;
     case ActionType::Notify:
     case ActionType::MessageBox: return message;
@@ -161,6 +216,44 @@ QString Action::valueText() const
     }
     case ActionType::Beep: return {};
     case ActionType::RunMacro: return file;
+    case ActionType::SetVariable: return QStringLiteral("%1 = %2").arg(var, expr);
+    case ActionType::If: return expr;
+    case ActionType::Else:
+    case ActionType::EndIf:
+    case ActionType::Group:   // the list adds the group's name and size
+    case ActionType::EndGroup: return {};
+    case ActionType::AskText: return QStringLiteral("“%1” → %2").arg(message, var);
+    case ActionType::WindowMove: {
+        QString s = exe.isEmpty() ? QStringLiteral("active window") : exe;
+        if (titleMatch != TitleMatch::Any && !title.isEmpty()) s += QStringLiteral(" · ") + title;
+        switch (windowState) {
+        case WindowState::Normal: return s + QStringLiteral(" → ") + rectText(rect);
+        case WindowState::Maximized: return s + QStringLiteral(" → maximize");
+        case WindowState::Minimized: return s + QStringLiteral(" → minimize");
+        case WindowState::Restore: return s + QStringLiteral(" → restore");
+        }
+        return s;
+    }
+    case ActionType::FindImage: {
+        QString s = area.isEmpty() ? QStringLiteral("anywhere on screen") : QStringLiteral("in ") + rectText(area);
+        if (ms > 0) s += QStringLiteral(" · wait up to ") + msText(ms);
+        if (!offset.isNull()) s += QStringLiteral(" · offset %1, %2 px").arg(offset.x()).arg(offset.y());
+        return s;
+    }
+    case ActionType::Screenshot: return file + (area.isEmpty() ? QString() : QStringLiteral(" · ") + rectText(area));
+    case ActionType::SetClipboard: return text;
+    case ActionType::AskAI: {
+        QString p = message.simplified();
+        if (p.size() > 80) p = p.left(79) + QStringLiteral("…");
+        return QStringLiteral("“%1” → %2").arg(p, var);
+    }
+    case ActionType::FindText: {
+        const QString where = area.isEmpty() ? QStringLiteral("anywhere on screen") : QStringLiteral("in ") + rectText(area);
+        QString s = text.isEmpty() ? where : QStringLiteral("“%1” %2").arg(text, where);
+        if (ms > 0) s += QStringLiteral(" · wait up to ") + msText(ms);
+        if (!var.isEmpty()) s += QStringLiteral(" → ") + var;
+        return s;
+    }
     }
     return {};
 }
@@ -169,7 +262,7 @@ int Action::durationMs() const
 {
     switch (type) {
     case ActionType::MouseMove: return ms;
-    case ActionType::Wait: return ms;
+    case ActionType::Wait: return maxMs > ms ? ms + (maxMs - ms) / 2 : ms;   // a random wait: its average
     case ActionType::MouseClick: return holdMs * clicks + (clicks > 1 ? gapMs * (clicks - 1) : 0);
     case ActionType::KeyPress: return holdMs;
     case ActionType::Wheel: return gapMs * qMax(0, qAbs(notches) - 1);
@@ -206,6 +299,10 @@ QJsonObject Action::toJson() const
         o[QStringLiteral("at")] = point(pos);
         o[QStringLiteral("button")] = QString::fromLatin1(kButtons[int(button)]);
         if (type == ActionType::MouseClick && clicks != 1) o[QStringLiteral("clicks")] = clicks;
+        if (type == ActionType::MouseClick && !image.isEmpty()) {   // a smart click: what was clicked
+            o[QStringLiteral("image")] = QString::fromLatin1(image.toBase64());
+            if (!offset.isNull()) o[QStringLiteral("offset")] = point(offset);
+        }
         break;
     case ActionType::Wheel:
         o[QStringLiteral("at")] = point(pos);
@@ -227,7 +324,10 @@ QJsonObject Action::toJson() const
         if (!st.isEmpty()) o[QStringLiteral("stroke_ms")] = st;
         break;
     }
-    case ActionType::Wait: o[QStringLiteral("ms")] = ms; break;
+    case ActionType::Wait:
+        o[QStringLiteral("ms")] = ms;
+        if (maxMs > ms) o[QStringLiteral("max_ms")] = maxMs;
+        break;
     case ActionType::WindowFocus:
         o[QStringLiteral("exe")] = exe;
         o[QStringLiteral("title")] = title;
@@ -245,7 +345,10 @@ QJsonObject Action::toJson() const
         o[QStringLiteral("mode")] = QString::fromLatin1(kRepeat[int(repeatMode)]);
         o[QStringLiteral("count")] = count;
         break;
-    case ActionType::Goto: o[QStringLiteral("target")] = target; break;
+    case ActionType::Goto:
+        o[QStringLiteral("target")] = target;
+        if (!expr.trimmed().isEmpty()) o[QStringLiteral("condition")] = expr;
+        break;
     case ActionType::RunProgram:
         o[QStringLiteral("program")] = program;
         if (!arguments.isEmpty()) o[QStringLiteral("arguments")] = arguments;
@@ -259,6 +362,60 @@ QJsonObject Action::toJson() const
         break;
     case ActionType::Beep: break;
     case ActionType::RunMacro: o[QStringLiteral("file")] = file; break;
+    case ActionType::SetVariable:
+        o[QStringLiteral("variable")] = var;
+        o[QStringLiteral("value")] = expr;
+        break;
+    case ActionType::If: o[QStringLiteral("condition")] = expr; break;
+    case ActionType::Else:
+    case ActionType::EndIf:
+    case ActionType::EndGroup: break;
+    case ActionType::AskText:
+        o[QStringLiteral("variable")] = var;
+        o[QStringLiteral("message")] = message;
+        if (!text.isEmpty()) o[QStringLiteral("text")] = text;
+        break;
+    case ActionType::Group:
+        if (collapsed) o[QStringLiteral("collapsed")] = true;
+        break;
+    case ActionType::WindowMove:
+        o[QStringLiteral("exe")] = exe;
+        o[QStringLiteral("title")] = title;
+        o[QStringLiteral("title_match")] = QString::fromLatin1(kMatches[int(titleMatch)]);
+        o[QStringLiteral("state")] = QString::fromLatin1(kWindowStates[int(windowState)]);
+        if (windowState == WindowState::Normal) o[QStringLiteral("rect")] = rectJson(rect);
+        o[QStringLiteral("timeout_ms")] = ms;
+        break;
+    case ActionType::FindImage:
+        o[QStringLiteral("image")] = QString::fromLatin1(image.toBase64());
+        if (!area.isEmpty()) o[QStringLiteral("area")] = rectJson(area);
+        o[QStringLiteral("tolerance")] = tolerance;
+        o[QStringLiteral("timeout_ms")] = ms;
+        o[QStringLiteral("do")] = QString::fromLatin1(kFindDo[int(findDo)]);
+        if (!offset.isNull()) o[QStringLiteral("offset")] = point(offset);
+        if (waitGone) o[QStringLiteral("wait_gone")] = true;
+        if (stopIfMissing) o[QStringLiteral("stop_if_missing")] = true;
+        break;
+    case ActionType::Screenshot:
+        o[QStringLiteral("file")] = file;
+        if (!area.isEmpty()) o[QStringLiteral("area")] = rectJson(area);
+        break;
+    case ActionType::SetClipboard: o[QStringLiteral("text")] = text; break;
+    case ActionType::AskAI:
+        o[QStringLiteral("message")] = message;
+        o[QStringLiteral("variable")] = var;
+        o[QStringLiteral("timeout_ms")] = ms;
+        break;
+    case ActionType::FindText:
+        if (!text.isEmpty()) o[QStringLiteral("text")] = text;
+        if (!var.isEmpty()) o[QStringLiteral("variable")] = var;
+        if (!area.isEmpty()) o[QStringLiteral("area")] = rectJson(area);
+        o[QStringLiteral("timeout_ms")] = ms;
+        o[QStringLiteral("do")] = QString::fromLatin1(kFindDo[int(findDo)]);
+        if (!offset.isNull()) o[QStringLiteral("offset")] = point(offset);
+        if (waitGone) o[QStringLiteral("wait_gone")] = true;
+        if (stopIfMissing) o[QStringLiteral("stop_if_missing")] = true;
+        break;
     }
     if (relativeToWindow) o[QStringLiteral("relative_to_window")] = true;
     return o;
@@ -316,6 +473,18 @@ Action Action::fromJson(const QJsonObject& o, bool* ok)
     a.message = o.value(QStringLiteral("message")).toString();
     a.file = o.value(QStringLiteral("file")).toString();
     a.fileWhen = enumFrom(o.value(QStringLiteral("when")).toString(), kFileWhen, FileCondition::Exists);
+    a.var = o.value(QStringLiteral("variable")).toString();
+    a.expr = o.value(a.type == ActionType::SetVariable ? QStringLiteral("value") : QStringLiteral("condition")).toString();
+    a.maxMs = qMax(0, o.value(QStringLiteral("max_ms")).toInt());
+    a.collapsed = o.value(QStringLiteral("collapsed")).toBool();
+    a.rect = rectFrom(o.value(QStringLiteral("rect")));
+    a.windowState = enumFrom(o.value(QStringLiteral("state")).toString(), kWindowStates, WindowState::Normal);
+    if (o.contains(QStringLiteral("image"))) a.image = QByteArray::fromBase64(o.value(QStringLiteral("image")).toString().toLatin1());
+    a.area = rectFrom(o.value(QStringLiteral("area")));
+    a.findDo = enumFrom(o.value(QStringLiteral("do")).toString(), kFindDo, FindDo::Nothing);
+    if (o.contains(QStringLiteral("offset"))) a.offset = point("offset");
+    a.waitGone = o.value(QStringLiteral("wait_gone")).toBool();
+    a.stopIfMissing = o.value(QStringLiteral("stop_if_missing")).toBool();
     return a;
 }
 

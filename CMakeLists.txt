@@ -27,7 +27,7 @@ if(STATIC_BUILD AND MINGW)
     set(CMAKE_CXX_STANDARD_LIBRARIES "${CMAKE_CXX_STANDARD_LIBRARIES} -lbz2 -lbrotlidec -lbrotlicommon -lws2_32 -lcrypt32 -liphlpapi -lbcrypt")
 endif()
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Svg)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Svg Network)
 if(STATIC_BUILD AND MINGW AND TARGET harfbuzz::harfbuzz)
     # harfbuzz's CMake package always points at its DLL; use the static library instead.
     find_library(HARFBUZZ_STATIC NAMES libharfbuzz.a REQUIRED)
@@ -43,6 +43,8 @@ qt_standard_project_setup()
 
 set(SOURCES
     src/core/Action.cpp
+    src/core/Expr.cpp
+    src/core/ImageFind.cpp
     src/core/Paths.cpp
     src/core/Player.cpp
     src/core/Recorder.cpp
@@ -56,7 +58,7 @@ list(APPEND SOURCES ${APP_SOURCES})
 list(REMOVE_DUPLICATES SOURCES)
 
 if(WIN32)
-    list(APPEND SOURCES src/platform/win/WinBackend.cpp src/platform/win/WinKeys.cpp packaging/app.rc)
+    list(APPEND SOURCES src/platform/win/WinBackend.cpp src/platform/win/WinKeys.cpp src/platform/win/WinOcr.cpp packaging/app.rc)
     # The build doesn't see that app.rc uses icon.ico: without this, a new icon keeps the old one in the exe
     set_source_files_properties(packaging/app.rc PROPERTIES OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/packaging/icon.ico)
 else()
@@ -69,7 +71,7 @@ set_target_properties(app PROPERTIES OUTPUT_NAME ${APP_NAME})
 target_include_directories(app PRIVATE src)
 target_compile_definitions(app PRIVATE
     APP_NAME="${APP_NAME}" APP_ORG="${APP_ORG}" APP_VERSION="${APP_VERSION}")
-target_link_libraries(app PRIVATE Qt6::Widgets Qt6::Svg)
+target_link_libraries(app PRIVATE Qt6::Widgets Qt6::Svg Qt6::Network)
 
 if(STATIC_BUILD)
     # Only the image plugins the app uses (SVG for icons and style-sheet images); the others (TIFF, WebP, JPEG...)
@@ -80,6 +82,8 @@ if(STATIC_BUILD)
     if(WIN32)
         # The normal Windows display plugin, plus "offscreen" for invisible tests (QT_QPA_PLATFORM=offscreen).
         qt_import_plugins(app INCLUDE_BY_TYPE platforms Qt6::QWindowsIntegrationPlugin Qt6::QOffscreenIntegrationPlugin)
+        # HTTPS (Help > Check for Updates) through Windows' own TLS: no OpenSSL to ship. No network information plugin.
+        qt_import_plugins(app INCLUDE_BY_TYPE tls Qt6::QSchannelBackendPlugin EXCLUDE_BY_TYPE networkinformation)
     endif()
 endif()
 
@@ -88,7 +92,7 @@ qt_add_resources(app resources PREFIX "/" BASE resources FILES
     resources/down_light.svg resources/down_dark.svg resources/up_light.svg resources/up_dark.svg)
 
 if(WIN32)
-    target_link_libraries(app PRIVATE user32 dwmapi winmm)
+    target_link_libraries(app PRIVATE user32 dwmapi winmm ole32 uuid runtimeobject)
     target_compile_definitions(app PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
     if(MINGW)
         # No compiler runtime DLLs next to the exe; strip debug symbols from release builds.

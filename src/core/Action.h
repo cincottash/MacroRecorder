@@ -3,7 +3,9 @@
 
 #include <QJsonObject>
 #include <QList>
+#include <QByteArray>
 #include <QPoint>
+#include <QRect>
 #include <QString>
 #include <QVector>
 
@@ -31,12 +33,28 @@ enum class ActionType {
     MessageBox,   // show a message and wait until OK is pressed
     Beep,         // play the system sound
     RunMacro,     // play another macro file at this point
+    SetVariable,  // var = expr (see Expr.h)
+    If,           // expr: the steps up to the matching Else / End If play only when it's true
+    Else,
+    EndIf,
+    AskText,      // ask the user for text while playing (message = question, text = default answer), into var
+    Group,        // a named, foldable block of steps up to the matching End Group (label = its name); disabled: skipped
+    EndGroup,
+    WindowMove,   // move / resize / maximize / minimize a program's window (exe + title, rect, windowState)
+    FindImage,    // look for a picture on the screen (image), optionally wait for it and click it
+    Screenshot,   // save a picture of the screen (or a part of it) to a file
+    SetClipboard, // put text on the clipboard
+    AskAI,        // send a prompt (message) to the AI server set in the settings; the answer goes into var
+    FindText,     // read the text in an area (into var), or look for `text` there: wait for it, point at it, click it
 };
+constexpr ActionType kLastActionType = ActionType::FindText;
 
 enum class MouseButton { Left, Right, Middle, X1, X2 };
 enum class TitleMatch { Exact, StartsWith, Contains, Any };
 enum class RepeatMode { Times, Seconds, Forever };
 enum class FileCondition { Exists, Gone, Changed };
+enum class WindowState { Normal, Maximized, Minimized, Restore };   // Restore: un-maximize / un-minimize only
+enum class FindDo { Nothing, Move, Click, DoubleClick, RightClick };
 
 struct PathPoint {
     int x = 0, y = 0;
@@ -98,6 +116,26 @@ struct Action {
     // File (wait for file, run macro)
     QString file;
     FileCondition fileWhen = FileCondition::Exists;
+
+    // Variables (Set Variable, If, Go To's condition, Ask for Text)
+    QString var;                // variable name
+    QString expr;               // Set Variable: the value; If / Go To: the condition (Go To: empty = always)
+    int maxMs = 0;              // Wait: more than ms = a random wait from ms to maxMs
+
+    // Groups
+    bool collapsed = false;     // Group: its steps are folded away in the list
+
+    // Window (Move / Resize Window)
+    QRect rect;                 // position and size (normal state)
+    WindowState windowState = WindowState::Normal;
+
+    // Find image / screenshot
+    QByteArray image;           // PNG bytes of the picture to find
+    QRect area;                 // where to look / what to capture; empty = every screen
+    FindDo findDo = FindDo::Nothing;
+    QPoint offset;              // the click or move lands this far from the picture's center
+    bool waitGone = false;      // Find Image: wait until the picture is gone instead
+    bool stopIfMissing = false; // Find Image: not found in time stops playback (else: continues; found = 0)
 
     QString typeName() const;   // "Left click", "Mouse move", ...
     QString valueText() const;  // "1600, 600 px", "932 ms", ...

@@ -3,11 +3,14 @@
 #include "X11Backend.h"
 #include "LinuxKeys.h"
 
+#include <QBuffer>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QHash>
 #include <QMutex>
+#include <QProcess>
 #include <QSet>
+#include <QStandardPaths>
 #include <QStyleHints>
 
 #include <atomic>
@@ -231,9 +234,9 @@ public:
         XChangeKeyboardMapping(m_d, spare, 2, none, 1);
         XSync(m_d, False);
     }
-    bool focusWindow(const QString& exe, const QString& title, core::TitleMatch match) override
+    // The first application window that matches (m_mx held).
+    Window findClient(const QString& exe, const QString& title, core::TitleMatch match)
     {
-        QMutexLocker l(&m_mx);
         const Window root = DefaultRootWindow(m_d);
         std::vector<unsigned char> v;
         int fmt = 0;
@@ -249,7 +252,6 @@ public:
                 if (kids) XFree(kids);
             }
         }
-        Window found = 0;
         for (Window w : list) {
             if (isOwn(m_d, w)) continue;
             const QString t = windowTitle(m_d, w);
@@ -261,8 +263,161 @@ public:
             case core::TitleMatch::Any: break;
             }
             if (ok && !exe.isEmpty()) ok = exeOfPid(getCardinal(m_d, w, "_NET_WM_PID")).compare(exe, Qt::CaseInsensitive) == 0;
-            if (ok) { found = w; break; }
+            if (ok) return w;
         }
+        return 0;
+    }
+
+    // _NET_FRAME_EXTENTS: left, right, top, bottom (zero without a window manager)
+    void frameExtents(Window w, long ext[4])
+    {
+        ext[0] = ext[1] = ext[2] = ext[3] = 0;
+        std::vector<unsigned char> v;
+        int fmt = 0;
+        unsigned long n = 0;
+        if (getProp(m_d, w, atom(m_d, "_NET_FRAME_EXTENTS"), XA_CARDINAL, &v, &fmt, &n) && fmt == 32 && n == 4)
+            for (int i = 0; i < 4; ++i) ext[i] = reinterpret_cast<long*>(v.data())[i];
+    }
+
+    void sendState(Window w, long action, const char* a1, const char* a2)
+    {
+        XEvent e{};
+        e.xclient.type = ClientMessage;
+        e.xclient.window = w;
+        e.xclient.message_type = atom(m_d, "_NET_WM_STATE");
+        e.xclient.format = 32;
+        e.xclient.data.l[0] = action;   // 0 remove, 1 add
+        e.xclient.data.l[1] = long(atom(m_d, a1));
+        e.xclient.data.l[2] = a2 ? long(atom(m_d, a2)) : 0;
+        e.xclient.data.l[3] = 2;        // from a pager
+        XSendEvent(m_d, DefaultRootWindow(m_d), False, SubstructureRedirectMask | SubstructureNotifyMask, &e);
+    }
+
+    bool moveWindow(const QString& exe, const QString& title, core::TitleMatch match, core::WindowState state, const QRect& r) override
+    {
+        QMutexLocker l(&m_mx);
+        const bool active = exe.isEmpty() && (match == core::TitleMatch::Any || title.isEmpty());
+        const Window w = active ? activeWindow(m_d) : findClient(exe, title, match);
+        if (!w || isOwn(m_d, w)) return false;
+        switch (state) {
+        case core::WindowState::Maximized:
+            XMapWindow(m_d, w);
+            sendState(w, 1, "_NET_WM_STATE_MAXIMIZED_VERT", "_NET_WM_STATE_MAXIMIZED_HORZ");
+            break;
+        case core::WindowState::Minimized: XIconifyWindow(m_d, w, DefaultScreen(m_d)); break;
+        case core::WindowState::Restore:
+            sendState(w, 0, "_NET_WM_STATE_MAXIMIZED_VERT", "_NET_WM_STATE_MAXIMIZED_HORZ");
+            XMapWindow(m_d, w);
+            break;
+        case core::WindowState::Normal: {
+            sendState(w, 0, "_NET_WM_STATE_MAXIMIZED_VERT", "_NET_WM_STATE_MAXIMIZED_HORZ");
+            XMapWindow(m_d, w);
+            long ext[4];
+            frameExtents(w, ext);   // the rectangle is the window as seen, frame included
+            const int cw = qMax(1, r.width() - int(ext[0] + ext[1])), ch = qMax(1, r.height() - int(ext[2] + ext[3]));
+            XMoveResizeWindow(m_d, w, r.x(), r.y(), unsigned(cw), unsigned(ch));
+            break;
+        }
+        }
+        XSync(m_d, False);
+        return true;
+    }
+    bool windowAt(QPoint, QString* exe, QString* title, QRect* frame) override
+    {
+        QMutexLocker l(&m_mx);
+        const Window root = DefaultRootWindow(m_d);
+        Window r = 0, child = 0;
+        int rx = 0, ry = 0, wx = 0, wy = 0;
+        unsigned m = 0;
+        XQueryPointer(m_d, root, &r, &child, &rx, &ry, &wx, &wy, &m);
+        const Window w = clientOf(m_d, child);
+        if (!w || isOwn(m_d, w)) return false;
+        XWindowAttributes at{};
+        if (!XGetWindowAttributes(m_d, w, &at)) return false;
+        long ext[4];
+        frameExtents(w, ext);
+        const QPoint o = windowOrigin(m_d, w);
+        if (exe) *exe = exeOfPid(getCardinal(m_d, w, "_NET_WM_PID"));
+        if (title) *title = windowTitle(m_d, w);
+        if (frame) *frame = QRect(o, QSize(at.width + int(ext[0] + ext[1]), at.height + int(ext[2] + ext[3])));
+        return true;
+    }
+    // Find Text on Linux: Tesseract's command-line program, where it's installed (no library linked in)
+    bool readText(const QImage& img, QVector<core::TextWord>* words, QString* error) override
+    {
+        const QString exe = QStandardPaths::findExecutable(QStringLiteral("tesseract"));
+        if (exe.isEmpty()) {
+            if (error) *error = QStringLiteral("reading text on Linux needs Tesseract: install it (for example: sudo apt install tesseract-ocr).");
+            return false;
+        }
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        // Twice as large: small screen text is read better
+        img.scaled(img.size() * 2, Qt::IgnoreAspectRatio, Qt::SmoothTransformation).save(&buf, "PNG");
+        QProcess p;
+        p.start(exe, {QStringLiteral("stdin"), QStringLiteral("stdout"), QStringLiteral("tsv")});
+        if (!p.waitForStarted(5000)) { if (error) *error = QStringLiteral("Tesseract didn't start."); return false; }
+        p.write(png);
+        p.closeWriteChannel();
+        if (!p.waitForFinished(30000) || p.exitCode() != 0) {
+            p.kill();
+            if (error) *error = QStringLiteral("Tesseract couldn't read the picture.");
+            return false;
+        }
+        // TSV: level page block par line word left top width height conf text; words are level 5
+        QHash<QString, int> lineIds;
+        const QList<QByteArray> rows = p.readAllStandardOutput().split('\n');
+        for (const QByteArray& row : rows) {
+            const QList<QByteArray> c = row.split('\t');
+            if (c.size() < 12 || c[0] != "5") continue;
+            const QString text = QString::fromUtf8(c[11]).trimmed();
+            if (text.isEmpty() || c[10].toDouble() < 0) continue;
+            const QString key = QString::fromLatin1(c[2] + '.' + c[3] + '.' + c[4]);
+            if (!lineIds.contains(key)) lineIds.insert(key, int(lineIds.size()));
+            words->append({text, QRect(c[6].toInt() / 2, c[7].toInt() / 2, qMax(1, c[8].toInt() / 2), qMax(1, c[9].toInt() / 2)),
+                           lineIds.value(key)});
+        }
+        return true;
+    }
+    QRect screenBounds() override
+    {
+        QMutexLocker l(&m_mx);
+        return QRect(0, 0, DisplayWidth(m_d, DefaultScreen(m_d)), DisplayHeight(m_d, DefaultScreen(m_d)));
+    }
+    QImage grabScreen(const QRect& rect) override
+    {
+        QMutexLocker l(&m_mx);
+        const QRect all(0, 0, DisplayWidth(m_d, DefaultScreen(m_d)), DisplayHeight(m_d, DefaultScreen(m_d)));
+        const QRect part = rect.intersected(all);
+        if (rect.isEmpty()) return {};
+        QImage out(rect.size(), QImage::Format_RGB32);
+        out.fill(Qt::black);
+        if (part.isEmpty()) return out;
+        XImage* img = XGetImage(m_d, DefaultRootWindow(m_d), part.x(), part.y(), unsigned(part.width()), unsigned(part.height()), AllPlanes, ZPixmap);
+        if (!img) return {};
+        // Works out each pixel from the image's color masks (any depth); 24-bit color is the usual case
+        auto shiftOf = [](unsigned long mask) { int s = 0; while (mask && !(mask & 1)) { mask >>= 1; ++s; } return s; };
+        auto bitsOf = [](unsigned long mask) { int b = 0; while (mask) { b += int(mask & 1); mask >>= 1; } return b; };
+        const int rs = shiftOf(img->red_mask), gs = shiftOf(img->green_mask), bs = shiftOf(img->blue_mask);
+        const int rb = bitsOf(img->red_mask), gb = bitsOf(img->green_mask), bb = bitsOf(img->blue_mask);
+        auto scale = [](unsigned long v, int bits) { return bits >= 8 ? int(v >> (bits - 8)) : bits > 0 ? int(v * 255 / ((1ul << bits) - 1)) : 0; };
+        for (int y = 0; y < part.height(); ++y) {
+            QRgb* line = reinterpret_cast<QRgb*>(out.scanLine(y + part.y() - rect.y())) + (part.x() - rect.x());
+            for (int x = 0; x < part.width(); ++x) {
+                const unsigned long p = XGetPixel(img, x, y);
+                line[x] = qRgb(scale((p & img->red_mask) >> rs, rb), scale((p & img->green_mask) >> gs, gb), scale((p & img->blue_mask) >> bs, bb));
+            }
+        }
+        XDestroyImage(img);
+        return out;
+    }
+
+    bool focusWindow(const QString& exe, const QString& title, core::TitleMatch match) override
+    {
+        QMutexLocker l(&m_mx);
+        const Window root = DefaultRootWindow(m_d);
+        const Window found = findClient(exe, title, match);
         if (!found) return false;
         if (activeWindow(m_d) == found) return true;
         XEvent e{};

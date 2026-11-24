@@ -4,6 +4,7 @@
 #include "ActionPreview.h"
 #include "ActionTable.h"
 #include "AppData.h"
+#include "AutoRunDialogs.h"
 #include "FileDialogs.h"
 #include "ThemeFile.h"
 #include "Themes.h"
@@ -34,6 +35,11 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QStandardPaths>
+#include <QVersionNumber>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QLineEdit>
@@ -42,6 +48,7 @@
 #include <QProcess>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QScreen>
 #include <QScrollArea>
@@ -65,6 +72,9 @@ const QString kRepoUrl = QStringLiteral("https://github.com/cincottash/MacroReco
 const QString kMime = QStringLiteral("application/x-" APP_NAME "-actions");
 const QString kExt = QStringLiteral("macro");
 enum HotkeyId { HkRecord = 1, HkPlay = 2, HkStop = 3, HkNewRecording = 4, HkPlayFrom = 5, HkPlaySelection = 6, HkCapture = 7 };
+constexpr int kWaitForImage = 100;   // addAction() variant: a Find Image (or Find Text) step that waits for it
+constexpr int kReadText = 101;       // addAction() variant: a Find Text step that only reads the text
+constexpr int kMacroHotkeyBase = 100;   // Macro > Macro Hotkeys: hotkey ids 100, 101, ...
 
 // A ring on the screen at the selected step's position. Click-through, never takes focus.
 class PositionMarker : public QWidget {
@@ -153,8 +163,8 @@ QString filterKey(ActionType t)
     case ActionType::KeyPress: case ActionType::KeyDown: case ActionType::KeyUp: case ActionType::Text:
         return QStringLiteral("keys");
     case ActionType::Wait: return QStringLiteral("waits");
-    case ActionType::WindowFocus: return QStringLiteral("windows");
-    default: return QStringLiteral("other");
+    case ActionType::WindowFocus: case ActionType::WindowMove: return QStringLiteral("windows");
+    default: return QStringLiteral("other");   // no Show filter: always shown (If, Group, ...)
     }
 }
 
@@ -177,7 +187,7 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
     connect(m_backend, &platform::Backend::rawEvent, &m_recorder, &core::Recorder::feed);
     connect(m_backend, &platform::Backend::hotkeyPressed, this, &MainWindow::onHotkey);
     connect(m_backend, &platform::Backend::userInput, this, [this](bool key) {
-        if (m_state != State::Playing || m_player->paused() || m_msgBox) return;
+        if (m_state != State::Playing || m_player->paused() || m_msgBox || m_askBox) return;
         if (key && m_s.stopOnKey) stopAll(QStringLiteral("Stopped: a key was pressed (Stop on Key Press is on)."));
         else if (!key && m_s.stopOnMouse) stopAll(QStringLiteral("Stopped: the mouse moved (Stop on Mouse Move is on)."));
     });
@@ -192,6 +202,14 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
         updateHeader();
     });
     connect(m_player, &core::Player::step, this, [this](int index, int round, int rounds) {
+        if (!m_playingOther.isEmpty()) {   // a macro file that isn't the one in the list: no row to mark
+            if (m_s.detailedLog && index < m_otherActions.size())
+                log(QStringLiteral("Step %1: %2").arg(index + 1).arg(m_otherActions.at(index).typeName()), true);
+            setPill(QStringLiteral("▶ %1 · Step %2 of %3").arg(QFileInfo(m_playingOther).completeBaseName()).arg(index + 1)
+                        .arg(m_otherActions.size()), QStringLiteral("ok"));
+            return;
+        }
+        if (index >= m_model.rowCount()) return;
         m_model.setPlayingRow(index);
         if (m_s.detailedLog) log(QStringLiteral("Step %1: %2").arg(index + 1).arg(m_model.at(index).typeName()), true);
         const QString r = rounds > 0 ? QStringLiteral("%1 of %2").arg(round).arg(rounds) : QStringLiteral("round %1").arg(round);
@@ -206,18 +224,31 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
         m_tray->showMessage(QStringLiteral(APP_NAME), t, QSystemTrayIcon::Information, 5000);
     });
     connect(m_player, &core::Player::messageBox, this, [this](const QString& t) { showMessageBox(t); });
+    connect(m_player, &core::Player::askText, this, [this](const QString& q, const QString& d) { showAskBox(q, d); });
+    connect(m_player, &core::Player::askAI, this, [this](const QString& p, int ms) { askAI(p, ms); });
+    connect(m_player, &core::Player::detail, this, [this](const QString& t) { log(t, true); });
+    connect(m_player, &core::Player::clipboard, this, [](const QString& t) { QApplication::clipboard()->setText(t); });
+    // The player's thread can't read the clipboard: it gets a copy whenever the clipboard changes
+    connect(QApplication::clipboard(), &QClipboard::dataChanged, this, [this] { m_player->setClipboardCache(QApplication::clipboard()->text()); });
     connect(m_player, &core::Player::beep, this, [this] { m_backend->beep(); });
     connect(m_player, &core::Player::finished, this, [this](bool stopped, const QString& why) {
         m_backend->setBlockKeyboard(false);
         m_backend->setCapture(platform::CaptureMode::Off);
         if (m_msgBox) m_msgBox->done(0);   // stopped while a Message box step was waiting
+        if (m_askBox) m_askBox->done(QDialog::Rejected);
+        if (m_aiReply) m_aiReply->abort();   // stopped while waiting for the AI server
         m_model.setPlayingRow(-1);
-        if (!why.isEmpty()) log(QStringLiteral("Stopped: %1").arg(why));
-        else log(stopped ? QStringLiteral("Playback stopped.") : QStringLiteral("Playback finished."));
+        const QString other = m_playingOther;
+        m_playingOther.clear();
+        m_otherActions.clear();
+        const QString what = other.isEmpty() ? QString() : QFileInfo(other).fileName() + QStringLiteral(": ");
+        if (!why.isEmpty()) log(QStringLiteral("Stopped: %1%2").arg(what, why));
+        else log(what + (stopped ? QStringLiteral("Playback stopped.") : QStringLiteral("Playback finished.")));
         setState(State::Idle);
         registerHotkeys();   // releases the Stop hotkey (Esc) so it works normally in other programs again
-        if (isMinimized() && m_s.hideWhilePlaying) showNormal();
-        if (!stopped && why.isEmpty()) runAfterPlayback();
+        if (isMinimized() && m_s.hideWhilePlaying && other.isEmpty()) showNormal();
+        // "When Finished" (close, shut down...) belongs to the open macro: a hotkey or a schedule never shuts the PC down
+        if (!stopped && why.isEmpty() && other.isEmpty()) runAfterPlayback();
         if (m_quitWhenDone) qApp->quit();
     });
 
@@ -235,6 +266,13 @@ MainWindow::MainWindow(Settings& s, bool hotkeys, QWidget* parent)
     connect(&m_themePreviewTimer, &QTimer::timeout, this, [this] {
         if (!m_themePreviewing.isEmpty()) themes::apply(themes::forChoice(m_themePreviewing), centralWidget());
     });
+    m_scheduleTimer.setInterval(1000);
+    connect(&m_scheduleTimer, &QTimer::timeout, this, [this] { checkSchedules(); });
+    reschedule();
+    m_scheduleTimer.start();
+    // A hotkey field getting (or losing) the keyboard: global hotkeys step aside so the field receives the keys
+    connect(qApp, &QApplication::focusChanged, this, [this] { if (typingHotkey() != m_hotkeysPaused) registerHotkeys(); });
+    connect(qApp, &QGuiApplication::applicationStateChanged, this, [this] { if (typingHotkey() != m_hotkeysPaused) registerHotkeys(); });
     m_saveTimer.setSingleShot(true);
     m_saveTimer.setInterval(400);
     connect(&m_saveTimer, &QTimer::timeout, this, [this] { m_s.save(appdata::settingsFile()); });
@@ -284,6 +322,9 @@ void MainWindow::buildMenus()
     file->addAction(QStringLiteral("Save &As…"), QKeySequence::SaveAs, this, [this] { save(true); });
     file->addSeparator();
     file->addAction(QStringLiteral("&Export to CSV…"), this, [this] { exportCsv(); });
+    file->addAction(QStringLiteral("Create &Desktop Shortcut…"), this, [this] { createDesktopShortcut(); })
+        ->setToolTip(QStringLiteral("A shortcut on the desktop that plays the saved macro (and then closes the app, if it "
+                                    "wasn't already running)."));
     file->addAction(QStringLiteral("Copy &Command Line"), this, [this] { copyCommandLine(); })
         ->setToolTip(QStringLiteral("For a desktop shortcut or Windows Task Scheduler: plays the saved macro, then closes."));
     file->addSeparator();
@@ -306,6 +347,8 @@ void MainWindow::buildMenus()
         m_backend->injector()->setScanCodesOnly(m_s.scanCodes);
         log(QStringLiteral("Settings reset to defaults."));
     });
+    settings->addAction(QStringLiteral("AI Server…"), this, [this] { editAiServer(); })
+        ->setToolTip(QStringLiteral("Where Ask AI steps send their questions: LM Studio on this PC (free) unless changed."));
     settings->addAction(QStringLiteral("Start Over…"), this, [this] { startOver(); })
         ->setToolTip(QStringLiteral("Every setting back to its default, as if the app had just been installed. "
                                     "Your saved macros aren't touched."));
@@ -381,6 +424,11 @@ void MainWindow::buildMenus()
     macro->addMenu(add);
     macro->addAction(QStringLiteral("&Clean Up"), this, [this] { cleanUp(); })
         ->setToolTip(QStringLiteral("Merges back-to-back waits and moves, and removes empty ones."));
+    macro->addSeparator();
+    macro->addAction(QStringLiteral("Macro &Hotkeys…"), this, [this] { editMacroHotkeys(); })
+        ->setToolTip(QStringLiteral("Hotkeys that play a saved macro from any program, without opening it."));
+    macro->addAction(QStringLiteral("Sc&hedules…"), this, [this] { editSchedules(); })
+        ->setToolTip(QStringLiteral("Plays saved macros at set times while the app runs."));
 
     QMenu* edit = menuBar()->addMenu(QStringLiteral("&Edit"));
     m_undoAct = edit->addAction(QStringLiteral("&Undo"), QKeySequence::Undo, this, [this] { undo(); });
@@ -404,6 +452,13 @@ void MainWindow::buildMenus()
     combine->setToolTip(QStringLiteral("Select a button down and its button up (or a key down and up): they become one click (key press)."));
     m_editActs << combine;
     edit->addAction(QStringLiteral("&Find and Replace…"), QKeySequence(Qt::CTRL | Qt::Key_H), this, [this] { findReplace(); });
+    edit->addSeparator();
+    QAction* groupAct = edit->addAction(QStringLiteral("&Group Selected Steps"), QKeySequence(Qt::CTRL | Qt::Key_G), this, [this] { groupSelected(); });
+    groupAct->setToolTip(QStringLiteral("Puts the selected steps in a named group that can be folded away (and turned off as a whole)."));
+    m_editActs << groupAct;
+    m_editActs << edit->addAction(QStringLiteral("U&ngroup"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G), this, [this] { ungroupSelected(); });
+    edit->addAction(QStringLiteral("Fold All Groups"), this, [this] { foldAll(true); });
+    edit->addAction(QStringLiteral("Unfold All Groups"), this, [this] { foldAll(false); });
 
     m_viewMenu = menuBar()->addMenu(QStringLiteral("&View"));
     QMenu* theme = m_viewMenu->addMenu(QStringLiteral("&Theme"));
@@ -510,7 +565,10 @@ void MainWindow::buildMenus()
         updateMarker();
         setWindowFlag(Qt::WindowStaysOnTopHint, false);
         show();
+        m_fittingColumns = true;
         m_table->horizontalHeader()->resizeSections(QHeaderView::Interactive);
+        m_fittingColumns = false;
+        fitValueColumn();
         applyTheme();
         saveSettingsSoon();
     });
@@ -521,6 +579,8 @@ void MainWindow::buildMenus()
         QDesktopServices::openUrl(QUrl::fromLocalFile(appdata::folder()));
     });
     help->addAction(QStringLiteral("&Report a Problem"), this, [] { QDesktopServices::openUrl(QUrl(kRepoUrl + QStringLiteral("/issues"))); });
+    help->addAction(QStringLiteral("Check for &Updates…"), this, [this] { checkForUpdates(); })
+        ->setToolTip(QStringLiteral("Asks GitHub for the latest release. Nothing is downloaded or installed by itself."));
     help->addSeparator();
     help->addAction(QStringLiteral("&About " APP_NAME), this, [this] {
         QMessageBox::about(this, QStringLiteral("About " APP_NAME),
@@ -537,8 +597,18 @@ QMenu* MainWindow::buildAddMenu(QWidget* parent)
         QAction* a = m->addAction(text);
         connect(a, &QAction::triggered, this, [this, t] { addAction(t); });
     };
+    auto addImage = [&](QMenu* m, const QString& text, core::FindDo what) {
+        QAction* a = m->addAction(text);
+        connect(a, &QAction::triggered, this, [this, what] { addAction(ActionType::FindImage, int(what)); });
+    };
     QMenu* mouse = menu->addMenu(QStringLiteral("Mouse"));
+    auto addText = [&](QMenu* m, const QString& text, int variant) {
+        QAction* a = m->addAction(text);
+        connect(a, &QAction::triggered, this, [this, variant] { addAction(ActionType::FindText, variant); });
+    };
     add(mouse, QStringLiteral("Click"), ActionType::MouseClick);
+    addImage(mouse, QStringLiteral("Click Image"), core::FindDo::Click);
+    addText(mouse, QStringLiteral("Click Text"), int(core::FindDo::Click));
     add(mouse, QStringLiteral("Move"), ActionType::MouseMove);
     add(mouse, QStringLiteral("Scroll"), ActionType::Wheel);
     add(mouse, QStringLiteral("Button Down (Start a Drag)"), ActionType::MouseDown);
@@ -550,19 +620,40 @@ QMenu* MainWindow::buildAddMenu(QWidget* parent)
     add(keys, QStringLiteral("Key Up (Release)"), ActionType::KeyUp);
     QMenu* wait = menu->addMenu(QStringLiteral("Wait"));
     add(wait, QStringLiteral("Wait"), ActionType::Wait);
+    {
+        QAction* a = wait->addAction(QStringLiteral("Wait for Image"));
+        connect(a, &QAction::triggered, this, [this] { addAction(ActionType::FindImage, kWaitForImage); });
+    }
+    addText(wait, QStringLiteral("Wait for Text"), kWaitForImage);
     add(wait, QStringLiteral("Wait for Pixel Color"), ActionType::WaitPixel);
     add(wait, QStringLiteral("Wait for Key"), ActionType::WaitKey);
     add(wait, QStringLiteral("Wait for File"), ActionType::WaitFile);
+    add(wait, QStringLiteral("Ask for Text"), ActionType::AskText);
     QMenu* flow = menu->addMenu(QStringLiteral("Flow"));
     add(flow, QStringLiteral("Repeat"), ActionType::Repeat);
     add(flow, QStringLiteral("Go To"), ActionType::Goto);
     add(flow, QStringLiteral("Run Another Macro"), ActionType::RunMacro);
+    flow->addSeparator();
+    add(flow, QStringLiteral("Group"), ActionType::Group);
+    QMenu* logic = menu->addMenu(QStringLiteral("Variables and Conditions"));
+    add(logic, QStringLiteral("Set Variable"), ActionType::SetVariable);
+    add(logic, QStringLiteral("If"), ActionType::If);
+    add(logic, QStringLiteral("Else"), ActionType::Else);
+    add(logic, QStringLiteral("End If"), ActionType::EndIf);
+    logic->addSeparator();
+    addText(logic, QStringLiteral("Read Text From Screen"), kReadText);
+    add(logic, QStringLiteral("Ask AI"), ActionType::AskAI);
     QMenu* other = menu->addMenu(QStringLiteral("Programs and Windows"));
     add(other, QStringLiteral("Window Focus"), ActionType::WindowFocus);
+    add(other, QStringLiteral("Move / Resize Window"), ActionType::WindowMove);
     add(other, QStringLiteral("Run Program"), ActionType::RunProgram);
     add(other, QStringLiteral("Notification"), ActionType::Notify);
     add(other, QStringLiteral("Message Box"), ActionType::MessageBox);
     add(other, QStringLiteral("Beep"), ActionType::Beep);
+    other->addSeparator();
+    addImage(other, QStringLiteral("Find Image"), core::FindDo::Nothing);
+    add(other, QStringLiteral("Save Screenshot"), ActionType::Screenshot);
+    add(other, QStringLiteral("Set Clipboard"), ActionType::SetClipboard);
     return menu;
 }
 
@@ -965,11 +1056,19 @@ QWidget* MainWindow::buildRecordingCard()
     m_relPos->setChecked(m_s.relativePositions);
     m_relPos->setToolTip(QStringLiteral("Clicks are recorded from the window's top-left corner instead of the screen's, so the macro "
                                         "still works when the window is somewhere else."));
+    m_smartClicks = new QCheckBox(QStringLiteral("Find Clicked Buttons by Picture"));
+    m_smartClicks->setChecked(m_s.smartClicks);
+    m_smartClicks->setProperty("testId", QStringLiteral("smartClicks"));
+    m_smartClicks->setToolTip(QStringLiteral("Keeps a small picture of what each click lands on. Playing, the click looks for that "
+                                             "picture first and clicks it wherever it is now (a window that moved, a list that "
+                                             "scrolled); if it isn't on the screen, it clicks where it was recorded."));
     m_hideRec = new QCheckBox(QStringLiteral("Minimize While Recording"));
     m_hideRec->setChecked(m_s.hideWhileRecording);
     b->addWidget(m_relPos);
+    b->addWidget(m_smartClicks);
     b->addWidget(m_hideRec);
     auto changed = [this] {
+        m_s.smartClicks = m_smartClicks->isChecked();
         m_s.recordMoves = m_recMoves->isChecked();
         m_s.minMovePx = m_minMove->value();
         m_s.pathDetail = m_pathDetail->value();
@@ -982,7 +1081,7 @@ QWidget* MainWindow::buildRecordingCard()
         m_pathDetailValue->setText(QStringLiteral("%1 %").arg(m_s.pathDetail));
         saveSettingsSoon();
     };
-    for (QCheckBox* c : {m_recMoves, m_recKeys, m_mergeTyping, m_relPos, m_hideRec}) connect(c, &QCheckBox::toggled, this, changed);
+    for (QCheckBox* c : {m_recMoves, m_recKeys, m_mergeTyping, m_relPos, m_smartClicks, m_hideRec}) connect(c, &QCheckBox::toggled, this, changed);
     for (QSpinBox* sb : {m_minMove, m_shortestPause}) connect(sb, &QSpinBox::valueChanged, this, changed);
     connect(m_pathDetail, &QSlider::valueChanged, this, changed);
     connect(m_minMove, &QSpinBox::valueChanged, this, [this] { m_recMoves->setChecked(true); });
@@ -1079,6 +1178,17 @@ QWidget* MainWindow::buildActionsCard()
     m_table->setModel(&m_model);
     m_preview = new ActionPreview(m_table->viewport());
     connect(m_table, &ActionTable::hoveredRow, this, [this](int row) { showPreview(row); });
+    connect(m_table, &ActionTable::groupToggled, this, [this](int row, bool fold) {
+        m_model.setCollapsed(row, fold);
+        applyFilter();
+    });
+    m_table->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_table, &QWidget::customContextMenuRequested, this, [this](QPoint p) {
+        if (QMenu* m = stepMenu(p)) {
+            m->setAttribute(Qt::WA_DeleteOnClose);
+            m->popup(m_table->viewport()->mapToGlobal(p));
+        }
+    });
     connect(&m_model, &QAbstractItemModel::modelReset, this, [this] { showPreview(-1); });
     connect(&m_model, &QAbstractItemModel::layoutChanged, this, [this] { showPreview(-1); });
     connect(&m_model, &QAbstractItemModel::rowsRemoved, this, [this] { showPreview(-1); });
@@ -1099,8 +1209,15 @@ QWidget* MainWindow::buildActionsCard()
     h->resizeSection(ActionModel::ColAction, 200);
     h->resizeSection(ActionModel::ColValue, 360);
     h->resizeSection(ActionModel::ColLabel, 110);
+    m_fittingColumns = true;
     if (!m_s.tableState.isEmpty()) h->restoreState(m_s.tableState);
-    connect(h, &QHeaderView::sectionResized, this, [this] { m_s.tableState = m_table->horizontalHeader()->saveState(); saveSettingsSoon(); });
+    m_fittingColumns = false;
+    connect(h, &QHeaderView::sectionResized, this, [this](int logical) {
+        // A column dragged by hand (not the last one, which only fills the rest): the user's widths from now on
+        if (!m_fittingColumns && logical != ActionModel::ColComment && m_s.fitValueColumn) m_s.fitValueColumn = false;
+        m_s.tableState = m_table->horizontalHeader()->saveState();
+        saveSettingsSoon();
+    });
     connect(m_table, &QTableView::doubleClicked, this, [this](const QModelIndex& i) {
         if (i.column() != ActionModel::ColLabel && i.column() != ActionModel::ColComment) editRow(i.row());
     });
@@ -1360,7 +1477,8 @@ void MainWindow::removeCustomTheme(const QString& key)
 // boxes, tooltips and the on-screen position marker.
 bool MainWindow::followsOpacity(const QWidget* w) const
 {
-    return w && w != this && w->isWindow();
+    // The screen-area picker shows a still picture of the screen: see-through, it would look doubled
+    return w && w != this && w->isWindow() && !w->property("solidOverlay").toBool();
 }
 
 void MainWindow::applyOpacity()
@@ -1384,8 +1502,23 @@ void MainWindow::applyOpacity()
         if (followsOpacity(w) && qAbs(w->windowOpacity() - level) > 0.01) w->setWindowOpacity(level);
 }
 
+void MainWindow::fitValueColumn()
+{
+    if (!m_s.fitValueColumn || !m_table) return;
+    QHeaderView* h = m_table->horizontalHeader();
+    // The Value column takes a wide window's extra room, so long values aren't cut while the list's right side is
+    // empty. The Comment column keeps 400 px: room for comments and for the hover preview drawn there.
+    const int others = h->sectionSize(ActionModel::ColNum) + h->sectionSize(ActionModel::ColAction) + h->sectionSize(ActionModel::ColLabel);
+    const int want = qMax(360, m_table->viewport()->width() - others - 400);
+    if (h->sectionSize(ActionModel::ColValue) == want) return;
+    m_fittingColumns = true;
+    h->resizeSection(ActionModel::ColValue, want);
+    m_fittingColumns = false;
+}
+
 bool MainWindow::eventFilter(QObject* watched, QEvent* e)
 {
+    if (e->type() == QEvent::Resize && m_table && watched == m_table->viewport()) fitValueColumn();
     // Polish: a popup made later (a new context menu or drop-down list) gets the level before it's first shown
     if ((e->type() == QEvent::Show || e->type() == QEvent::Polish) && watched->isWidgetType()) {
         auto* w = static_cast<QWidget*>(watched);
@@ -1583,7 +1716,7 @@ void MainWindow::selectRows(int first, int last)
     m_table->scrollTo(m_model.index(first, 0));
 }
 
-void MainWindow::addAction(ActionType t)
+void MainWindow::addAction(ActionType t, int variant)
 {
     if (m_state != State::Idle) return;
     Action a;
@@ -1595,22 +1728,181 @@ void MainWindow::addAction(ActionType t)
     case ActionType::Wait: a.ms = 1000; break;
     case ActionType::Wheel: a.notches = -1; break;
     case ActionType::WindowFocus: a.ms = 10000; break;
+    case ActionType::WindowMove: a.ms = 5000; break;
     case ActionType::WaitPixel: a.ms = 30000; break;
     case ActionType::WaitFile: a.ms = 60000; break;
     case ActionType::Repeat: a.count = 2; break;
     case ActionType::KeyPress: case ActionType::KeyDown: case ActionType::KeyUp: case ActionType::WaitKey: a.key = QStringLiteral("Enter"); break;
+    case ActionType::AskText: a.var = QStringLiteral("answer"); break;
+    case ActionType::AskAI: a.var = QStringLiteral("answer"); a.ms = 60000; break;
+    case ActionType::FindText:
+        if (variant == kReadText) {
+            a.var = QStringLiteral("screen_text");
+        } else if (variant == kWaitForImage) {
+            a.ms = 30000;
+            a.stopIfMissing = true;
+        } else {
+            a.findDo = core::FindDo(qBound(0, variant, int(core::FindDo::RightClick)));
+            a.ms = a.findDo == core::FindDo::Nothing ? 0 : 10000;
+            a.stopIfMissing = a.findDo != core::FindDo::Nothing;
+        }
+        break;
+    case ActionType::Group: a.label = QStringLiteral("Group %1").arg(groupCount() + 1); break;
+    case ActionType::Screenshot: a.file = QStringLiteral("Screenshot {=now(\"yyyy-MM-dd HH.mm.ss\")}.png"); break;
+    case ActionType::FindImage:
+        a.tolerance = 10;
+        if (variant == kWaitForImage) {   // Wait for Image: until it appears, or stop
+            a.ms = 30000;
+            a.stopIfMissing = true;
+        } else {
+            a.findDo = core::FindDo(qBound(0, variant, int(core::FindDo::RightClick)));
+            a.ms = a.findDo == core::FindDo::Nothing ? 0 : 10000;   // clicking: wait a little for it, and never click elsewhere
+            a.stopIfMissing = a.findDo != core::FindDo::Nothing;
+        }
+        break;
     default: break;
     }
     ActionDialog d(a, labels(), m_backend->injector(), this);
     d.setWindowTitle(QStringLiteral("Add: %1").arg(a.typeName()));
     if (execDialog(d) != QDialog::Accepted) return;
     snapshot();
-    const int row = insertRow();
-    m_model.insert(row, d.result());
-    selectRows(row, row);
+    const auto rows = selectedRows();
+    if ((t == ActionType::If || t == ActionType::Group) && !rows.isEmpty()) {
+        // Around the selected steps: the block starts before the first and ends after the last
+        Action end;
+        end.type = t == ActionType::If ? ActionType::EndIf : ActionType::EndGroup;
+        m_model.insert(rows.last() + 1, end);
+        m_model.insert(rows.first(), d.result());
+        selectRows(rows.first(), rows.last() + 2);
+        log(QStringLiteral("%1 added around %2 step%3.").arg(d.result().typeName()).arg(rows.size()).arg(rows.size() == 1 ? QString() : QStringLiteral("s")));
+    } else {
+        const int row = insertRow();
+        m_model.insert(row, d.result());
+        if (t == ActionType::If || t == ActionType::Group) {   // a block comes with its end
+            Action end;
+            end.type = t == ActionType::If ? ActionType::EndIf : ActionType::EndGroup;
+            m_model.insert(row + 1, end);
+        }
+        selectRows(row, row);
+    }
     setDirty(true);
     applyFilter();
     updateUi();
+}
+
+QMenu* MainWindow::stepMenu(QPoint viewportPos)
+{
+    if (m_state != State::Idle) return nullptr;
+    auto named = [this](const QString& text) -> QAction* {
+        for (QAction* a : findChildren<QAction*>()) {
+            QString t = a->text();
+            t.remove(QLatin1Char('&'));
+            if (!a->menu() && t == text) return a;
+        }
+        return nullptr;
+    };
+    const int row = m_table->rowAt(viewportPos.y());
+    // The step right-clicked becomes the chosen one, unless it's already part of the selection (File Explorer)
+    if (row >= 0 && !m_table->selectionModel()->isRowSelected(row, {})) selectRows(row, row);
+    if (row < 0 && !selectedRows().isEmpty()) m_table->clearSelection();
+    updateUi();
+    auto* menu = new QMenu(this);
+    menu->setProperty("testId", QStringLiteral("stepMenu"));
+    auto add = [&](const QString& text) {
+        if (QAction* a = named(text)) menu->addAction(a);
+    };
+    if (row >= 0) {
+        add(QStringLiteral("Edit Step…"));
+        if (m_model.at(row).type == ActionType::Group) {
+            const bool folded = m_model.at(row).collapsed;
+            menu->addAction(folded ? QStringLiteral("Show Group's Steps") : QStringLiteral("Fold Group"), this, [this, row, folded] {
+                m_model.setCollapsed(row, !folded);
+                applyFilter();
+            });
+        }
+        menu->addSeparator();
+        add(QStringLiteral("Play This Step Only"));
+        add(QStringLiteral("Play Selection"));
+        add(QStringLiteral("Play From Selected Step"));
+        add(QStringLiteral("Play Up to Selected Step"));
+        add(QStringLiteral("Record After Selected Step"));
+        menu->addSeparator();
+        add(QStringLiteral("Cut"));
+        add(QStringLiteral("Copy"));
+        add(QStringLiteral("Paste"));
+        add(QStringLiteral("Delete"));
+        menu->addSeparator();
+        add(QStringLiteral("Enable / Disable"));
+        add(QStringLiteral("Move Up"));
+        add(QStringLiteral("Move Down"));
+        add(QStringLiteral("Group Selected Steps"));
+        if (m_model.at(row).type == ActionType::Group) add(QStringLiteral("Ungroup"));
+    } else {
+        add(QStringLiteral("Paste"));
+        add(QStringLiteral("Select All"));
+    }
+    menu->addSeparator();
+    QMenu* addMenu = buildAddMenu(menu);
+    addMenu->setTitle(QStringLiteral("Add Action"));
+    menu->addMenu(addMenu);
+    // The Play Selection button's state decides that item (it mirrors the button)
+    for (auto& [act, btn] : m_buttonActions) act->setEnabled(btn && btn->isEnabled());
+    return menu;
+}
+
+int MainWindow::groupCount() const
+{
+    int n = 0;
+    for (const Action& a : m_model.actions()) n += a.type == ActionType::Group;
+    return n;
+}
+
+void MainWindow::groupSelected()
+{
+    const auto rows = selectedRows();
+    if (rows.isEmpty() || m_state != State::Idle) return;
+    snapshot();
+    Action g;
+    g.type = ActionType::Group;
+    g.label = QStringLiteral("Group %1").arg(groupCount() + 1);
+    Action end;
+    end.type = ActionType::EndGroup;
+    m_model.insert(rows.last() + 1, end);
+    m_model.insert(rows.first(), g);
+    selectRows(rows.first(), rows.first());
+    setDirty(true);
+    applyFilter();
+    updateUi();
+    // Name it right away, in the list
+    m_table->setCurrentIndex(m_model.index(rows.first(), ActionModel::ColLabel));
+    m_table->edit(m_model.index(rows.first(), ActionModel::ColLabel));
+}
+
+void MainWindow::ungroupSelected()
+{
+    const auto rows = selectedRows();
+    if (rows.isEmpty() || m_state != State::Idle) return;
+    QList<int> remove;
+    for (int r : rows) {
+        if (m_model.at(r).type != ActionType::Group) continue;
+        remove << r;
+        const int end = m_model.groupEnd(r);
+        if (end >= 0 && end < m_model.rowCount() && m_model.at(end).type == ActionType::EndGroup) remove << end;
+    }
+    if (remove.isEmpty()) { log(QStringLiteral("Ungroup: select a group's first step (its name).")); return; }
+    snapshot();
+    m_model.removeRowsList(remove);
+    m_table->clearSelection();
+    setDirty(true);
+    applyFilter();
+    updateUi();
+}
+
+void MainWindow::foldAll(bool fold)
+{
+    for (int r = 0; r < m_model.rowCount(); ++r)
+        if (m_model.at(r).type == ActionType::Group) m_model.setCollapsed(r, fold);
+    applyFilter();
 }
 
 void MainWindow::editRow(int row)
@@ -1753,11 +2045,16 @@ void MainWindow::cleanUp()
 
 void MainWindow::applyFilter()
 {
+    QItemSelection hiddenSelected;
     for (int r = 0; r < m_model.rowCount(); ++r) {
         const QString k = filterKey(m_model.at(r).type);
-        const bool show = !m_filters.contains(k) || m_filters[k]->isChecked();
+        const bool show = (!m_filters.contains(k) || m_filters[k]->isChecked()) && !m_model.foldedAway(r);
         m_table->setRowHidden(r, !show);
+        // Steps folded away in a group are never selected unseen (Delete would remove what can't be seen)
+        if (!show && m_model.foldedAway(r) && m_table->selectionModel()->isRowSelected(r, {}))
+            hiddenSelected.select(m_model.index(r, 0), m_model.index(r, ActionModel::ColCount - 1));
     }
+    if (!hiddenSelected.isEmpty()) m_table->selectionModel()->select(hiddenSelected, QItemSelectionModel::Deselect);
 }
 
 // ------------------------------------------------------------------------------------------------ record / play
@@ -1796,7 +2093,7 @@ void MainWindow::syncWidgetsFromSettings()
     const QList<QWidget*> all = {m_speed, m_repeatTimes, m_repeatSecs, m_countdownSecs, m_rTimes, m_rSecs, m_rForever, m_pathStyle,
                                  m_typing, m_after, m_countdownCheck, m_stopOnKey, m_stopOnMouse, m_blockKeys, m_restoreMouse,
                                  m_showNotif, m_hidePlay, m_recMoves, m_minMove, m_pathDetail, m_recKeys, m_mergeTyping,
-                                 m_shortestPause, m_relPos, m_hideRec, m_hkRecord, m_hkNewRec, m_hkPlay, m_hkPlayFrom, m_hkPlaySel,
+                                 m_shortestPause, m_relPos, m_smartClicks, m_hideRec, m_hkRecord, m_hkNewRec, m_hkPlay, m_hkPlayFrom, m_hkPlaySel,
                                  m_hkStop, m_hkCapture};
     for (QWidget* w : all) w->blockSignals(true);
     m_speed->setValue(m_s.speedPct);
@@ -1825,6 +2122,7 @@ void MainWindow::syncWidgetsFromSettings()
     m_mergeTyping->setEnabled(m_s.recordKeyboard);
     m_shortestPause->setValue(m_s.shortestPauseMs);
     m_relPos->setChecked(m_s.relativePositions);
+    m_smartClicks->setChecked(m_s.smartClicks);
     m_hideRec->setChecked(m_s.hideWhileRecording);
     m_hkRecord->setKeySequence(QKeySequence(m_s.hkRecord));
     m_hkNewRec->setKeySequence(QKeySequence(m_s.hkNewRecording));
@@ -1842,9 +2140,27 @@ void MainWindow::syncWidgetsFromSettings()
     }
 }
 
+QHash<QString, QString> MainWindow::appHotkeys() const
+{
+    return {{QStringLiteral("Record / Stop"), m_s.hkRecord},     {QStringLiteral("New Recording"), m_s.hkNewRecording},
+            {QStringLiteral("Play / Pause"), m_s.hkPlay},        {QStringLiteral("Play From Selected"), m_s.hkPlayFrom},
+            {QStringLiteral("Play Selection"), m_s.hkPlaySelection}, {QStringLiteral("Stop"), m_s.hkStop},
+            {QStringLiteral("Capture Position"), m_s.hkCapture}};
+}
+
+bool MainWindow::typingHotkey() const
+{
+    if (m_state != State::Idle || QGuiApplication::applicationState() != Qt::ApplicationActive) return false;
+    const QWidget* f = QApplication::focusWidget();
+    return f && (qobject_cast<const QKeySequenceEdit*>(f) || (f->parentWidget() && qobject_cast<const QKeySequenceEdit*>(f->parentWidget())));
+}
+
 void MainWindow::registerHotkeys()
 {
     if (!m_hotkeysEnabled) return;   // screenshot / test mode: show the hotkeys, never register them
+    // While a hotkey field has the keyboard, no hotkey is registered: pressing F10 there must enter F10 in the field
+    // instead of starting playback (the system gives a registered hotkey to the app, never to the field)
+    m_hotkeysPaused = typingHotkey();
     struct Hk { int id; QString key; QString name; bool active; };
     // Stop is registered only while something runs, and Capture position only while a step editor with a position
     // is open, so those keys work normally in other programs the rest of the time.
@@ -1857,13 +2173,22 @@ void MainWindow::registerHotkeys()
         {HkStop, m_s.hkStop, QStringLiteral("Stop"), m_state != State::Idle},
         {HkCapture, m_s.hkCapture, QStringLiteral("Capture Position"), m_openDialog && m_openDialog->hasPosition()},
     };
+    QList<Hk> all = list;
+    for (int i = 0; i < m_s.macroHotkeys.size(); ++i)   // Macro > Macro Hotkeys
+        all.append({kMacroHotkeyBase + i, m_s.macroHotkeys.at(i).key,
+                    QStringLiteral("Macro %1").arg(QFileInfo(m_s.macroHotkeys.at(i).file).completeBaseName()), true});
+    for (int i = int(m_s.macroHotkeys.size()); i < m_macroHotkeysRegistered; ++i) {   // removed ones
+        QString err;
+        m_backend->setHotkey(kMacroHotkeyBase + i, QKeySequence(), &err);
+    }
+    m_macroHotkeysRegistered = int(m_s.macroHotkeys.size());
     QStringList problems;
     QHash<QString, QString> owner;   // key -> the first hotkey that uses it; a second one with the same key is ignored
-    for (const Hk& h : list) {
+    for (const Hk& h : std::as_const(all)) {
         const bool duplicate = !h.key.isEmpty() && owner.contains(h.key);
         if (duplicate) problems << QStringLiteral("%1: %2 is already the %3 hotkey.").arg(h.name, h.key, owner.value(h.key));
         else if (!h.key.isEmpty()) owner.insert(h.key, h.name);
-        const bool want = h.active && !h.key.isEmpty() && !duplicate;
+        const bool want = h.active && !h.key.isEmpty() && !duplicate && !m_hotkeysPaused;
         QString err;
         if (!m_backend->setHotkey(h.id, want ? QKeySequence(h.key) : QKeySequence(), &err) && want)
             problems << h.name + QStringLiteral(": ") + err;
@@ -1882,6 +2207,18 @@ void MainWindow::onHotkey(int id)
     if (id == HkStop) { stopAll(); return; }
     // While a dialog is open (a step editor, a file dialog, a question), starting something would be confusing.
     if (m_state == State::Idle && QApplication::activeModalWidget()) return;
+    if (id >= kMacroHotkeyBase) {
+        const int i = id - kMacroHotkeyBase;
+        if (i >= m_s.macroHotkeys.size()) return;
+        const QString file = m_s.macroHotkeys.at(i).file;
+        if (m_state == State::Playing && m_playingOther == file) { stopAll(QStringLiteral("Its hotkey was pressed again.")); return; }
+        if (m_state != State::Idle) {
+            log(QStringLiteral("%1 wasn't played: something else is recording or playing.").arg(QFileInfo(file).fileName()));
+            return;
+        }
+        playFile(file, QStringLiteral("its hotkey"));
+        return;
+    }
     switch (id) {
     case HkRecord:
         if (m_state == State::Recording) stopRecording();
@@ -1926,6 +2263,7 @@ void MainWindow::startRecording(RecordWhere where)
     m_recordInsert = where == RecordWhere::AfterSelection ? insertRow() : m_model.rowCount();
     m_table->clearSelection();
     m_recorder.start(recordOptions(), platform::Backend::now(), m_backend->injector()->cursor());
+    m_backend->setSmartClicks(m_s.smartClicks);
     m_backend->setCapture(platform::CaptureMode::Record);
     setState(State::Recording);
     registerHotkeys();
@@ -2011,6 +2349,7 @@ void MainWindow::beginPlayback()
                                                                             : QStringLiteral("until stopped");
     log(QStringLiteral("Playing %1 at %2 %3.").arg(how).arg(m_s.speedPct).arg(QStringLiteral("%")));
     if (m_s.hideWhilePlaying) showMinimized();
+    m_player->setClipboardCache(QApplication::clipboard()->text());
     m_player->start(m, m_pending);
 }
 
@@ -2061,6 +2400,346 @@ void MainWindow::playFromCommandLine(int repeat, bool quitWhenDone)
 {
     m_quitWhenDone = quitWhenDone;
     startPlaying(PlayRange::All, repeat);
+}
+
+bool MainWindow::playFile(const QString& path, const QString& why)
+{
+    const QString name = QFileInfo(path).fileName();
+    if (m_state != State::Idle) {
+        log(QStringLiteral("%1 (%2) wasn't played: something else is recording or playing.").arg(name, why));
+        return false;
+    }
+    if (QApplication::activeModalWidget()) {
+        log(QStringLiteral("%1 (%2) wasn't played: a window of this app is waiting for an answer.").arg(name, why));
+        return false;
+    }
+    const QString reason = m_backend->unavailableReason();
+    if (!reason.isEmpty()) { log(QStringLiteral("%1 (%2) wasn't played: %3").arg(name, why, reason)); return false; }
+    core::Macro m;
+    QString err;
+    if (!QFileInfo::exists(path)) { log(QStringLiteral("%1 (%2) wasn't played: the file isn't there any more (%3).").arg(name, why, QDir::toNativeSeparators(path))); return false; }
+    if (!core::Macro::load(path, &m, &err)) { log(QStringLiteral("%1 (%2) wasn't played: %3").arg(name, why, err)); return false; }
+    if (!err.isEmpty()) log(QStringLiteral("%1: %2").arg(name, err));
+    if (m.actions.isEmpty()) { log(QStringLiteral("%1 (%2) wasn't played: it has no steps.").arg(name, why)); return false; }
+    m_playingOther = path;
+    m_otherActions = m.actions;
+    m_pending = playOptions();
+    m_pending.repeatMode = core::RepeatMode::Times;   // once: the macro's own Repeat steps still work
+    m_pending.repeatCount = 1;
+    setState(State::Playing);
+    registerHotkeys();
+    m_player->setPaused(false);
+    applyWatch();
+    log(QStringLiteral("Playing %1 (%2).").arg(name, why));
+    m_player->setClipboardCache(QApplication::clipboard()->text());
+    m_player->start(m, m_pending);
+    return true;
+}
+
+void MainWindow::handOver(const QJsonObject& msg)
+{
+    const QString file = msg.value(QStringLiteral("file")).toString();
+    if (msg.value(QStringLiteral("play")).toBool() && !file.isEmpty()) {
+        playFile(file, QStringLiteral("started again with --play"));   // in the background: the macro's target keeps the focus
+        return;
+    }
+    if (!file.isEmpty()) {
+        if (m_state != State::Idle || QApplication::activeModalWidget())
+            log(QStringLiteral("%1 wasn't opened: finish what's running (or close the open window) first.").arg(QFileInfo(file).fileName()));
+        else if (maybeSave()) openFile(file);
+    }
+    if (!file.isEmpty() || msg.value(QStringLiteral("show")).toBool()) {
+        m_quitWhenDone = false;   // started from a shortcut with --quit, and now opened on purpose: stay open
+        if (isMinimized()) showNormal();
+        show();
+        raise();
+        activateWindow();
+    }
+}
+
+void MainWindow::createDesktopShortcut()
+{
+    if (m_state != State::Idle) return;
+    if (m_file.isEmpty() || m_dirty) {
+        QMessageBox box(QMessageBox::Information, QStringLiteral("Create Desktop Shortcut"),
+                        QStringLiteral("The shortcut plays the saved macro file. Save the macro first?"),
+                        QMessageBox::Save | QMessageBox::Cancel, this);
+        if (box.exec() != QMessageBox::Save || !save(m_file.isEmpty()) || m_file.isEmpty()) return;
+    }
+    const QString dir = desktopForTests.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) : desktopForTests;
+    const QString name = QFileInfo(m_file).completeBaseName();
+    const QString link = QDir(dir).filePath(name + platform::sys::shortcutExtension());
+    if (QFileInfo::exists(link)
+        && QMessageBox::question(this, QStringLiteral("Create Desktop Shortcut"),
+                                 QStringLiteral("There's already a shortcut named “%1” on the desktop. Replace it?").arg(name))
+               != QMessageBox::Yes)
+        return;
+    const QString appImage = qEnvironmentVariable("APPIMAGE");
+    const QString program = appImage.isEmpty() ? QApplication::applicationFilePath() : appImage;
+    QStringList args{QDir::toNativeSeparators(m_file), QStringLiteral("--play"), QStringLiteral("--quit"), QStringLiteral("--minimized")};
+    if (appdata::usesOverride())   // portable: the same settings folder
+        args << QStringLiteral("--data-folder") << (appdata::isTemporary() ? QStringLiteral("<none>") : QDir::toNativeSeparators(appdata::folder()));
+    QString err;
+    if (!m_backend->createShortcut(link, program, args, QStringLiteral("Plays the macro %1 with %2.").arg(name, QStringLiteral(APP_NAME)), &err)) {
+        QMessageBox::warning(this, QStringLiteral("Create Desktop Shortcut"), QStringLiteral("The shortcut couldn't be made: %1").arg(err));
+        return;
+    }
+    log(QStringLiteral("Desktop shortcut made: %1. Double-click it to play %2 (it plays in this window if the app is already "
+                       "running).").arg(QDir::toNativeSeparators(link), QFileInfo(m_file).fileName()));
+}
+
+void MainWindow::checkForUpdates()
+{
+    if (m_checkingUpdates) return;
+    m_checkingUpdates = true;
+    if (!m_net) m_net = new QNetworkAccessManager(this);
+    QNetworkRequest req(QUrl(updateUrlForTests.isEmpty() ? QStringLiteral("https://api.github.com/repos/cincottash/MacroRecorder/releases/latest")
+                                                         : updateUrlForTests));
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral(APP_NAME));
+    req.setRawHeader("Accept", "application/vnd.github+json");
+    req.setTransferTimeout(15000);
+    log(QStringLiteral("Checking for updates…"));
+    QNetworkReply* r = m_net->get(req);
+    connect(r, &QNetworkReply::finished, this, [this, r] {
+        r->deleteLater();
+        m_checkingUpdates = false;
+        const QString title = QStringLiteral("Check for Updates");
+        const QString current = QStringLiteral(APP_VERSION);
+        if (r->error() != QNetworkReply::NoError) {
+            const QString why = r->error() == QNetworkReply::OperationCanceledError ? QStringLiteral("no answer within 15 seconds") : r->errorString();
+            log(QStringLiteral("Couldn't check for updates: %1").arg(why));
+            QMessageBox::warning(this, title, QStringLiteral("Couldn't check for updates: %1.\n\nThe releases are also listed on the "
+                                                             "project's website (Help > Project Website).").arg(why));
+            return;
+        }
+        const QJsonObject o = QJsonDocument::fromJson(r->readAll()).object();
+        const QString tag = o.value(QStringLiteral("tag_name")).toString();
+        QString page = o.value(QStringLiteral("html_url")).toString();
+        if (!page.startsWith(QLatin1String("https://github.com/"))) page = kRepoUrl + QStringLiteral("/releases/latest");
+        const QVersionNumber latest = QVersionNumber::fromString(tag.startsWith(QLatin1Char('v')) ? tag.mid(1) : tag);
+        if (tag.isEmpty() || latest.isNull()) {
+            log(QStringLiteral("Couldn't check for updates: GitHub's answer had no version in it."));
+            QMessageBox::warning(this, title, QStringLiteral("Couldn't check for updates: GitHub's answer had no version in it."));
+            return;
+        }
+        const QVersionNumber mine = QVersionNumber::fromString(current.section(QLatin1Char('-'), 0, 0));
+        const bool dev = current.contains(QLatin1Char('-'));   // a local or test build, not a release
+        const QString latestText = latest.toString();
+        if (latest > mine || dev) {
+            // A no-break space keeps the name and its version on one line
+            const QString text = dev ? QStringLiteral("This is a test build (%1). The latest release is %2 %3.").arg(current, QStringLiteral(APP_NAME), latestText)
+                                     : QStringLiteral("%1 %2 is available. This is %3.").arg(QStringLiteral(APP_NAME), latestText, current);
+            log(text);
+            QMessageBox box(QMessageBox::Information, title, text, QMessageBox::Close, this);
+            QPushButton* open = box.addButton(QStringLiteral("Open Download Page"), QMessageBox::AcceptRole);
+            box.setDefaultButton(open);
+            box.exec();
+            if (box.clickedButton() == open) QDesktopServices::openUrl(QUrl(page));
+            return;
+        }
+        const QString text = QStringLiteral("%1 %2 is the latest version.").arg(QStringLiteral(APP_NAME), current);
+        log(text);
+        QMessageBox::information(this, title, text);
+    });
+}
+
+namespace {
+QString aiBase(const QString& url)
+{
+    QString b = url.trimmed();
+    while (b.endsWith(QLatin1Char('/'))) b.chop(1);
+    return b;
+}
+// What went wrong, in a sentence: no server, the server's own error message, or the network's
+QString aiError(QNetworkReply* r, const QByteArray& body, const QString& base)
+{
+    if (r->error() == QNetworkReply::ConnectionRefusedError || r->error() == QNetworkReply::HostNotFoundError)
+        return QStringLiteral("no AI server answered at %1. Start LM Studio's local server (its Developer tab), or set another "
+                              "server in File > Settings > AI Server…").arg(base);
+    if (r->error() == QNetworkReply::OperationCanceledError) return QStringLiteral("no answer from the AI server in time.");
+    const QJsonObject o = QJsonDocument::fromJson(body).object();
+    QString said = o.value(QStringLiteral("error")).isObject() ? o.value(QStringLiteral("error")).toObject().value(QStringLiteral("message")).toString()
+                                                               : o.value(QStringLiteral("error")).toString();
+    if (!said.isEmpty()) return QStringLiteral("the AI server said: %1").arg(said);
+    return r->errorString();
+}
+}  // namespace
+
+void MainWindow::askAI(const QString& prompt, int timeoutMs)
+{
+    if (!m_net) m_net = new QNetworkAccessManager(this);
+    const QString base = aiBase(m_s.aiUrl);
+    QNetworkRequest req(QUrl(base + QStringLiteral("/chat/completions")));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral(APP_NAME));
+    req.setTransferTimeout(timeoutMs);
+    QJsonObject body{{QStringLiteral("messages"), QJsonArray{QJsonObject{{QStringLiteral("role"), QStringLiteral("user")},
+                                                                          {QStringLiteral("content"), prompt}}}},
+                     {QStringLiteral("temperature"), 0.2},
+                     {QStringLiteral("stream"), false}};
+    if (!m_s.aiModel.trimmed().isEmpty()) body[QStringLiteral("model")] = m_s.aiModel.trimmed();
+    log(QStringLiteral("Ask AI: waiting for the answer from %1…").arg(base));
+    QNetworkReply* r = m_net->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    m_aiReply = r;
+    connect(r, &QNetworkReply::finished, this, [this, r, base] {
+        r->deleteLater();
+        if (m_aiReply == r) m_aiReply = nullptr;
+        const QByteArray data = r->readAll();
+        if (r->error() != QNetworkReply::NoError) { m_player->answerAI(aiError(r, data, base), false); return; }
+        const QJsonObject o = QJsonDocument::fromJson(data).object();
+        QString text = o.value(QStringLiteral("choices")).toArray().first().toObject().value(QStringLiteral("message")).toObject()
+                           .value(QStringLiteral("content")).toString();
+        // Models that think aloud put it in <think>…</think> first: only the answer is kept
+        static const QRegularExpression think(QStringLiteral("<think>.*?</think>"), QRegularExpression::DotMatchesEverythingOption);
+        text.remove(think);
+        text = text.trimmed();
+        if (text.isEmpty()) { m_player->answerAI(QStringLiteral("the AI server's answer was empty."), false); return; }
+        log(QStringLiteral("Ask AI: answered (%1 characters).").arg(text.size()), true);
+        m_player->answerAI(text, true);
+    });
+}
+
+void MainWindow::editAiServer()
+{
+    QDialog d(this);
+    d.setWindowTitle(QStringLiteral("AI Server"));
+    auto* lay = new QVBoxLayout(&d);
+    auto* intro = new QLabel(QStringLiteral("Ask AI steps send their questions here. Free and private: LM Studio (lmstudio.ai) runs "
+                                            "models on this PC; start its server in its Developer tab. Any server that speaks the "
+                                            "OpenAI API works too, for example Ollama at http://localhost:11434/v1."));
+    intro->setWordWrap(true);
+    lay->addWidget(intro);
+    auto* form = new QFormLayout;
+    form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    form->setHorizontalSpacing(12);
+    auto* url = new QLineEdit(m_s.aiUrl);
+    url->setPlaceholderText(QStringLiteral("http://localhost:1234/v1"));
+    auto* model = new QComboBox;
+    model->setEditable(true);
+    model->addItem(m_s.aiModel);
+    model->setCurrentText(m_s.aiModel);
+    model->lineEdit()->setPlaceholderText(QStringLiteral("empty: the model the server has loaded"));
+    auto* test = new QPushButton(QStringLiteral("List Models"));
+    test->setToolTip(QStringLiteral("Asks the server which models it has (nothing is loaded or downloaded)."));
+    auto* modelRow = new QWidget;
+    auto* mh = new QHBoxLayout(modelRow);
+    mh->setContentsMargins(0, 0, 0, 0);
+    mh->addWidget(model, 1);
+    mh->addWidget(test);
+    form->addRow(QStringLiteral("Server Address:"), url);
+    form->addRow(QStringLiteral("Model:"), modelRow);
+    lay->addLayout(form);
+    auto* status = new QLabel;
+    status->setObjectName(QStringLiteral("muted"));
+    status->setWordWrap(true);
+    status->setProperty("testId", QStringLiteral("aiStatus"));
+    lay->addWidget(status);
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    lay->addWidget(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, &d, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &d, &QDialog::reject);
+    connect(test, &QPushButton::clicked, &d, [this, url, model, status, test] {
+        if (!m_net) m_net = new QNetworkAccessManager(this);
+        const QString base = aiBase(url->text());
+        QNetworkRequest req(QUrl(base + QStringLiteral("/models")));
+        req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral(APP_NAME));
+        req.setTransferTimeout(10000);
+        status->setText(QStringLiteral("Asking %1…").arg(base));
+        test->setEnabled(false);
+        QNetworkReply* r = m_net->get(req);
+        connect(r, &QNetworkReply::finished, status, [r, base, model, status, test] {
+            r->deleteLater();
+            test->setEnabled(true);
+            const QByteArray data = r->readAll();
+            if (r->error() != QNetworkReply::NoError) { status->setText(QStringLiteral("Couldn't list the models: %1").arg(aiError(r, data, base))); return; }
+            QStringList ids;
+            for (const QJsonValue& v : QJsonDocument::fromJson(data).object().value(QStringLiteral("data")).toArray())
+                ids << v.toObject().value(QStringLiteral("id")).toString();
+            ids.removeAll(QString());
+            const QString keep = model->currentText();
+            model->clear();
+            model->addItem(QString());
+            model->addItems(ids);
+            model->setCurrentText(keep);
+            status->setText(ids.isEmpty() ? QStringLiteral("The server answered, but has no models.")
+                                          : QStringLiteral("The server has %1 model%2.").arg(ids.size()).arg(ids.size() == 1 ? QString() : QStringLiteral("s")));
+        });
+    });
+    d.resize(600, d.sizeHint().height());
+    if (d.exec() != QDialog::Accepted) return;
+    m_s.aiUrl = url->text().trimmed().isEmpty() ? Settings().aiUrl : url->text().trimmed();
+    m_s.aiModel = model->currentText().trimmed();
+    m_s.save(appdata::settingsFile());
+    log(QStringLiteral("AI server: %1%2.").arg(m_s.aiUrl, m_s.aiModel.isEmpty() ? QString() : QStringLiteral(" (") + m_s.aiModel + QLatin1Char(')')));
+}
+
+QDateTime MainWindow::now() const { return clockForTests ? clockForTests() : QDateTime::currentDateTime(); }
+
+void MainWindow::reschedule()
+{
+    const QDateTime t = now();
+    m_due.clear();
+    m_waitLogged.clear();
+    for (const Schedule& s : std::as_const(m_s.schedules)) m_due << (s.enabled ? s.nextRun(t) : QDateTime());
+}
+
+void MainWindow::checkSchedules()
+{
+    if (!m_hotkeysEnabled) return;   // screenshot mode
+    const QDateTime t = now();
+    for (int i = 0; i < m_s.schedules.size() && i < m_due.size(); ++i) {
+        if (!m_due[i].isValid() || t < m_due[i]) continue;
+        Schedule& s = m_s.schedules[i];
+        const QString name = QFileInfo(s.file).fileName();
+        if (m_due[i].secsTo(t) > 15 * 60) {   // busy (or the computer asleep) for a long time: don't play it late
+            log(QStringLiteral("Schedule: %1 wasn't played at %2 (the app was busy or the computer asleep).")
+                    .arg(name, QLocale().toString(m_due[i].time(), QLocale::ShortFormat)));
+            m_due[i] = s.nextRun(t);
+            m_waitLogged.remove(i);
+            continue;
+        }
+        const bool busy = m_state != State::Idle || QApplication::activeModalWidget();
+        if (busy) {
+            if (!m_waitLogged.contains(i)) {
+                m_waitLogged.insert(i);
+                log(QStringLiteral("Schedule: %1 is due; it plays when the app is free (finish recording or playing, or close "
+                                   "the open window).").arg(name));
+            }
+            continue;
+        }
+        m_waitLogged.remove(i);
+        s.lastRun = t;
+        if (s.repeat == QLatin1String("once")) s.enabled = false;
+        m_due[i] = s.enabled ? s.nextRun(t) : QDateTime();
+        saveSettingsSoon();
+        playFile(s.file, QStringLiteral("schedule: %1").arg(s.describe()));
+        return;   // one at a time; the next waits for this one
+    }
+}
+
+void MainWindow::editMacroHotkeys()
+{
+    MacroHotkeysDialog d(m_s.macroHotkeys, appHotkeys(), m_s.lastFolder, this);
+    if (d.exec() != QDialog::Accepted || d.result() == m_s.macroHotkeys) return;
+    m_s.macroHotkeys = d.result();
+    m_s.save(appdata::settingsFile());
+    registerHotkeys();
+    log(QStringLiteral("Macro hotkeys: %1 set.").arg(m_s.macroHotkeys.size()));
+}
+
+void MainWindow::editSchedules()
+{
+    SchedulesDialog d(m_s.schedules, [this] { return now(); }, m_s.lastFolder, this);
+    if (d.exec() != QDialog::Accepted || d.result() == m_s.schedules) return;
+    m_s.schedules = d.result();
+    m_s.save(appdata::settingsFile());
+    reschedule();
+    int on = 0;
+    QDateTime first;
+    for (const QDateTime& due : std::as_const(m_due))
+        if (due.isValid()) { ++on; if (!first.isValid() || due < first) first = due; }
+    log(on ? QStringLiteral("Schedules: %1 on; the next one plays %2.").arg(on).arg(autorun::whenText(first, now()).toLower())
+           : QStringLiteral("Schedules: none on."));
 }
 
 // ------------------------------------------------------------------------------------------------ more editing
@@ -2123,6 +2802,7 @@ void MainWindow::findReplace()
     d.setWindowTitle(QStringLiteral("Find and Replace"));
     auto* lay = new QVBoxLayout(&d);
     auto* form = new QFormLayout;
+    form->setHorizontalSpacing(12);
     auto* find = new QLineEdit;
     auto* repl = new QLineEdit;
     auto* matchCase = new QCheckBox(QStringLiteral("Match Case"));
@@ -2250,7 +2930,7 @@ void MainWindow::copyCommandLine()
 
 void MainWindow::applyWatch()
 {
-    const bool playing = m_state == State::Playing && !m_player->paused() && !m_msgBox;
+    const bool playing = m_state == State::Playing && !m_player->paused() && !m_msgBox && !m_askBox;
     const bool block = playing && m_s.blockKeyboard && m_backend->canBlockKeyboard();
     m_backend->setBlockKeyboard(block);
     m_backend->setCapture(playing && (m_s.stopOnKey || m_s.stopOnMouse || block) ? platform::CaptureMode::Watch : platform::CaptureMode::Off);
@@ -2276,6 +2956,42 @@ void MainWindow::showMessageBox(const QString& text)
     box->show();
     box->raise();
     box->activateWindow();
+}
+
+void MainWindow::showAskBox(const QString& question, const QString& defaultText)
+{
+    if (m_askBox) m_askBox->done(QDialog::Rejected);
+    // Its own window, on top (the main window may be minimized while playing), like a Message Box step
+    auto* box = new QDialog(nullptr, Qt::Dialog | Qt::WindowStaysOnTopHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
+    box->setWindowTitle(QStringLiteral(APP_NAME));
+    box->setWindowIcon(windowIcon());
+    box->setAttribute(Qt::WA_DeleteOnClose);
+    box->setProperty("testId", QStringLiteral("askBox"));
+    auto* lay = new QVBoxLayout(box);
+    auto* label = new QLabel(question);
+    label->setWordWrap(true);
+    label->setMinimumWidth(320);
+    auto* edit = new QLineEdit(defaultText);
+    edit->selectAll();
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    buttons->button(QDialogButtonBox::Cancel)->setToolTip(QStringLiteral("Stops playback."));
+    lay->addWidget(label);
+    lay->addWidget(edit);
+    lay->addWidget(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, box, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, box, &QDialog::reject);
+    m_askBox = box;
+    applyWatch();   // typing the answer isn't "the user pressed a key"
+    log(QStringLiteral("Question: %1 (waiting for an answer)").arg(question));
+    connect(box, &QDialog::finished, this, [this, box, edit](int r) {
+        if (m_askBox == box) m_askBox = nullptr;
+        m_player->answerAsk(edit->text(), r == QDialog::Accepted);
+        applyWatch();
+    });
+    box->show();
+    box->raise();
+    box->activateWindow();
+    edit->setFocus();
 }
 
 void MainWindow::runAfterPlayback()
@@ -2409,7 +3125,8 @@ void MainWindow::startOver()
                     QMessageBox::Yes | QMessageBox::Cancel, this);
     box.setInformativeText(
         QStringLiteral("Every setting goes back to its default: the theme and imported themes, the layout, Window Opacity, "
-                       "hotkeys, playback and recording options, and recent files. Start at Login is turned off.\n\n")
+                       "hotkeys, macro hotkeys and schedules, playback and recording options, and recent files. "
+                       "Start at Login is turned off.\n\n")
         + (portable ? QStringLiteral("Then %1 starts again with the same app data folder.").arg(QStringLiteral(APP_NAME))
                     : QStringLiteral("Then %1 starts again and shows the welcome window, which asks where to keep its "
                                      "settings.").arg(QStringLiteral(APP_NAME)))

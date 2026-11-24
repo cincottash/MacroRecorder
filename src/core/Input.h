@@ -4,6 +4,7 @@
 
 #include "Action.h"
 
+#include <QImage>
 #include <QMetaType>
 
 #include <climits>
@@ -28,6 +29,17 @@ struct RawEvent {
     // Top-left of the window this event belongs to (the window under the pointer for button presses and
     // releases, the active window otherwise), for "positions relative to the window". Unset: not known.
     QPoint windowOrigin{INT_MIN, INT_MIN};
+    // Button presses while recording smart clicks: a small picture of the screen around the pointer, taken before
+    // the click changed anything, and where the pointer is in it
+    QImage around;
+    QPoint aroundAt;
+};
+
+// A word read from a picture of the screen (Find Text steps): its text, where it is in the picture, its line.
+struct TextWord {
+    QString text;
+    QRect box;
+    int line = 0;
 };
 
 class Injector {
@@ -50,6 +62,29 @@ public:
     virtual void keyRepeat(int* delayMs, int* intervalMs) { *delayMs = 500; *intervalMs = 33; }
     // Windows: send keys as hardware scan codes only (some games read nothing else). Ignored elsewhere.
     virtual void setScanCodesOnly(bool on) { Q_UNUSED(on) }
+
+    // Move / Resize Window: the first window that matches (empty exe and TitleMatch::Any: the active window).
+    // `r` is used for WindowState::Normal (screen pixels, the window's outer frame). False: no such window.
+    virtual bool moveWindow(const QString& exe, const QString& title, TitleMatch match, WindowState state, const QRect& r)
+    {
+        Q_UNUSED(exe) Q_UNUSED(title) Q_UNUSED(match) Q_UNUSED(state) Q_UNUSED(r)
+        return false;
+    }
+    // The top-level window at a screen point: its program, title and frame. False: none (or not supported here).
+    virtual bool windowAt(QPoint p, QString* exe, QString* title, QRect* frame)
+    {
+        Q_UNUSED(p) Q_UNUSED(exe) Q_UNUSED(title) Q_UNUSED(frame)
+        return false;
+    }
+    virtual QRect screenBounds() { return {}; }                  // every screen together, in screen pixels
+    virtual QImage grabScreen(const QRect& r) { Q_UNUSED(r) return {}; }   // screen pixels; null: not supported here
+    // Reads the words in a picture (the system's text recognition). False with the reason if it can't.
+    virtual bool readText(const QImage& img, QVector<TextWord>* words, QString* error)
+    {
+        Q_UNUSED(img) Q_UNUSED(words)
+        if (error) *error = QStringLiteral("Reading text from the screen isn't available on this system.");
+        return false;
+    }
 };
 
 }  // namespace core

@@ -1,6 +1,9 @@
 #include "ActionTable.h"
 
+#include "ActionModel.h"
 #include "Look.h"
+
+#include <QKeyEvent>
 
 #include <QApplication>
 #include <QCursor>
@@ -88,8 +91,43 @@ ActionTable::ActionTable(QWidget* parent) : QTableView(parent)
 
 QPoint ActionTable::contentPos(QPoint p) const { return p + QPoint(horizontalOffset(), verticalOffset()); }
 
+int ActionTable::groupArrowAt(QPoint viewportPos) const
+{
+    const QModelIndex i = indexAt(viewportPos);
+    if (!i.isValid() || i.column() != 1 || !i.data(ActionModel::GroupRole).isValid()) return -1;
+    // The arrow is the step's symbol, drawn after the indent: allow a little room around it
+    const int x = viewportPos.x() - visualRect(i).left();
+    const int arrow = 6 + i.data(ActionModel::DepthRole).toInt() * ActionModel::IndentPx;
+    return x >= arrow - 6 && x <= arrow + 24 ? i.row() : -1;
+}
+
+void ActionTable::keyPressEvent(QKeyEvent* e)
+{
+    // Left / Right on a group fold it or show its steps, as in a file manager's folder tree
+    if ((e->key() == Qt::Key_Left || e->key() == Qt::Key_Right) && e->modifiers() == Qt::NoModifier) {
+        const QModelIndex cur = currentIndex();
+        const QVariant folded = cur.isValid() ? model()->index(cur.row(), 1).data(ActionModel::GroupRole) : QVariant();
+        if (folded.isValid()) {
+            const bool fold = e->key() == Qt::Key_Left;
+            if (folded.toBool() != fold) emit groupToggled(cur.row(), fold);
+            e->accept();
+            return;
+        }
+    }
+    QTableView::keyPressEvent(e);
+}
+
 void ActionTable::mousePressEvent(QMouseEvent* e)
 {
+    if (e->button() == Qt::LeftButton && e->modifiers() == Qt::NoModifier) {
+        const int row = groupArrowAt(e->position().toPoint());
+        if (row >= 0) {
+            emit groupToggled(row, !model()->index(row, 1).data(ActionModel::GroupRole).toBool());
+            selectionModel()->setCurrentIndex(model()->index(row, 0), QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+            e->accept();
+            return;
+        }
+    }
     if (e->button() != Qt::LeftButton) { QTableView::mousePressEvent(e); return; }
     m_pressed = true;
     m_active = false;

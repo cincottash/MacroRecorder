@@ -9,12 +9,15 @@
 
 #include <functional>
 
+#include <QDateTime>
 #include <QHash>
 #include <QMainWindow>
+#include <QSet>
 #include <QTimer>
 
 class ActionDialog;
 class ActionPreview;
+class QJsonObject;
 class ActionTable;
 class QAction;
 class QActionGroup;
@@ -52,6 +55,21 @@ public:
     // File > Settings > Start Over starts the app again with this. Tests replace it so nothing is started; the
     // default starts the program (the AppImage itself on Linux) detached.
     inline static std::function<bool(const QString& program, const QStringList& args)> startAgain;
+    // Schedules: the clock they follow (tests set their own). Empty: the computer's clock.
+    inline static std::function<QDateTime()> clockForTests;
+    void checkSchedules();   // plays a schedule that's due; a timer calls it every second
+    // Plays a saved macro without opening it (Macro Hotkeys, Schedules, another start of the app). False if it
+    // can't start now (busy, a dialog open, a bad file); the reason is in the Activity log.
+    bool playFile(const QString& path, const QString& why);
+    // Another start of the app handed this over (main.cpp: one running copy): {"file": path, "play": true/false,
+    // "show": true/false}. Plays or opens the file, or comes to the front.
+    void handOver(const QJsonObject& msg);
+    void showAskBox(const QString& question, const QString& defaultText);   // an Ask for Text step (public for the UI audit)
+    // The step list's right-click menu at this point of its viewport (null while recording or playing). The caller
+    // shows it; public so tests can read it without opening it.
+    QMenu* stepMenu(QPoint viewportPos);
+    inline static QString desktopForTests;     // Create Desktop Shortcut writes here instead of the desktop
+    inline static QString updateUrlForTests;   // Check for Updates asks this address instead of GitHub
 
 protected:
     bool eventFilter(QObject* watched, QEvent* e) override;
@@ -110,7 +128,11 @@ private:
     void redo();
     QList<int> selectedRows() const;
     int insertRow() const;          // where new actions go: after the selection, or at the end
-    void addAction(core::ActionType t);
+    void addAction(core::ActionType t, int variant = -1);   // variant: Find Image's kind (see buildAddMenu)
+    int groupCount() const;
+    void groupSelected();     // Edit > Group Selected Steps
+    void ungroupSelected();
+    void foldAll(bool fold);
     void editRow(int row);
     void deleteSelected(bool ask = true);
     void copySelected(bool cut);
@@ -143,6 +165,17 @@ private:
     void registerHotkeys();
     void syncWidgetsFromSettings();   // after Reset settings: show the defaults right away
     void startOver();                 // every setting back to its default, then the app starts again (welcome window)
+    void createDesktopShortcut();     // File > Create Desktop Shortcut…
+    void askAI(const QString& prompt, int timeoutMs);   // an Ask AI step: one request to the AI server
+    void editAiServer();              // File > Settings > AI Server…
+    void checkForUpdates();           // Help > Check for Updates…
+    void editMacroHotkeys();          // Macro > Macro Hotkeys…
+    void editSchedules();             // Macro > Schedules…
+    void reschedule();                // when each schedule is next due, from now on
+    QDateTime now() const;
+    QHash<QString, QString> appHotkeys() const;   // the Hotkeys card's keys, by name
+    bool typingHotkey() const;        // a hotkey field has the keyboard: global hotkeys step aside so it gets the keys
+    void fitValueColumn();            // the step list's Value column fills a wide window (until a column is dragged)
     void onHotkey(int id);
     core::PlayOptions playOptions() const;
     core::RecordOptions recordOptions() const;
@@ -167,8 +200,20 @@ private:
     bool m_quitWhenDone = false;
     bool m_hotkeysEnabled = true;
     bool m_startingOver = false;   // Start Over: closing without saving the settings again
+    QString m_playingOther;              // playing a macro file that isn't the open one (hotkey, schedule): its path
+    QList<core::Action> m_otherActions;  // ...and its steps
+    QTimer m_scheduleTimer;
+    QList<QDateTime> m_due;              // per schedule: when it's next due (invalid: not again)
+    QSet<int> m_waitLogged;              // schedules whose "waiting" line is already in the log
+    int m_macroHotkeysRegistered = 0;
+    bool m_hotkeysPaused = false;        // a hotkey field has the keyboard (see typingHotkey)
+    class QNetworkAccessManager* m_net = nullptr;   // Check for Updates (made when first used)
+    bool m_checkingUpdates = false;
+    class QNetworkReply* m_aiReply = nullptr;      // an Ask AI step waiting for the server
+    bool m_fittingColumns = false;       // the app itself is resizing the list's columns (not the user)
     QString m_recordTo;
     QMessageBox* m_msgBox = nullptr;       // a Message box step waiting for OK
+    class QDialog* m_askBox = nullptr;     // an Ask for Text step waiting for an answer
     ActionDialog* m_openDialog = nullptr;  // a step editor that's open (for the Capture position hotkey)
     QWidget* m_marker = nullptr;
     QHash<int, bool> m_effectsDefault;   // the system's menu/drop-down/tooltip animations (Qt::UIEffect), at start
@@ -195,6 +240,7 @@ private:
     QCheckBox *m_countdownCheck = nullptr, *m_stopOnKey = nullptr, *m_stopOnMouse = nullptr, *m_blockKeys = nullptr;
     QCheckBox *m_restoreMouse = nullptr, *m_hidePlay = nullptr, *m_showNotif = nullptr;
     QCheckBox *m_recMoves = nullptr, *m_recKeys = nullptr, *m_mergeTyping = nullptr, *m_hideRec = nullptr, *m_relPos = nullptr;
+    QCheckBox* m_smartClicks = nullptr;
     QSpinBox *m_minMove = nullptr, *m_shortestPause = nullptr;
     QSlider* m_pathDetail = nullptr;
     QLabel* m_pathDetailValue = nullptr;

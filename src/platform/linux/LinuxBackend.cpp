@@ -212,6 +212,41 @@ void beep() { QApplication::beep(); }
 
 bool centerWindowAt(quintptr, QPoint) { return false; }   // X11 positions are already pixels
 
+QString shortcutExtension() { return QStringLiteral(".desktop"); }
+
+bool createShortcut(const QString& path, const QString& program, const QStringList& args, const QString& description, QString* error)
+{
+    // Desktop Entry rules: arguments with spaces or quotes are quoted, and inside quotes " ` $ \ are escaped
+    auto quote = [](const QString& a) {
+        static const QString special = QStringLiteral(" \t\n\"'\\><~|&;$*?#()`");
+        bool needs = a.isEmpty();
+        for (QChar c : a) needs |= special.contains(c);
+        if (!needs) return a;
+        QString out = QStringLiteral("\"");
+        for (QChar c : a) {
+            if (c == QLatin1Char('"') || c == QLatin1Char('`') || c == QLatin1Char('$') || c == QLatin1Char('\\')) out += QLatin1Char('\\');
+            out += c;
+        }
+        return out + QLatin1Char('"');
+    };
+    QStringList exec{quote(program)};
+    for (const QString& a : args) exec << quote(a);
+    QString escapedExec = exec.join(QLatin1Char(' '));
+    escapedExec.replace(QLatin1String("\\"), QLatin1String("\\\\"));   // the file format escapes backslashes once more
+    escapedExec.replace(QLatin1Char('%'), QLatin1String("%%"));
+    const QString text = QStringLiteral("[Desktop Entry]\nType=Application\nName=%1\nComment=%2\nExec=%3\nIcon=%4\nTerminal=false\n")
+                             .arg(QFileInfo(path).completeBaseName(), description, escapedExec, QStringLiteral(APP_NAME));
+    QSaveFile f(path);
+    if (!f.open(QIODevice::WriteOnly) || f.write(text.toUtf8()) < 0 || !f.commit()) {
+        if (error) *error = f.errorString();
+        return false;
+    }
+    QFile::setPermissions(path, QFile::permissions(path) | QFile::ExeOwner | QFile::ExeUser);   // desktops start only executable entries
+    // GNOME asks before starting an entry it doesn't trust; mark this one as trusted where gio exists
+    QProcess::execute(QStringLiteral("gio"), {QStringLiteral("set"), path, QStringLiteral("metadata::trusted"), QStringLiteral("true")});
+    return true;
+}
+
 }  // namespace sys
 
 }  // namespace platform
