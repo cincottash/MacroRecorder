@@ -785,6 +785,21 @@ void Player::run()
         m_scope.vars.clear();   // every playback starts without variables
     }
     m_scope.clipboard = [this] { QMutexLocker l(&m_mx); return m_clipboard; };
+    // Started by a hotkey such as Ctrl+Alt+1: wait (up to 3 s) until those keys are let go. Otherwise the first keys
+    // typed arrive with Ctrl and Alt still held and become shortcuts in the other program (Ctrl+H instead of h).
+    {
+        static const QStringList kMods = {QStringLiteral("Shift"), QStringLiteral("Ctrl"), QStringLiteral("Alt"), QStringLiteral("Win")};
+        auto held = [this] {
+            for (const QString& m : kMods)
+                if (m_inj->isKeyDown(m)) return true;
+            return false;
+        };
+        QElapsedTimer wait;
+        wait.start();
+        bool waited = false;
+        while (!m_stop && held() && wait.elapsed() < 3000) { waited = true; QThread::msleep(10); }
+        if (waited) emit detail(QStringLiteral("Waited %1 ms for Shift, Ctrl, Alt and Win to be let go.").arg(wait.elapsed()));
+    }
     QElapsedTimer total;
     total.start();
     const int rounds = m_o.repeatMode == RepeatMode::Times ? qMax(1, m_o.repeatCount) : 0;
