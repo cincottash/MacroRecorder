@@ -37,9 +37,9 @@ public:
 
     static constexpr int DepthRole = Qt::UserRole + 1;   // how far the step is indented (inside If and Group blocks)
     static constexpr int GroupRole = Qt::UserRole + 2;   // Group rows: true when folded; other rows: nothing
-    int depth(int row) const { return row >= 0 && row < m_depth.size() ? m_depth.at(row) : 0; }
-    bool foldedAway(int row) const { return row >= 0 && row < m_folded.size() && m_folded.at(row); }
-    int groupEnd(int row) const { return m_groupEnd.value(row, -1); }   // a Group's End Group row (rowCount: none)
+    int depth(int row) const { ensureStructure(); return row >= 0 && row < m_depth.size() ? m_depth.at(row) : 0; }
+    bool foldedAway(int row) const { ensureStructure(); return row >= 0 && row < m_folded.size() && m_folded.at(row); }
+    int groupEnd(int row) const { ensureStructure(); return m_groupEnd.value(row, -1); }   // a Group's End Group row (rowCount: none)
     void setCollapsed(int row, bool collapsed);   // folds or unfolds a group (not an edit: undo doesn't see it)
 
 signals:
@@ -47,11 +47,13 @@ signals:
     void foldingChanged();
 
 private:
-    void recompute();   // indentation, folding and group sizes after any change
+    void ensureStructure() const;    // indentation, folding and group sizes, worked out again if the steps changed
+    void changed(bool repaintAll);   // the steps changed: the structure is out of date
 
     QList<core::Action> m_actions;
     int m_playing = -1;
-    QVector<int> m_depth;
-    QVector<bool> m_folded;
-    QHash<int, int> m_groupEnd;
+    mutable bool m_stale = true;
+    mutable QVector<int> m_depth;
+    mutable QVector<bool> m_folded;
+    mutable QHash<int, int> m_groupEnd;
 };

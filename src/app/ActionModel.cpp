@@ -192,19 +192,17 @@ static bool isStructure(ActionType t)
     return t == ActionType::If || t == ActionType::Else || t == ActionType::EndIf || t == ActionType::Group || t == ActionType::EndGroup;
 }
 
-void ActionModel::recompute()
+void ActionModel::ensureStructure() const
 {
+    if (!m_stale) return;
+    m_stale = false;
     bool any = false;
     for (const core::Action& a : std::as_const(m_actions))
         if (isStructure(a.type)) { any = true; break; }
-    const bool had = !m_depth.isEmpty() || !m_groupEnd.isEmpty();
     m_depth.clear();
     m_folded.clear();
     m_groupEnd.clear();
-    if (!any) {   // a plain list (most recordings): nothing to work out
-        if (had && !m_actions.isEmpty()) emit dataChanged(index(0, 0), index(int(m_actions.size()) - 1, ColCount - 1));
-        return;
-    }
+    if (!any) return;   // a plain list (most recordings): nothing to work out
     const int n = int(m_actions.size());
     m_depth.resize(n);
     m_folded.resize(n);
@@ -226,14 +224,23 @@ void ActionModel::recompute()
         if (m_actions.at(r).collapsed)
             for (int k = r + 1; k <= qMin(end, n - 1); ++k) m_folded[k] = true;   // its End Group too
     }
-    emit dataChanged(index(0, 0), index(n - 1, ColCount - 1));
+}
+
+void ActionModel::changed(bool repaintAll)
+{
+    // The structure is worked out again when next needed (once for a burst of changes, such as a recording), not
+    // after every step: with thousands of steps that made recording crawl
+    m_stale = true;
+    if (repaintAll && !m_actions.isEmpty()) emit dataChanged(index(0, 0), index(int(m_actions.size()) - 1, ColCount - 1));
 }
 
 void ActionModel::setCollapsed(int row, bool collapsed)
 {
     if (row < 0 || row >= m_actions.size() || m_actions.at(row).type != ActionType::Group || m_actions.at(row).collapsed == collapsed) return;
     m_actions[row].collapsed = collapsed;
-    recompute();
+    changed(false);
+    const int end = qMin(groupEnd(row), int(m_actions.size()) - 1);
+    emit dataChanged(index(row, 0), index(qMax(row, end), ColCount - 1));
     emit foldingChanged();
 }
 
@@ -242,8 +249,8 @@ void ActionModel::setActions(const QList<core::Action>& a)
     beginResetModel();
     m_actions = a;
     m_playing = -1;
+    m_stale = true;
     endResetModel();
-    recompute();
 }
 
 void ActionModel::insert(int row, const core::Action& a)
@@ -251,9 +258,11 @@ void ActionModel::insert(int row, const core::Action& a)
     row = qBound(0, row, int(m_actions.size()));
     beginInsertRows({}, row, row);
     m_actions.insert(row, a);
+    m_stale = true;
     endInsertRows();
     if (row < m_actions.size() - 1) emit dataChanged(index(row, ColNum), index(int(m_actions.size()) - 1, ColNum));
-    if (isStructure(a.type) || !m_depth.isEmpty()) recompute();
+    // A new If or Group indents the steps after it: they're drawn again
+    if (isStructure(a.type)) changed(true);
 }
 
 void ActionModel::replace(int row, const core::Action& a)
@@ -261,22 +270,42 @@ void ActionModel::replace(int row, const core::Action& a)
     if (row < 0 || row >= m_actions.size()) return;
     const bool structural = isStructure(a.type) || isStructure(m_actions.at(row).type);
     m_actions[row] = a;
-    emit dataChanged(index(row, 0), index(row, ColCount - 1));
-    if (structural) recompute();
+    if (structural) changed(true);
+    else emit dataChanged(index(row, 0), index(row, ColCount - 1));
 }
 
 void ActionModel::removeRowsList(QList<int> rows)
 {
     std::sort(rows.begin(), rows.end(), std::greater<int>());
     rows.erase(std::unique(rows.begin(), rows.end()), rows.end());
-    for (int r : rows) {
-        if (r < 0 || r >= m_actions.size()) continue;
-        beginRemoveRows({}, r, r);
-        m_actions.removeAt(r);
+    rows.removeIf([this](int r) { return r < 0 || r >= m_actions.size(); });
+    if (rows.isEmpty()) return;
+    if (rows.size() > 500) {
+        // Many at once (Select All, Delete): one rebuilt list. Removing them one by one made the list lay itself out
+        // again after each: 20,000 steps took a minute
+        QList<core::Action> keep;
+        keep.reserve(m_actions.size() - rows.size());
+        int next = int(rows.size()) - 1;   // rows are in descending order: walk them from the end
+        for (int i = 0; i < m_actions.size(); ++i) {
+            if (next >= 0 && rows.at(next) == i) { --next; continue; }
+            keep << m_actions.at(i);
+        }
+        setActions(keep);
+        return;
+    }
+    // Runs of neighbouring rows go together
+    int i = 0;
+    while (i < rows.size()) {
+        int last = rows.at(i), first = last;
+        while (i + 1 < rows.size() && rows.at(i + 1) == first - 1) first = rows.at(++i);
+        beginRemoveRows({}, first, last);
+        m_actions.remove(first, last - first + 1);
+        m_stale = true;
         endRemoveRows();
+        ++i;
     }
     if (!m_actions.isEmpty()) emit dataChanged(index(0, ColNum), index(int(m_actions.size()) - 1, ColNum));
-    recompute();
+    changed(false);
 }
 
 void ActionModel::setPlayingRow(int row)

@@ -194,9 +194,24 @@ private:
         return true;
     }
 
+    // A value longer than this is refused: a variable doubled in a loop would otherwise fill the memory
+    static constexpr qsizetype kMaxText = 10 * 1000 * 1000;
+    bool tooLong(const Value& v)
+    {
+        if (v.kind == Value::Text && v.str.size() > kMaxText) return !err(QStringLiteral("The text is too long (over 10 million characters)."));
+        return false;
+    }
+
     // Every parse function evaluates only when `exec` is true (false: checking the syntax, or the branch not taken).
     bool parseOr(Value* out, bool exec)
     {
+        // Brackets and "not" nest by recursion: a limit keeps a deeply nested expression from overflowing the stack
+        struct Depth {
+            int& d;
+            explicit Depth(int& x) : d(++x) {}
+            ~Depth() { --d; }
+        } depth(m_depth);
+        if (m_depth > 200) return err(QStringLiteral("The expression is nested too deeply."));
         if (!parseAnd(out, exec)) return false;
         while (isOp("||") || isWord("or")) {
             ++m_i;
@@ -225,6 +240,7 @@ private:
     {
         if (isOp("!") || isWord("not")) {
             ++m_i;
+            if (++m_notDepth > 200) return err(QStringLiteral("The expression is nested too deeply."));
             Value v;
             if (!parseNot(&v, exec)) return false;
             if (exec) *out = Value::number(v.truthy() ? 0 : 1);
@@ -273,6 +289,7 @@ private:
             double a = 0, b = 0;
             const bool nums = out->toNumber(&a) && r.toNumber(&b);
             if (op == QLatin1String("&") || (op == QLatin1String("+") && !nums)) {
+                if (out->toText().size() + r.toText().size() > kMaxText) return err(QStringLiteral("The text is too long (over 10 million characters)."));
                 *out = Value::text(out->toText() + r.toText());   // + joins text when either side isn't a number
             } else if (!nums) {
                 return err(QStringLiteral("“-” needs two numbers (“%1” and “%2”).").arg(out->toText(), r.toText()));
@@ -308,6 +325,7 @@ private:
         if (isOp("-") || isOp("+")) {
             const bool neg = isOp("-");
             ++m_i;
+            if (++m_notDepth > 200) return err(QStringLiteral("The expression is nested too deeply."));
             Value v;
             if (!parseUnary(&v, exec)) return false;
             if (!exec) return true;
@@ -503,9 +521,13 @@ private:
         if (f == QLatin1String("contains")) { *out = Value::number(txt(0).contains(txt(1), Qt::CaseInsensitive) ? 1 : 0); return true; }
         if (f == QLatin1String("replace")) {
             QString s = txt(0);
-            if (!txt(1).isEmpty()) s.replace(txt(1), txt(2));
+            if (!txt(1).isEmpty()) {
+                if (txt(2).size() > txt(1).size() && s.size() / qMax<qsizetype>(1, txt(1).size()) * (txt(2).size() - txt(1).size()) > kMaxText)
+                    return err(QStringLiteral("The text is too long (over 10 million characters)."));
+                s.replace(txt(1), txt(2));
+            }
             *out = Value::text(s);
-            return true;
+            return !tooLong(*out);
         }
         if (f == QLatin1String("number")) {
             double d = 0;
@@ -532,6 +554,7 @@ private:
     Scope* m_scope;
     QList<Token> m_tokens;
     int m_i = 0;
+    int m_depth = 0, m_notDepth = 0;
     QString m_error;
 };
 
