@@ -277,7 +277,7 @@ void ActionDialog::build()
             m_state->addItems({QStringLiteral("This Position and Size"), QStringLiteral("Maximized"), QStringLiteral("Minimized"),
                                QStringLiteral("Restored (Not Maximized or Minimized)")});
             m_state->setCurrentIndex(int(m_a.windowState));
-            m_form->addRow(QStringLiteral("Make It:"), m_state);
+            m_form->addRow(QStringLiteral("Window State:"), m_state);
             const QRect r = m_a.rect.isEmpty() ? QRect(100, 100, 1000, 700) : m_a.rect;
             m_rx = spin(-100000, 100000, r.x(), QStringLiteral("px"), false);
             m_ry = spin(-100000, 100000, r.y(), QStringLiteral("px"), false);
@@ -417,8 +417,8 @@ void ActionDialog::build()
     }
     if (t == ActionType::FindImage || t == ActionType::FindText) {
         m_findDo = new QComboBox;
-        m_findDo->addItems({QStringLiteral("Nothing (Only Find It)"), QStringLiteral("Move the Pointer to It"), QStringLiteral("Click It"),
-                            QStringLiteral("Double-Click It"), QStringLiteral("Right-Click It")});
+        m_findDo->addItems({QStringLiteral("Nothing (Only Find)"), QStringLiteral("Move the Pointer There"), QStringLiteral("Click"),
+                            QStringLiteral("Double-Click"), QStringLiteral("Right-Click")});
         m_findDo->setCurrentIndex(int(m_a.findDo));
         m_form->addRow(QStringLiteral("Then:"), m_findDo);
         m_ox = spin(-10000, 10000, m_a.offset.x(), QStringLiteral("px"), false);
@@ -429,7 +429,7 @@ void ActionDialog::build()
         m_ms->setToolTip(t == ActionType::FindText ? QStringLiteral("Keeps reading the screen until the text appears, up to this long.")
                                                    : QStringLiteral("Keeps looking until the picture appears, up to this long."));
         m_form->addRow(QStringLiteral("Wait Up To:"), m_ms);
-        m_waitGone = new QCheckBox(QStringLiteral("Wait Until It's Gone Instead"));
+        m_waitGone = new QCheckBox(QStringLiteral("Wait Until Gone Instead"));
         m_waitGone->setChecked(m_a.waitGone);
         m_stopMissing = new QCheckBox(QStringLiteral("Stop Playback If Not Found"));
         m_stopMissing->setChecked(m_a.stopIfMissing);
