@@ -559,7 +559,10 @@ void MainWindow::buildMenus()
         updateMarker();
         setWindowFlag(Qt::WindowStaysOnTopHint, false);
         show();
+        m_fittingColumns = true;
         m_table->horizontalHeader()->resizeSections(QHeaderView::Interactive);
+        m_fittingColumns = false;
+        fitValueColumn();
         applyTheme();
         saveSettingsSoon();
     });
@@ -1176,8 +1179,15 @@ QWidget* MainWindow::buildActionsCard()
     h->resizeSection(ActionModel::ColAction, 200);
     h->resizeSection(ActionModel::ColValue, 360);
     h->resizeSection(ActionModel::ColLabel, 110);
+    m_fittingColumns = true;
     if (!m_s.tableState.isEmpty()) h->restoreState(m_s.tableState);
-    connect(h, &QHeaderView::sectionResized, this, [this] { m_s.tableState = m_table->horizontalHeader()->saveState(); saveSettingsSoon(); });
+    m_fittingColumns = false;
+    connect(h, &QHeaderView::sectionResized, this, [this](int logical) {
+        // A column dragged by hand (not the last one, which only fills the rest): the user's widths from now on
+        if (!m_fittingColumns && logical != ActionModel::ColComment && m_s.fitValueColumn) m_s.fitValueColumn = false;
+        m_s.tableState = m_table->horizontalHeader()->saveState();
+        saveSettingsSoon();
+    });
     connect(m_table, &QTableView::doubleClicked, this, [this](const QModelIndex& i) {
         if (i.column() != ActionModel::ColLabel && i.column() != ActionModel::ColComment) editRow(i.row());
     });
@@ -1462,8 +1472,23 @@ void MainWindow::applyOpacity()
         if (followsOpacity(w) && qAbs(w->windowOpacity() - level) > 0.01) w->setWindowOpacity(level);
 }
 
+void MainWindow::fitValueColumn()
+{
+    if (!m_s.fitValueColumn || !m_table) return;
+    QHeaderView* h = m_table->horizontalHeader();
+    // The Value column takes a wide window's extra room, so long values aren't cut while the list's right side is
+    // empty. The Comment column keeps 400 px: room for comments and for the hover preview drawn there.
+    const int others = h->sectionSize(ActionModel::ColNum) + h->sectionSize(ActionModel::ColAction) + h->sectionSize(ActionModel::ColLabel);
+    const int want = qMax(360, m_table->viewport()->width() - others - 400);
+    if (h->sectionSize(ActionModel::ColValue) == want) return;
+    m_fittingColumns = true;
+    h->resizeSection(ActionModel::ColValue, want);
+    m_fittingColumns = false;
+}
+
 bool MainWindow::eventFilter(QObject* watched, QEvent* e)
 {
+    if (e->type() == QEvent::Resize && m_table && watched == m_table->viewport()) fitValueColumn();
     // Polish: a popup made later (a new context menu or drop-down list) gets the level before it's first shown
     if ((e->type() == QEvent::Show || e->type() == QEvent::Polish) && watched->isWidgetType()) {
         auto* w = static_cast<QWidget*>(watched);
@@ -2541,6 +2566,7 @@ void MainWindow::findReplace()
     d.setWindowTitle(QStringLiteral("Find and Replace"));
     auto* lay = new QVBoxLayout(&d);
     auto* form = new QFormLayout;
+    form->setHorizontalSpacing(12);
     auto* find = new QLineEdit;
     auto* repl = new QLineEdit;
     auto* matchCase = new QCheckBox(QStringLiteral("Match Case"));

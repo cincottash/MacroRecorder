@@ -75,24 +75,27 @@ QLabel#appTitle { font-size: 13pt; font-weight: 600; }
 QLabel#cardTitle { color: @muted; font-size: 8.5pt; font-weight: 700; letter-spacing: 0.6px; }
 QLabel#muted { color: @muted; }
 QLabel#value { font-weight: 600; }
-QLineEdit, QSpinBox, QComboBox, QKeySequenceEdit QLineEdit {
+QLineEdit, QSpinBox, QDateTimeEdit, QComboBox, QKeySequenceEdit QLineEdit {
     background: @input; border: 1px solid @border; border-radius: 6px; padding: 4px 8px; }
-QLineEdit:focus, QSpinBox:focus, QComboBox:focus { border: 1px solid @accent; }
-QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled { color: @muted; }
+QLineEdit:focus, QSpinBox:focus, QDateTimeEdit:focus, QComboBox:focus { border: 1px solid @accent; }
+QLineEdit:disabled, QSpinBox:disabled, QDateTimeEdit:disabled, QComboBox:disabled { color: @muted; }
+QTableView::indicator { width: 14px; height: 14px; border: 1px solid @muted; border-radius: 3px; background: @input; }
+QTableView::indicator:checked { background: @accent; border-color: @accent; image: url(@tick); }
 /* Lists open below their box: Fusion puts the chosen item over the box (a "drop up" for the last item). */
 QComboBox { combobox-popup: 0; }
 QComboBox::drop-down { border: none; width: 22px; }
 QComboBox::down-arrow { image: url(@down); width: 12px; height: 12px; }
-QSpinBox::up-arrow { image: url(@up); width: 10px; height: 10px; }
-QSpinBox::down-arrow { image: url(@down); width: 10px; height: 10px; }
-QSpinBox::up-arrow:disabled, QSpinBox::down-arrow:disabled, QComboBox::down-arrow:disabled { image: none; }
+QSpinBox::up-arrow, QDateTimeEdit::up-arrow { image: url(@up); width: 10px; height: 10px; }
+QSpinBox::down-arrow, QDateTimeEdit::down-arrow { image: url(@down); width: 10px; height: 10px; }
+QSpinBox::up-arrow:disabled, QSpinBox::down-arrow:disabled, QDateTimeEdit::up-arrow:disabled, QDateTimeEdit::down-arrow:disabled,
+QComboBox::down-arrow:disabled { image: none; }
 QRadioButton::indicator { width: 12px; height: 12px; border: 2px solid @muted; border-radius: 8px; background: @input; }
 QRadioButton::indicator:hover { border-color: @accent; }
 QRadioButton::indicator:checked { width: 6px; height: 6px; border: 5px solid @accent; background: @accent_text; }
 QRadioButton::indicator:disabled { border-color: @border; background: @track; }
 QComboBox QAbstractItemView { background: @card; border: 1px solid @border; selection-background-color: @accent;
     selection-color: @accent_text; }
-QSpinBox::up-button, QSpinBox::down-button { width: 16px; border: none; }
+QSpinBox::up-button, QSpinBox::down-button, QDateTimeEdit::up-button, QDateTimeEdit::down-button { width: 16px; border: none; }
 QPushButton, QToolButton#tool { background: @card; border: 1px solid @border; border-radius: 6px; padding: 6px 14px; }
 QPushButton:hover, QToolButton#tool:hover { border-color: @accent; }
 QPushButton:disabled, QToolButton#tool:disabled { color: @muted; border-color: @border; }

@@ -39,6 +39,7 @@ struct Settings {
     int windowOpacity = 100;            // percent (View > Window Opacity)
     QByteArray geometry;
     QByteArray tableState;
+    bool fitValueColumn = true;         // the step list's Value column takes a wide window's extra room (off once a column is dragged)
 
     // Playback
     int speedPct = 100;

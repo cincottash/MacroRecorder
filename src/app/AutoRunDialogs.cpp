@@ -86,6 +86,7 @@ QWidget* fileRow(QLineEdit* edit, QWidget* dialog, const QString& folder)
         if (!f.isEmpty()) edit->setText(QDir::toNativeSeparators(f));
     });
     edit->setMinimumWidth(320);
+    edit->setCursorPosition(0);   // a long path shows its start (the drive and folders), not its end
     h->addWidget(edit, 1);
     h->addWidget(browse);
     return w;
@@ -171,7 +172,7 @@ MacroHotkeysDialog::MacroHotkeysDialog(const QList<MacroHotkey>& list, const QHa
         m_remove->setEnabled(any);
     });
     refresh();
-    resize(640, 360);
+    resize(720, 360);
 }
 
 void MacroHotkeysDialog::refresh()
@@ -205,6 +206,7 @@ bool MacroHotkeysDialog::edit(MacroHotkey* h, int row)
     auto* lay = new QVBoxLayout(&d);
     auto* form = new QFormLayout;
     form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    form->setHorizontalSpacing(12);   // room between each label and its field
     auto* file = new QLineEdit(QDir::toNativeSeparators(h->file));
     auto* key = new QKeySequenceEdit(QKeySequence(h->key));
     key->setMaximumSequenceLength(1);
@@ -302,8 +304,8 @@ SchedulesDialog::SchedulesDialog(const QList<Schedule>& list, std::function<QDat
         const QDateTime next = on ? m_list.at(i->row()).nextRun(m_now()) : QDateTime();
         if (QTableWidgetItem* n = m_table->item(i->row(), 2)) n->setText(on ? autorun::whenText(next, m_now()) : QStringLiteral("Off"));
     });
-    refresh();
     resize(820, 380);
+    refresh();
 }
 
 void SchedulesDialog::refresh()
@@ -322,6 +324,16 @@ void SchedulesDialog::refresh()
         m_table->setItem(r, 2, item(s.enabled ? autorun::whenText(s.nextRun(now), now) : QStringLiteral("Off")));
         m_table->setItem(r, 3, item(QFileInfo(s.file).fileName(), QDir::toNativeSeparators(s.file)));
     }
+    // "When" and "Next Time" are shown whole; the file name takes what's left (its full path is in the tooltip)
+    for (int c : {1, 2}) {
+        m_table->resizeColumnToContents(c);
+        m_table->horizontalHeader()->resizeSection(c, qMax(m_table->horizontalHeader()->sectionSize(c) + 12, c == 1 ? 200 : 130));
+    }
+    int fileWidth = 220;
+    for (const Schedule& s : std::as_const(m_list)) fileWidth = qMax(fileWidth, m_table->fontMetrics().horizontalAdvance(QFileInfo(s.file).fileName()) + 30);
+    const int need = m_table->horizontalHeader()->sectionSize(0) + m_table->horizontalHeader()->sectionSize(1)
+                     + m_table->horizontalHeader()->sectionSize(2) + fileWidth + 150;   // + the buttons beside the list
+    if (width() < need) resize(qMin(need, 1300), height());
     m_table->clearSelection();
     m_edit->setEnabled(false);
     m_remove->setEnabled(false);
@@ -345,6 +357,7 @@ bool SchedulesDialog::edit(Schedule* s)
     auto* lay = new QVBoxLayout(&d);
     auto* form = new QFormLayout;
     form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    form->setHorizontalSpacing(12);   // room between each label and its field
     auto* file = new QLineEdit(QDir::toNativeSeparators(s->file));
     form->addRow(QStringLiteral("Macro File:"), fileRow(file, &d, m_folder));
     auto* repeat = new QComboBox;
@@ -356,8 +369,8 @@ bool SchedulesDialog::edit(Schedule* s)
     repeat->setCurrentIndex(qMax(0, repeat->findData(s->repeat)));
     form->addRow(QStringLiteral("Repeat:"), repeat);
     auto* date = new QDateEdit(s->at.isValid() ? s->at.date() : m_now().date());
-    date->setCalendarPopup(true);
     date->setDisplayFormat(QLocale().dateFormat(QLocale::ShortFormat));
+    date->setMinimumDate(QDate(2000, 1, 1));
     auto* time = new QTimeEdit(s->at.isValid() ? s->at.time() : QTime(9, 0));
     time->setDisplayFormat(QLocale().timeFormat(QLocale::ShortFormat));
     form->addRow(QStringLiteral("Date:"), date);

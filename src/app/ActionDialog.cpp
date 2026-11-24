@@ -153,6 +153,7 @@ void ActionDialog::build()
     lay->addWidget(intro);
     m_form = new QFormLayout;
     m_form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    m_form->setHorizontalSpacing(12);   // room between each label and its field (it was 2 px under the style sheet)
     lay->addLayout(m_form);
     const ActionType t = m_a.type;
 
@@ -267,6 +268,8 @@ void ActionDialog::build()
             m_ry = spin(-100000, 100000, r.y(), QStringLiteral("px"), false);
             m_rw = spin(1, 100000, r.width(), QStringLiteral("px"), false);
             m_rh = spin(1, 100000, r.height(), QStringLiteral("px"), false);
+            const int wide = m_rx->sizeHint().width();   // the four boxes line up in two equal columns
+            for (QSpinBox* s : {m_rx, m_ry, m_rw, m_rh}) s->setFixedWidth(wide);
             m_form->addRow(QStringLiteral("X, Y:"), hrow({m_rx, m_ry}));
             m_form->addRow(QStringLiteral("Width, Height:"), hrow({m_rw, m_rh}));
             auto sync = [this] {
@@ -459,6 +462,7 @@ void ActionDialog::build()
     }
     if (t == ActionType::RunProgram) {
         m_program = new QLineEdit(m_a.program);
+        m_program->setCursorPosition(0);   // a long path shows its start
         auto* browse = new QPushButton(QStringLiteral("Browse…"));
         connect(browse, &QPushButton::clicked, this, [this] {
             const QString f = QFileDialog::getOpenFileName(this, QStringLiteral("Choose a Program or File"), m_program->text(),
@@ -482,6 +486,7 @@ void ActionDialog::build()
     }
     if (t == ActionType::WaitFile || t == ActionType::RunMacro || t == ActionType::Screenshot) {
         m_file = new QLineEdit(QDir::toNativeSeparators(m_a.file));
+        m_file->setCursorPosition(0);
         m_file->setMinimumWidth(260);
         auto* browse = new QPushButton(QStringLiteral("Browse…"));
         connect(browse, &QPushButton::clicked, this, [this, t] {

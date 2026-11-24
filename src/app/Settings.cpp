@@ -23,6 +23,7 @@ void fields(Settings& s, F&& f)
     f("custom_themes", s.customThemes);
     f("geometry", s.geometry);
     f("table_state", s.tableState);
+    f("fit_value_column", s.fitValueColumn);
     f("speed_pct", s.speedPct);
     f("repeat_mode", s.repeatMode);
     f("repeat_times", s.repeatTimes);
@@ -217,6 +218,7 @@ void Settings::resetView()
     showPosition = d.showPosition;
     showPreview = d.showPreview;
     tableState.clear();
+    fitValueColumn = d.fitValueColumn;
 }
 
 void Settings::resetOptions()

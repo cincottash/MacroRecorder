@@ -64,6 +64,7 @@ public:
     // Another start of the app handed this over (main.cpp: one running copy): {"file": path, "play": true/false,
     // "show": true/false}. Plays or opens the file, or comes to the front.
     void handOver(const QJsonObject& msg);
+    void showAskBox(const QString& question, const QString& defaultText);   // an Ask for Text step (public for the UI audit)
     inline static QString desktopForTests;     // Create Desktop Shortcut writes here instead of the desktop
     inline static QString updateUrlForTests;   // Check for Updates asks this address instead of GitHub
 
@@ -152,7 +153,6 @@ private:
     void applyWatch();          // while playing: watch for the user's input / block the keyboard, as the options say
     void runAfterPlayback();    // "When finished": close, lock, sleep, log off, restart or shut down
     void showMessageBox(const QString& text);
-    void showAskBox(const QString& question, const QString& defaultText);   // an Ask for Text step
     void updateMarker();        // the selected step's position, marked on the screen
     void showPreview(int row);  // -1 hides it
     int execDialog(ActionDialog& d);
@@ -170,6 +170,7 @@ private:
     QDateTime now() const;
     QHash<QString, QString> appHotkeys() const;   // the Hotkeys card's keys, by name
     bool typingHotkey() const;        // a hotkey field has the keyboard: global hotkeys step aside so it gets the keys
+    void fitValueColumn();            // the step list's Value column fills a wide window (until a column is dragged)
     void onHotkey(int id);
     core::PlayOptions playOptions() const;
     core::RecordOptions recordOptions() const;
@@ -203,6 +204,7 @@ private:
     bool m_hotkeysPaused = false;        // a hotkey field has the keyboard (see typingHotkey)
     class QNetworkAccessManager* m_net = nullptr;   // Check for Updates (made when first used)
     bool m_checkingUpdates = false;
+    bool m_fittingColumns = false;       // the app itself is resizing the list's columns (not the user)
     QString m_recordTo;
     QMessageBox* m_msgBox = nullptr;       // a Message box step waiting for OK
     class QDialog* m_askBox = nullptr;     // an Ask for Text step waiting for an answer

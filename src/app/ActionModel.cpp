@@ -100,6 +100,11 @@ QVariant ActionModel::data(const QModelIndex& i, int role) const
                 if (a.collapsed) v += QStringLiteral(" · folded");
             }
             if (a.delayMs > 0 && role == Qt::DisplayRole) v += QStringLiteral("   (+%1 ms before)").arg(a.delayMs);
+            // A text over several lines shows all of them, its line breaks as ⏎ (a cell shows only its first line)
+            if (role == Qt::DisplayRole && v.contains(QLatin1Char('\n'))) {
+                v.replace(QLatin1String("\r\n"), QLatin1String("\n"));
+                v.replace(QLatin1Char('\n'), QStringLiteral(" ⏎ "));
+            }
             return v;
         }
         case ColLabel: return a.label;
