@@ -1,5 +1,6 @@
 #include "UinputInjector.h"
 #include "LinuxKeys.h"
+#include "core/Tr.h"
 
 #include <QCursor>
 #include <QGuiApplication>
@@ -18,7 +19,7 @@ std::unique_ptr<UinputInjector> UinputInjector::create(QString* whyNot)
 {
     const int fd = ::open("/dev/uinput", O_WRONLY | O_NONBLOCK | O_CLOEXEC);
     if (fd < 0) {
-        if (whyNot) *whyNot = QStringLiteral("no access to /dev/uinput (%1)").arg(QString::fromLocal8Bit(strerror(errno)));
+        if (whyNot) *whyNot = T("no access to /dev/uinput (%1)").arg(QString::fromLocal8Bit(strerror(errno)));
         return nullptr;
     }
     // The whole desktop in compositor coordinates: the absolute mouse maps its range onto it.
@@ -44,7 +45,7 @@ std::unique_ptr<UinputInjector> UinputInjector::create(QString* whyNot)
     std::strncpy(us.name, "MacroRecorder virtual input", UINPUT_MAX_NAME_SIZE - 1);
     ok &= ioctl(fd, UI_DEV_SETUP, &us) == 0 && ioctl(fd, UI_DEV_CREATE) == 0;
     if (!ok) {
-        if (whyNot) *whyNot = QStringLiteral("couldn't create the virtual input device (%1)").arg(QString::fromLocal8Bit(strerror(errno)));
+        if (whyNot) *whyNot = T("couldn't create the virtual input device (%1)").arg(QString::fromLocal8Bit(strerror(errno)));
         ::close(fd);
         return nullptr;
     }
@@ -66,7 +67,7 @@ void UinputInjector::send(int type, int code, int value)
     ev.type = type;
     ev.code = code;
     ev.value = value;
-    if (::write(m_fd, &ev, sizeof ev) != sizeof ev) problem(QStringLiteral("The virtual input device stopped accepting input."));
+    if (::write(m_fd, &ev, sizeof ev) != sizeof ev) problem(T("The virtual input device stopped accepting input."));
 }
 
 void UinputInjector::sync() { send(EV_SYN, SYN_REPORT, 0); }
@@ -126,7 +127,7 @@ void UinputInjector::typeText(const QString& ch)
     bool shift = false;
     if (cps.size() != 1 || cps.first() > 0x7e || !lnx::evdevFromAscii(char(cps.first()), &code, &shift)) {
         QMutexLocker l(&m_mx);
-        problem(QStringLiteral("On Wayland only plain (US keyboard) characters can be typed; “%1” was skipped.").arg(ch));
+        problem(T("On Wayland only plain (US keyboard) characters can be typed; “%1” was skipped.").arg(ch));
         return;
     }
     QMutexLocker l(&m_mx);
@@ -141,7 +142,7 @@ void UinputInjector::typeText(const QString& ch)
 bool UinputInjector::focusWindow(const QString&, const QString&, core::TitleMatch)
 {
     QMutexLocker l(&m_mx);
-    problem(QStringLiteral("On Wayland, programs can't bring other windows to the front: “Window focus” steps were skipped. "
+    problem(T("On Wayland, programs can't bring other windows to the front: “Window focus” steps were skipped. "
                            "Make sure the right window is in front before playing."));
     return true;
 }
@@ -149,21 +150,21 @@ bool UinputInjector::focusWindow(const QString&, const QString&, core::TitleMatc
 QPoint UinputInjector::activeWindowOrigin()
 {
     QMutexLocker l(&m_mx);
-    problem(QStringLiteral("On Wayland, window positions aren't available: positions “relative to the window” were used as screen positions."));
+    problem(T("On Wayland, window positions aren't available: positions “relative to the window” were used as screen positions."));
     return {};
 }
 
 QString UinputInjector::pixelColor(QPoint)
 {
     QMutexLocker l(&m_mx);
-    problem(QStringLiteral("On Wayland, programs can't read the screen: “Wait for pixel color” steps time out."));
+    problem(T("On Wayland, programs can't read the screen: “Wait for pixel color” steps time out."));
     return {};
 }
 
 bool UinputInjector::isKeyDown(const QString&)
 {
     QMutexLocker l(&m_mx);
-    problem(QStringLiteral("On Wayland, “Wait for key” can't see key presses: those steps time out."));
+    problem(T("On Wayland, “Wait for key” can't see key presses: those steps time out."));
     return false;
 }
 

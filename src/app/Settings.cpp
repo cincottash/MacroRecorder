@@ -1,4 +1,5 @@
 #include "Settings.h"
+#include "core/Tr.h"
 
 #include <QFile>
 #include <QJsonArray>
@@ -14,6 +15,7 @@ namespace {
 template <typename F>
 void fields(Settings& s, F&& f)
 {
+    f("language", s.language);
     f("theme", s.theme);
     f("folded_cards", s.foldedCards);
     f("show_log", s.showLog);
@@ -162,17 +164,17 @@ QString Schedule::describe() const
 {
     const QLocale loc;
     const QString time = loc.toString(at.time(), QLocale::ShortFormat);
-    if (repeat == QLatin1String("once")) return QStringLiteral("Once, %1").arg(loc.toString(at, QLocale::ShortFormat));
+    if (repeat == QLatin1String("once")) return T("Once, %1").arg(loc.toString(at, QLocale::ShortFormat));
     if (repeat == QLatin1String("minutes"))
-        return QStringLiteral("Every %1 min from %2").arg(loc.toString(minutes), loc.toString(at, QLocale::ShortFormat));
-    if (repeat == QLatin1String("daily") || (days & 0x7F) == 0x7F) return QStringLiteral("Every day at %1").arg(time);
-    if ((days & 0x7F) == 0x1F) return QStringLiteral("Weekdays at %1").arg(time);
-    if ((days & 0x7F) == 0x60) return QStringLiteral("Weekends at %1").arg(time);
+        return T("Every %1 min from %2").arg(loc.toString(minutes), loc.toString(at, QLocale::ShortFormat));
+    if (repeat == QLatin1String("daily") || (days & 0x7F) == 0x7F) return T("Every day at %1").arg(time);
+    if ((days & 0x7F) == 0x1F) return T("Weekdays at %1").arg(time);
+    if ((days & 0x7F) == 0x60) return T("Weekends at %1").arg(time);
     QStringList names;
     for (int d = 1; d <= 7; ++d)
         if (days & (1 << (d - 1))) names << loc.dayName(d, QLocale::ShortFormat);
-    if (names.isEmpty()) return QStringLiteral("No days chosen");
-    return QStringLiteral("%1 at %2").arg(names.join(QStringLiteral(", ")), time);
+    if (names.isEmpty()) return T("No days chosen");
+    return T("%1 at %2", "days at a time").arg(names.join(QStringLiteral(", ")), time);
 }
 
 bool Settings::load(const QString& path)
@@ -238,7 +240,9 @@ void Settings::resetOptions()
     const QList<Schedule> keepSchedules = schedules;
     const QString keepAiUrl = aiUrl, keepAiModel = aiModel;
     const QByteArray keepGeo = geometry, keepTable = tableState;
+    const QString keepLanguage = language;
     *this = d;
+    language = keepLanguage;
     windowOpacity = keepOpacity;
     customThemes = keepThemes;
     macroHotkeys = keepHotkeys;

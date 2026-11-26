@@ -15,6 +15,9 @@ void rememberChoice(const QString& folder);
 // Resolve the folder to use: --data-folder override, the remembered choice, or ask (first run).
 // Returns an empty string if the user cancelled the first-run dialog.
 QString resolve(const QString& override, QWidget* parent);
+// The settings file of the folder already chosen (or given with --data-folder), without asking anything; empty
+// before the first-run choice and for "don't keep". Read at start for the language, before any window opens.
+QString knownSettingsFile(const QString& override);
 bool isTemporary();
 bool usesOverride();                        // this run's folder came from --data-folder (portable use, tests)
 // File > Settings > Start Over: forget the folder choice, so the next start asks again (the welcome window).

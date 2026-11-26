@@ -55,6 +55,10 @@ public:
     // File > Settings > Start Over starts the app again with this. Tests replace it so nothing is started; the
     // default starts the program (the AppImage itself on Linux) detached.
     inline static std::function<bool(const QString& program, const QStringList& args)> startAgain;
+    // Without that: the start main() makes once this window has closed (Start Over, a new language), when the
+    // hotkeys and the running-copy name are free again. Empty program: no restart.
+    struct Restart { QString program; QStringList args; };
+    static Restart& restartAfterQuit() { static Restart r; return r; }
     // Schedules: the clock they follow (tests set their own). Empty: the computer's clock.
     inline static std::function<QDateTime()> clockForTests;
     void checkSchedules();   // plays a schedule that's due; a timer calls it every second
@@ -165,6 +169,8 @@ private:
     void registerHotkeys();
     void syncWidgetsFromSettings();   // after Reset settings: show the defaults right away
     void startOver();                 // every setting back to its default, then the app starts again (welcome window)
+    void chooseLanguage(const QString& code);   // File > Settings > Language: kept at once, shown after a restart
+    bool restartApp(const QStringList& args);   // starts the app again once this window closes
     void createDesktopShortcut();     // File > Create Desktop Shortcut…
     void askAI(const QString& prompt, int timeoutMs);   // an Ask AI step: one request to the AI server
     void editAiServer();              // File > Settings > AI Server…
@@ -225,6 +231,7 @@ private:
     QToolButton* m_limits = nullptr;    // header link where the input method reaches only some programs (Wayland)
     QHash<QString, Card> m_cards;
     QVBoxLayout* m_rightCol = nullptr;
+    class QScrollArea* m_leftScroll = nullptr;   // the Playback, Recording and Hotkeys cards
     QWidget *m_actionsCard = nullptr, *m_activityCard = nullptr;
     ActionTable* m_table = nullptr;
     ActionPreview* m_preview = nullptr;   // the hovered step's path or position, drawn in the list's right-hand side

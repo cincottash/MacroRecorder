@@ -1,4 +1,5 @@
 #include "Action.h"
+#include "Tr.h"
 
 #include <QFile>
 #include <QJsonArray>
@@ -93,126 +94,137 @@ bool typeFromId(const QString& id, ActionType* out)
 QString buttonName(MouseButton b)
 {
     switch (b) {
-    case MouseButton::Left: return QStringLiteral("Left");
-    case MouseButton::Right: return QStringLiteral("Right");
-    case MouseButton::Middle: return QStringLiteral("Middle");
-    case MouseButton::X1: return QStringLiteral("Back (X1)");
-    case MouseButton::X2: return QStringLiteral("Forward (X2)");
+    case MouseButton::Left: return T("Left", "mouse button");
+    case MouseButton::Right: return T("Right", "mouse button");
+    case MouseButton::Middle: return T("Middle", "mouse button");
+    case MouseButton::X1: return T("Back (X1)", "mouse button");
+    case MouseButton::X2: return T("Forward (X2)", "mouse button");
     }
     return {};
 }
 
 QString Action::typeName() const
 {
-    const QString b = buttonName(button);
+    // The button inside a step's name ("Left Click"): languages put it in different places and forms
+    QString b;
+    switch (button) {
+    case MouseButton::Left: b = T("Left", "mouse button, inside a step name"); break;
+    case MouseButton::Right: b = T("Right", "mouse button, inside a step name"); break;
+    case MouseButton::Middle: b = T("Middle", "mouse button, inside a step name"); break;
+    case MouseButton::X1: b = T("Back (X1)", "mouse button, inside a step name"); break;
+    case MouseButton::X2: b = T("Forward (X2)", "mouse button, inside a step name"); break;
+    }
     switch (type) {
-    case ActionType::MouseMove: return QStringLiteral("Mouse Move");
-    case ActionType::MouseClick: return clicks >= 2 ? b + QStringLiteral(" Double-Click") : b + QStringLiteral(" Click");
-    case ActionType::MouseDown: return b + QStringLiteral(" Button Down");
-    case ActionType::MouseUp: return b + QStringLiteral(" Button Up");
+    case ActionType::MouseMove: return T("Mouse Move");
+    case ActionType::MouseClick: return clicks >= 2 ? T("%1 Double-Click").arg(b) : T("%1 Click").arg(b);
+    case ActionType::MouseDown: return T("%1 Button Down").arg(b);
+    case ActionType::MouseUp: return T("%1 Button Up").arg(b);
     case ActionType::Wheel:
-        if (horizontal) return notches > 0 ? QStringLiteral("Scroll Right") : QStringLiteral("Scroll Left");
-        return notches > 0 ? QStringLiteral("Scroll Up") : QStringLiteral("Scroll Down");
-    case ActionType::KeyPress: return QStringLiteral("Key Press");
-    case ActionType::KeyDown: return QStringLiteral("Key Down");
-    case ActionType::KeyUp: return QStringLiteral("Key Up");
-    case ActionType::Text: return QStringLiteral("Text");
-    case ActionType::Wait: return QStringLiteral("Wait");
-    case ActionType::WindowFocus: return QStringLiteral("Window Focus");
-    case ActionType::WaitPixel: return QStringLiteral("Wait for Pixel Color");
-    case ActionType::WaitKey: return QStringLiteral("Wait for Key");
-    case ActionType::Repeat: return QStringLiteral("Repeat");
-    case ActionType::Goto: return QStringLiteral("Go To");
-    case ActionType::RunProgram: return QStringLiteral("Run Program");
-    case ActionType::Notify: return QStringLiteral("Notification");
-    case ActionType::WaitFile: return QStringLiteral("Wait for File");
-    case ActionType::MessageBox: return QStringLiteral("Message Box");
-    case ActionType::Beep: return QStringLiteral("Beep");
-    case ActionType::RunMacro: return QStringLiteral("Run Macro");
-    case ActionType::SetVariable: return QStringLiteral("Set Variable");
-    case ActionType::If: return QStringLiteral("If");
-    case ActionType::Else: return QStringLiteral("Else");
-    case ActionType::EndIf: return QStringLiteral("End If");
-    case ActionType::AskText: return QStringLiteral("Ask for Text");
-    case ActionType::Group: return QStringLiteral("Group");
-    case ActionType::EndGroup: return QStringLiteral("End Group");
-    case ActionType::WindowMove: return QStringLiteral("Move / Resize Window");
+        if (horizontal) return notches > 0 ? T("Scroll Right") : T("Scroll Left");
+        return notches > 0 ? T("Scroll Up") : T("Scroll Down");
+    case ActionType::KeyPress: return T("Key Press");
+    case ActionType::KeyDown: return T("Key Down");
+    case ActionType::KeyUp: return T("Key Up");
+    case ActionType::Text: return T("Text");
+    case ActionType::Wait: return T("Wait", "step type");
+    case ActionType::WindowFocus: return T("Window Focus");
+    case ActionType::WaitPixel: return T("Wait for Pixel Color");
+    case ActionType::WaitKey: return T("Wait for Key");
+    case ActionType::Repeat: return T("Repeat", "step type");
+    case ActionType::Goto: return T("Go To");
+    case ActionType::RunProgram: return T("Run Program");
+    case ActionType::Notify: return T("Notification");
+    case ActionType::WaitFile: return T("Wait for File");
+    case ActionType::MessageBox: return T("Message Box");
+    case ActionType::Beep: return T("Beep");
+    case ActionType::RunMacro: return T("Run Macro");
+    case ActionType::SetVariable: return T("Set Variable");
+    case ActionType::If: return T("If");
+    case ActionType::Else: return T("Else");
+    case ActionType::EndIf: return T("End If");
+    case ActionType::AskText: return T("Ask for Text");
+    case ActionType::Group: return T("Group", "step type");
+    case ActionType::EndGroup: return T("End Group");
+    case ActionType::WindowMove: return T("Move / Resize Window");
     case ActionType::FindImage:
-        if (waitGone) return QStringLiteral("Wait for Image to Go");
+        if (waitGone) return T("Wait for Image to Go");
         switch (findDo) {
-        case FindDo::Click: return QStringLiteral("Click Image");
-        case FindDo::DoubleClick: return QStringLiteral("Double-Click Image");
-        case FindDo::RightClick: return QStringLiteral("Right-Click Image");
-        case FindDo::Move: return QStringLiteral("Point at Image");
+        case FindDo::Click: return T("Click Image");
+        case FindDo::DoubleClick: return T("Double-Click Image");
+        case FindDo::RightClick: return T("Right-Click Image");
+        case FindDo::Move: return T("Point at Image");
         case FindDo::Nothing: break;
         }
-        return QStringLiteral("Find Image");
-    case ActionType::Screenshot: return QStringLiteral("Save Screenshot");
-    case ActionType::SetClipboard: return QStringLiteral("Set Clipboard");
-    case ActionType::AskAI: return QStringLiteral("Ask AI");
+        return T("Find Image");
+    case ActionType::Screenshot: return T("Save Screenshot");
+    case ActionType::SetClipboard: return T("Set Clipboard");
+    case ActionType::AskAI: return T("Ask AI");
     case ActionType::FindText:
-        if (text.isEmpty()) return QStringLiteral("Read Text");
-        if (waitGone) return QStringLiteral("Wait for Text to Go");
+        if (text.isEmpty()) return T("Read Text");
+        if (waitGone) return T("Wait for Text to Go");
         switch (findDo) {
-        case FindDo::Click: return QStringLiteral("Click Text");
-        case FindDo::DoubleClick: return QStringLiteral("Double-Click Text");
-        case FindDo::RightClick: return QStringLiteral("Right-Click Text");
-        case FindDo::Move: return QStringLiteral("Point at Text");
+        case FindDo::Click: return T("Click Text");
+        case FindDo::DoubleClick: return T("Double-Click Text");
+        case FindDo::RightClick: return T("Right-Click Text");
+        case FindDo::Move: return T("Point at Text");
         case FindDo::Nothing: break;
         }
-        return ms > 0 ? QStringLiteral("Wait for Text") : QStringLiteral("Find Text");
+        return ms > 0 ? T("Wait for Text") : T("Find Text");
     }
     return {};
 }
 
 QString Action::valueText() const
 {
-    const QString at = QStringLiteral("%1, %2 px").arg(pos.x()).arg(pos.y())
-                       + (relativeToWindow ? QStringLiteral(" (in window)") : QString());
+    const QString at = relativeToWindow ? T("%1, %2 px (in window)").arg(pos.x()).arg(pos.y()) : QStringLiteral("%1, %2 px").arg(pos.x()).arg(pos.y());
+    const QString giveUp = ms > 0 ? QStringLiteral(" · ") + T("give up after %1").arg(msText(ms)) : QString();
     switch (type) {
     case ActionType::MouseMove:
         return QStringLiteral("%1, %2 → %3").arg(from.x()).arg(from.y()).arg(at)
                + (ms > 0 ? QStringLiteral(" · ") + msText(ms) : QString());
-    case ActionType::MouseClick: return image.isEmpty() ? at : at + QStringLiteral(" · finds its picture");
+    case ActionType::MouseClick: return image.isEmpty() ? at : at + QStringLiteral(" · ") + T("finds its picture");
     case ActionType::MouseDown:
     case ActionType::MouseUp: return at;
     case ActionType::Wheel: {
         const int n = qAbs(notches);
-        return QStringLiteral("%1 notch%2 at %3").arg(n).arg(n == 1 ? QString() : QStringLiteral("es")).arg(at);
+        return n == 1 ? T("1 notch at %1").arg(at) : T("%1 notches at %2").arg(QString::number(n), at);
     }
     case ActionType::KeyPress:
     case ActionType::KeyDown:
     case ActionType::KeyUp: return combo(mods, key);
     case ActionType::Text: return text;
     case ActionType::Wait:
-        return maxMs > ms ? QStringLiteral("%1 to %2 (random)").arg(msText(ms), msText(maxMs)) : msText(ms);
+        return maxMs > ms ? T("%1 to %2 (random)").arg(msText(ms), msText(maxMs)) : msText(ms);
     case ActionType::WindowFocus: {
-        QString s = exe.isEmpty() ? QStringLiteral("any program") : exe;
+        QString s = exe.isEmpty() ? T("any program") : exe;
         if (titleMatch != TitleMatch::Any && !title.isEmpty()) s += QStringLiteral(" · ") + title;
         return s;
     }
     case ActionType::WaitPixel:
-        return QStringLiteral("%1 at %2, %3 px").arg(color).arg(pos.x()).arg(pos.y())
-               + (ms > 0 ? QStringLiteral(" · give up after ") + msText(ms) : QString());
+        return T("%1 at %2, %3 px").arg(color).arg(pos.x()).arg(pos.y()) + giveUp;
     case ActionType::WaitKey: return combo(mods, key);
     case ActionType::Repeat: {
         QString how;
         switch (repeatMode) {
-        case RepeatMode::Times: how = QStringLiteral("%1 times").arg(num(count)); break;
-        case RepeatMode::Seconds: how = QStringLiteral("for %1 s").arg(num(count)); break;
-        case RepeatMode::Forever: how = QStringLiteral("until stopped"); break;
+        case RepeatMode::Times: how = T("%1 times").arg(num(count)); break;
+        case RepeatMode::Seconds: how = T("for %1 s").arg(num(count)); break;
+        case RepeatMode::Forever: how = T("until stopped"); break;
         }
-        return QStringLiteral("from “%1” %2").arg(target, how);
+        return T("from “%1” %2").arg(target, how);
     }
     case ActionType::Goto:
-        return QStringLiteral("“%1”").arg(target) + (expr.trimmed().isEmpty() ? QString() : QStringLiteral(" if ") + expr.trimmed());
+        return expr.trimmed().isEmpty() ? QStringLiteral("“%1”").arg(target) : T("“%1” if %2").arg(target, expr.trimmed());
     case ActionType::RunProgram: return arguments.isEmpty() ? program : program + QLatin1Char(' ') + arguments;
     case ActionType::Notify:
     case ActionType::MessageBox: return message;
     case ActionType::WaitFile: {
-        static const char* const kWhen[] = {"exists", "is gone", "changes"};
-        return QStringLiteral("%1 %2").arg(file, QLatin1String(kWhen[int(fileWhen)]))
-               + (ms > 0 ? QStringLiteral(" · give up after ") + msText(ms) : QString());
+        QString s;
+        switch (fileWhen) {
+        case FileCondition::Exists: s = T("%1 exists").arg(file); break;
+        case FileCondition::Gone: s = T("%1 is gone").arg(file); break;
+        case FileCondition::Changed: s = T("%1 changes").arg(file); break;
+        }
+        return s + giveUp;
     }
     case ActionType::Beep: return {};
     case ActionType::RunMacro: return file;
@@ -224,20 +236,20 @@ QString Action::valueText() const
     case ActionType::EndGroup: return {};
     case ActionType::AskText: return QStringLiteral("“%1” → %2").arg(message, var);
     case ActionType::WindowMove: {
-        QString s = exe.isEmpty() ? QStringLiteral("active window") : exe;
+        QString s = exe.isEmpty() ? T("active window") : exe;
         if (titleMatch != TitleMatch::Any && !title.isEmpty()) s += QStringLiteral(" · ") + title;
         switch (windowState) {
         case WindowState::Normal: return s + QStringLiteral(" → ") + rectText(rect);
-        case WindowState::Maximized: return s + QStringLiteral(" → maximize");
-        case WindowState::Minimized: return s + QStringLiteral(" → minimize");
-        case WindowState::Restore: return s + QStringLiteral(" → restore");
+        case WindowState::Maximized: return s + QStringLiteral(" → ") + T("maximize");
+        case WindowState::Minimized: return s + QStringLiteral(" → ") + T("minimize");
+        case WindowState::Restore: return s + QStringLiteral(" → ") + T("restore");
         }
         return s;
     }
     case ActionType::FindImage: {
-        QString s = area.isEmpty() ? QStringLiteral("anywhere on screen") : QStringLiteral("in ") + rectText(area);
-        if (ms > 0) s += QStringLiteral(" · wait up to ") + msText(ms);
-        if (!offset.isNull()) s += QStringLiteral(" · offset %1, %2 px").arg(offset.x()).arg(offset.y());
+        QString s = area.isEmpty() ? T("anywhere on screen") : T("in %1", "an area of the screen").arg(rectText(area));
+        if (ms > 0) s += QStringLiteral(" · ") + T("wait up to %1").arg(msText(ms));
+        if (!offset.isNull()) s += QStringLiteral(" · ") + T("offset %1, %2 px").arg(offset.x()).arg(offset.y());
         return s;
     }
     case ActionType::Screenshot: return file + (area.isEmpty() ? QString() : QStringLiteral(" · ") + rectText(area));
@@ -248,9 +260,9 @@ QString Action::valueText() const
         return QStringLiteral("“%1” → %2").arg(p, var);
     }
     case ActionType::FindText: {
-        const QString where = area.isEmpty() ? QStringLiteral("anywhere on screen") : QStringLiteral("in ") + rectText(area);
+        const QString where = area.isEmpty() ? T("anywhere on screen") : T("in %1", "an area of the screen").arg(rectText(area));
         QString s = text.isEmpty() ? where : QStringLiteral("“%1” %2").arg(text, where);
-        if (ms > 0) s += QStringLiteral(" · wait up to ") + msText(ms);
+        if (ms > 0) s += QStringLiteral(" · ") + T("wait up to %1").arg(msText(ms));
         if (!var.isEmpty()) s += QStringLiteral(" → ") + var;
         return s;
     }
@@ -530,11 +542,11 @@ bool Macro::load(const QString& path, Macro* out, QString* error)
     const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &pe);
     const QJsonObject root = doc.object();
     if (pe.error != QJsonParseError::NoError || root.value(QStringLiteral("format")).toString() != QLatin1String(kFormat)) {
-        if (error) *error = QStringLiteral("This file isn't a macro saved by this app.");
+        if (error) *error = T("This file isn't a macro saved by this app.");
         return false;
     }
     if (root.value(QStringLiteral("version")).toInt() > kVersion) {
-        if (error) *error = QStringLiteral("This macro was saved by a newer version of the app. Please update.");
+        if (error) *error = T("This macro was saved by a newer version of the app. Please update.");
         return false;
     }
     Macro m;
@@ -544,7 +556,7 @@ bool Macro::load(const QString& path, Macro* out, QString* error)
         Action a = Action::fromJson(v.toObject(), &ok);
         if (ok) m.actions.append(a); else ++skipped;
     }
-    if (skipped && error) *error = QStringLiteral("%1 unknown action(s) were skipped.").arg(skipped);
+    if (skipped && error) *error = T("%1 unknown action(s) were skipped.").arg(skipped);
     *out = m;
     return true;
 }

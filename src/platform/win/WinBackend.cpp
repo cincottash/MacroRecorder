@@ -347,7 +347,7 @@ public:
     QString takeProblem() override
     {
         if (g_blocked.exchange(0) == 0) return {};
-        return QStringLiteral("Windows blocked some of the clicks or keys. This happens when the window in front runs as "
+        return T("Windows blocked some of the clicks or keys. This happens when the window in front runs as "
                               "administrator: run " APP_NAME " as administrator too to control it.");
     }
 
@@ -407,7 +407,7 @@ public:
         unsigned vk = 0, mods = 0;
         const bool clear = seq.isEmpty();
         if (!clear && !win::hotkeyFromSequence(seq, &vk, &mods)) {
-            if (error) *error = QStringLiteral("“%1” can't be used as a hotkey.").arg(seq.toString(QKeySequence::NativeText));
+            if (error) *error = T("“%1” can't be used as a hotkey.").arg(seq.toString(QKeySequence::NativeText));
             return false;
         }
         DWORD err = 0;
@@ -422,8 +422,8 @@ public:
         m_hkCopy = m_hotkeys;
         if (!ok && error)
             *error = err == ERROR_HOTKEY_ALREADY_REGISTERED
-                         ? QStringLiteral("%1 is already used by another program.").arg(seq.toString(QKeySequence::NativeText))
-                         : QStringLiteral("Couldn't register %1 (error %2).").arg(seq.toString(QKeySequence::NativeText)).arg(err);
+                         ? T("%1 is already used by another program.").arg(seq.toString(QKeySequence::NativeText))
+                         : T("Couldn't register %1 (error %2).").arg(seq.toString(QKeySequence::NativeText)).arg(err);
         return ok;
     }
 
@@ -677,7 +677,7 @@ bool run(SystemAction a, QString* error)
     case SystemAction::Restart: ok = QProcess::startDetached(QStringLiteral("shutdown.exe"), {QStringLiteral("/r"), QStringLiteral("/t"), QStringLiteral("0")}); break;
     case SystemAction::ShutDown: ok = QProcess::startDetached(QStringLiteral("shutdown.exe"), {QStringLiteral("/s"), QStringLiteral("/t"), QStringLiteral("0")}); break;
     }
-    if (!ok && error) *error = QStringLiteral("Windows refused (error %1).").arg(GetLastError());
+    if (!ok && error) *error = T("Windows refused (error %1).").arg(GetLastError());
     return ok;
 }
 
@@ -693,7 +693,7 @@ bool setStartAtLogin(bool on, QString* error)
     else run.remove(QStringLiteral(APP_NAME));
     run.sync();
     if (run.status() != QSettings::NoError) {
-        if (error) *error = QStringLiteral("Couldn't change the Windows start-up list.");
+        if (error) *error = T("Couldn't change the Windows start-up list.");
         return false;
     }
     return true;
@@ -723,7 +723,7 @@ bool restartElevated(const QStringList& args, QString* error)
     info.lpParameters = params.c_str();
     info.nShow = SW_SHOWNORMAL;
     if (ShellExecuteExW(&info)) return true;
-    if (error) *error = GetLastError() == ERROR_CANCELLED ? QStringLiteral("Cancelled.") : QStringLiteral("Windows couldn't start it (error %1).").arg(GetLastError());
+    if (error) *error = GetLastError() == ERROR_CANCELLED ? T("Cancelled.") : T("Windows couldn't start it (error %1).").arg(GetLastError());
     return false;
 }
 
@@ -754,7 +754,7 @@ bool createShortcut(const QString& path, const QString& program, const QStringLi
         link->Release();
     }
     if (SUCCEEDED(init)) CoUninitialize();
-    if (FAILED(hr) && error) *error = QStringLiteral("Windows couldn't create the shortcut (error 0x%1).").arg(quint32(hr), 8, 16, QLatin1Char('0'));
+    if (FAILED(hr) && error) *error = T("Windows couldn't create the shortcut (error 0x%1).").arg(quint32(hr), 8, 16, QLatin1Char('0'));
     return SUCCEEDED(hr);
 }
 

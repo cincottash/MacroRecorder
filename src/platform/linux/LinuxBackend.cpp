@@ -33,9 +33,12 @@ qint64 Backend::now()
 
 namespace {
 
-const QString kWaylandHelp = QStringLiteral(
-    "For recording on Wayland, choose an “X11” or “Xorg” session at the login screen. For playback into every "
-    "program, give the app access to /dev/uinput (see the README, “Linux setup”).");
+// A function, not a constant: the text follows the language chosen when the app starts
+QString waylandHelp()
+{
+    return T("For recording on Wayland, choose an “X11” or “Xorg” session at the login screen. For playback into every "
+             "program, give the app access to /dev/uinput (see the README, “Linux setup”).");
+}
 
 class NoBackend : public Backend {
 public:
@@ -46,7 +49,7 @@ public:
     core::Injector* injector() override { return &m_inj; }
     bool setHotkey(int, const QKeySequence& seq, QString* error) override
     {
-        if (!seq.isEmpty() && error) *error = QStringLiteral("Global hotkeys aren't available here.");
+        if (!seq.isEmpty() && error) *error = T("Global hotkeys aren't available here.");
         return seq.isEmpty();
     }
 
@@ -77,19 +80,19 @@ public:
     QString name() const override { return QStringLiteral("Wayland (uinput)"); }
     QString recordUnavailableReason() const override
     {
-        return QStringLiteral("Recording isn't possible on this Wayland session (no XWayland). ") + kWaylandHelp;
+        return T("Recording isn't possible on this Wayland session (no XWayland).") + QLatin1Char(' ') + waylandHelp();
     }
     QString notes() const override
     {
-        return QStringLiteral("Wayland: playback works in every program, but hotkeys and Stop on Mouse Move aren't available. "
-                              "Use the Stop button to stop.");
+        return T("Wayland: playback works in every program, but hotkeys and Stop on Mouse Move aren't available. "
+                 "Use the Stop button to stop.");
     }
-    QString limitedTag() const override { return QStringLiteral("Wayland: Limited"); }
+    QString limitedTag() const override { return T("Wayland: Limited"); }
     void setCapture(CaptureMode) override {}
     core::Injector* injector() override { return m_inj.get(); }
     bool setHotkey(int, const QKeySequence& seq, QString* error) override
     {
-        if (!seq.isEmpty() && error) *error = QStringLiteral("Global hotkeys aren't available on Wayland without XWayland.");
+        if (!seq.isEmpty() && error) *error = T("Global hotkeys aren't available on Wayland without XWayland.");
         return seq.isEmpty();
     }
 
@@ -108,29 +111,29 @@ Backend* createLinuxBackend(QObject* parent)
 
     if (!wayland) {
         if (hasX) return new X11Backend(parent);
-        return new NoBackend(parent, QStringLiteral("No graphical session was found (neither X11 nor Wayland)."));
+        return new NoBackend(parent, T("No graphical session was found (neither X11 nor Wayland)."));
     }
 
     QString uinputWhy;
     std::unique_ptr<UinputInjector> uin = UinputInjector::create(&uinputWhy);
     if (!hasX) {
         if (uin) return new UinputOnlyBackend(parent, std::move(uin));
-        return new NoBackend(parent, QStringLiteral("This Wayland session has no XWayland, and the app has %1. ").arg(uinputWhy) + kWaylandHelp);
+        return new NoBackend(parent, T("This Wayland session has no XWayland, and the app has %1.").arg(uinputWhy) + QLatin1Char(' ') + waylandHelp());
     }
     auto* b = new X11Backend(parent, uin.get());
     if (uin) {
         b->setDisplayName(QStringLiteral("Wayland (uinput + XWayland)"));
-        b->setLimitedTag(QStringLiteral("Wayland: Limited"));
-        b->setNotes(QStringLiteral("Wayland: playback works in every program (plain US-keyboard characters only). Recording, "
-                                   "hotkeys, the active window and Stop on Mouse Move only see programs running through XWayland. ")
-                    + kWaylandHelp);
+        b->setLimitedTag(T("Wayland: Limited"));
+        b->setNotes(T("Wayland: playback works in every program (plain US-keyboard characters only). Recording, "
+                      "hotkeys, the active window and Stop on Mouse Move only see programs running through XWayland.")
+                    + QLatin1Char(' ') + waylandHelp());
         UinputInjector* raw = uin.release();
         QObject::connect(b, &QObject::destroyed, [raw] { delete raw; });   // lives as long as the backend
     } else {
         b->setDisplayName(QStringLiteral("Wayland (XWayland)"));
-        b->setLimitedTag(QStringLiteral("Wayland: Limited"));
-        b->setNotes(QStringLiteral("Wayland: recording and playback only work with programs running through XWayland (%1). ")
-                        .arg(uinputWhy) + kWaylandHelp);
+        b->setLimitedTag(T("Wayland: Limited"));
+        b->setNotes(T("Wayland: recording and playback only work with programs running through XWayland (%1).")
+                        .arg(uinputWhy) + QLatin1Char(' ') + waylandHelp());
     }
     return b;
 }
@@ -155,7 +158,7 @@ QString autostartFile()
 bool start(const QString& program, const QStringList& args, QString* error)
 {
     if (QProcess::startDetached(program, args)) return true;
-    if (error) *error = QStringLiteral("Couldn't run %1.").arg(program);
+    if (error) *error = T("Couldn't run %1.").arg(program);
     return false;
 }
 }  // namespace
@@ -184,7 +187,7 @@ bool setStartAtLogin(bool on, QString* error)
     const QString f = autostartFile();
     if (!on) {
         if (!QFileInfo::exists(f) || QFile::remove(f)) return true;
-        if (error) *error = QStringLiteral("Couldn't remove %1.").arg(f);
+        if (error) *error = T("Couldn't remove %1.").arg(f);
         return false;
     }
     QDir().mkpath(QFileInfo(f).absolutePath());
@@ -196,7 +199,7 @@ bool setStartAtLogin(bool on, QString* error)
                       .arg(exe).toUtf8());
         if (out.commit()) return true;
     }
-    if (error) *error = QStringLiteral("Couldn't write %1.").arg(f);
+    if (error) *error = T("Couldn't write %1.").arg(f);
     return false;
 }
 
@@ -204,7 +207,7 @@ bool isElevated() { return true; }   // nothing to elevate: X11 has no per-windo
 
 bool restartElevated(const QStringList&, QString* error)
 {
-    if (error) *error = QStringLiteral("Not needed on Linux.");
+    if (error) *error = T("Not needed on Linux.");
     return false;
 }
 

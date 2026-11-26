@@ -2,6 +2,7 @@
 
 #include "FileDialogs.h"
 #include "core/Action.h"
+#include "core/Tr.h"
 
 #include <QCalendarWidget>
 #include <QCheckBox>
@@ -127,7 +128,7 @@ public:
             for (const auto& [name, left] : {std::pair{"qt_calendar_prevmonth", true}, std::pair{"qt_calendar_nextmonth", false}})
                 if (auto* b = m_cal->findChild<QToolButton*>(QLatin1String(name))) {
                     b->setIcon(chevronIcon(palette().color(QPalette::Text), left));
-                    b->setToolTip(left ? QStringLiteral("Previous month") : QStringLiteral("Next month"));
+                    b->setToolTip(left ? T("Previous month") : T("Next month"));
                 }
             connect(m_cal, &QCalendarWidget::selectionChanged, this, [this] { m_date->setDate(m_cal->selectedDate()); });
             row->addWidget(m_cal, 1);
@@ -138,15 +139,15 @@ public:
             addTime(m_hours, twelve ? QLocale().toString(QTime(h, 0), QStringLiteral("h AP")) : QStringLiteral("%1").arg(h, 2, 10, QLatin1Char('0')), h);
         m_minutes = column(QStringLiteral("pickMinute"));
         for (int m = 0; m < 60; m += 5) addTime(m_minutes, QStringLiteral(":%1").arg(m, 2, 10, QLatin1Char('0')), m);
-        row->addLayout(labelled(QStringLiteral("Hour"), m_hours));
-        row->addLayout(labelled(QStringLiteral("Minute"), m_minutes));
+        row->addLayout(labelled(T("Hour"), m_hours));
+        row->addLayout(labelled(T("Minute"), m_minutes));
         lay->addLayout(row);
-        auto* done = new QPushButton(QStringLiteral("Done"));
+        auto* done = new QPushButton(T("Done"));
         done->setObjectName(QStringLiteral("primary"));
         done->setProperty("testId", QStringLiteral("pickDone"));
         connect(done, &QPushButton::clicked, this, &QWidget::close);
         auto* bottom = new QHBoxLayout;
-        auto* hint = new QLabel(QStringLiteral("Any other minute can be typed in the Time box."));
+        auto* hint = new QLabel(T("Any other minute can be typed in the Time box."));
         hint->setObjectName(QStringLiteral("muted"));
         bottom->addWidget(hint, 1);
         bottom->addWidget(done);
@@ -298,10 +299,10 @@ QWidget* fileRow(QLineEdit* edit, QWidget* dialog, const QString& folder)
     auto* w = new QWidget;
     auto* h = new QHBoxLayout(w);
     h->setContentsMargins(0, 0, 0, 0);
-    auto* browse = new QPushButton(QStringLiteral("Browse…"));
+    auto* browse = new QPushButton(T("Browse…"));
     QObject::connect(browse, &QPushButton::clicked, dialog, [edit, dialog, folder] {
         const QString start = edit->text().isEmpty() ? folder : edit->text();
-        const QString f = QFileDialog::getOpenFileName(dialog, QStringLiteral("Choose a Macro"), start, QStringLiteral("Macros (*.macro)"),
+        const QString f = QFileDialog::getOpenFileName(dialog, T("Choose a Macro"), start, T("Macros (*.macro)"),
                                                        nullptr, filedialogs::options());
         if (!f.isEmpty()) edit->setText(QDir::toNativeSeparators(f));
     });
@@ -315,11 +316,11 @@ QWidget* fileRow(QLineEdit* edit, QWidget* dialog, const QString& folder)
 // A macro file the app can play: exists and reads as a macro. Empty when fine, else the reason.
 QString checkMacro(const QString& path)
 {
-    if (path.isEmpty()) return QStringLiteral("Choose the macro file to play.");
-    if (!QFileInfo::exists(path)) return QStringLiteral("“%1” doesn't exist.").arg(QDir::toNativeSeparators(path));
+    if (path.isEmpty()) return T("Choose the macro file to play.");
+    if (!QFileInfo::exists(path)) return T("“%1” doesn't exist.").arg(QDir::toNativeSeparators(path));
     core::Macro m;
     QString err;
-    if (!core::Macro::load(path, &m, &err)) return QStringLiteral("“%1” can't be played: %2").arg(QFileInfo(path).fileName(), err);
+    if (!core::Macro::load(path, &m, &err)) return T("“%1” can't be played: %2").arg(QFileInfo(path).fileName(), err);
     return {};
 }
 
@@ -336,12 +337,12 @@ namespace autorun {
 
 QString whenText(const QDateTime& when, const QDateTime& now)
 {
-    if (!when.isValid()) return QStringLiteral("Not again");
+    if (!when.isValid()) return T("Not again");
     const QLocale loc;
     const QString time = loc.toString(when.time(), QLocale::ShortFormat);
     const qint64 days = now.date().daysTo(when.date());
-    if (days == 0) return QStringLiteral("Today %1").arg(time);
-    if (days == 1) return QStringLiteral("Tomorrow %1").arg(time);
+    if (days == 0) return T("Today %1").arg(time);
+    if (days == 1) return T("Tomorrow %1").arg(time);
     return loc.toString(when, QLocale::ShortFormat);
 }
 
@@ -353,20 +354,20 @@ MacroHotkeysDialog::MacroHotkeysDialog(const QList<MacroHotkey>& list, const QHa
                                        QWidget* parent)
     : QDialog(parent), m_list(list), m_appKeys(appKeys), m_folder(folder)
 {
-    setWindowTitle(QStringLiteral("Macro Hotkeys"));
+    setWindowTitle(T("Macro Hotkeys"));
     auto* lay = new QVBoxLayout(this);
-    lay->addWidget(intro(QStringLiteral("A hotkey here plays its macro file right away, from any program, without opening it. "
-                                        "Pressing it again while that macro plays stops it. The macro plays once, with the "
-                                        "playback options of the main window.")));
-    m_table = makeTable({QStringLiteral("Hotkey"), QStringLiteral("Macro File")});
+    lay->addWidget(intro(T("A hotkey here plays its macro file right away, from any program, without opening it. "
+                           "Pressing it again while that macro plays stops it. The macro plays once, with the "
+                           "playback options of the main window.")));
+    m_table = makeTable({T("Hotkey"), T("Macro File")});
     m_table->setProperty("testId", QStringLiteral("macroHotkeyList"));
     m_table->horizontalHeader()->resizeSection(0, 150);
-    auto* add = new QPushButton(QStringLiteral("Add…"));
-    m_edit = new QPushButton(QStringLiteral("Edit…"));
-    m_remove = new QPushButton(QStringLiteral("Remove"));
+    auto* add = new QPushButton(T("Add…"));
+    m_edit = new QPushButton(T("Edit…"));
+    m_remove = new QPushButton(T("Remove"));
     lay->addLayout(listWithButtons(m_table, add, m_edit, m_remove));
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    buttons->button(QDialogButtonBox::Cancel)->setToolTip(QStringLiteral("Leaves the hotkeys as they were when this window opened."));
+    buttons->button(QDialogButtonBox::Cancel)->setToolTip(T("Leaves the hotkeys as they were when this window opened."));
     lay->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -422,7 +423,7 @@ bool MacroHotkeysDialog::editAt(int row)
 bool MacroHotkeysDialog::edit(MacroHotkey* h, int row)
 {
     QDialog d(this);
-    d.setWindowTitle(row < 0 ? QStringLiteral("Add Macro Hotkey") : QStringLiteral("Edit Macro Hotkey"));
+    d.setWindowTitle(row < 0 ? T("Add Macro Hotkey") : T("Edit Macro Hotkey"));
     auto* lay = new QVBoxLayout(&d);
     auto* form = new QFormLayout;
     form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
@@ -431,10 +432,10 @@ bool MacroHotkeysDialog::edit(MacroHotkey* h, int row)
     auto* key = new QKeySequenceEdit(QKeySequence(h->key));
     key->setMaximumSequenceLength(1);
     key->setClearButtonEnabled(true);
-    form->addRow(QStringLiteral("Macro File:"), fileRow(file, &d, m_folder));
-    form->addRow(QStringLiteral("Hotkey:"), key);
+    form->addRow(T("Macro File:"), fileRow(file, &d, m_folder));
+    form->addRow(T("Hotkey:"), key);
     lay->addLayout(form);
-    auto* tip = new QLabel(QStringLiteral("Click the hotkey box, then press the keys, for example Ctrl+Alt+1."));
+    auto* tip = new QLabel(T("Click the hotkey box, then press the keys, for example Ctrl+Alt+1."));
     tip->setObjectName(QStringLiteral("muted"));
     tip->setWordWrap(true);
     lay->addWidget(tip);
@@ -447,15 +448,15 @@ bool MacroHotkeysDialog::edit(MacroHotkey* h, int row)
         const QString path = QDir::fromNativeSeparators(file->text().trimmed());
         const QString k = key->keySequence().toString(QKeySequence::PortableText);
         QString why = checkMacro(path);
-        if (why.isEmpty() && k.isEmpty()) why = QStringLiteral("Press the keys for the hotkey in the Hotkey box.");
+        if (why.isEmpty() && k.isEmpty()) why = T("Press the keys for the hotkey in the Hotkey box.");
         if (why.isEmpty())
             for (auto it = m_appKeys.cbegin(); it != m_appKeys.cend(); ++it)
                 if (!it.value().isEmpty() && QKeySequence(it.value()) == QKeySequence(k))
-                    why = QStringLiteral("%1 is already the %2 hotkey (in the main window's Hotkeys card).").arg(key->keySequence().toString(QKeySequence::NativeText), it.key());
+                    why = T("%1 is already the %2 hotkey (in the main window's Hotkeys card).").arg(key->keySequence().toString(QKeySequence::NativeText), it.key());
         if (why.isEmpty())
             for (int i = 0; i < m_list.size(); ++i)
                 if (i != row && QKeySequence(m_list.at(i).key) == QKeySequence(k))
-                    why = QStringLiteral("%1 already plays %2.").arg(key->keySequence().toString(QKeySequence::NativeText), QFileInfo(m_list.at(i).file).fileName());
+                    why = T("%1 already plays %2.").arg(key->keySequence().toString(QKeySequence::NativeText), QFileInfo(m_list.at(i).file).fileName());
         if (!why.isEmpty()) {
             error->setText(why);
             error->show();
@@ -474,22 +475,26 @@ bool MacroHotkeysDialog::edit(MacroHotkey* h, int row)
 SchedulesDialog::SchedulesDialog(const QList<Schedule>& list, std::function<QDateTime()> now, const QString& folder, QWidget* parent)
     : QDialog(parent), m_list(list), m_now(std::move(now)), m_folder(folder)
 {
-    setWindowTitle(QStringLiteral("Schedules"));
+    setWindowTitle(T("Schedules"));
     auto* lay = new QVBoxLayout(this);
-    lay->addWidget(intro(QStringLiteral("Plays a macro file at the times set here, while the app is running (minimized is fine). "
-                                        "To be sure it's running, turn on File > Settings > Start at Login. A macro that's due while "
-                                        "another one plays waits for it to finish.")));
-    m_table = makeTable({QStringLiteral("On"), QStringLiteral("When"), QStringLiteral("Next Time"), QStringLiteral("Macro File")});
+    lay->addWidget(intro(T("Plays a macro file at the times set here, while the app is running (minimized is fine). "
+                           "To be sure it's running, turn on File > Settings > Start at Login. A macro that's due while "
+                           "another one plays waits for it to finish.")));
+    m_table = makeTable({T("On", "column: schedule turned on"), T("When"), T("Next Time"), T("Macro File")});
     m_table->setProperty("testId", QStringLiteral("scheduleList"));
-    m_table->horizontalHeader()->resizeSection(0, 44);
+    // The On column as wide as its header (in Spanish, "Activa"); its check box needs 44 px
+    QFont headerFont = m_table->horizontalHeader()->font();
+    headerFont.setWeight(QFont::DemiBold);   // the style sheet's header weight
+    m_table->horizontalHeader()->resizeSection(
+        0, qMax(44, QFontMetrics(headerFont).horizontalAdvance(m_table->horizontalHeaderItem(0)->text()) + 30));
     m_table->horizontalHeader()->resizeSection(1, 230);
     m_table->horizontalHeader()->resizeSection(2, 150);
-    auto* add = new QPushButton(QStringLiteral("Add…"));
-    m_edit = new QPushButton(QStringLiteral("Edit…"));
-    m_remove = new QPushButton(QStringLiteral("Remove"));
+    auto* add = new QPushButton(T("Add…"));
+    m_edit = new QPushButton(T("Edit…"));
+    m_remove = new QPushButton(T("Remove"));
     lay->addLayout(listWithButtons(m_table, add, m_edit, m_remove));
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    buttons->button(QDialogButtonBox::Cancel)->setToolTip(QStringLiteral("Leaves the schedules as they were when this window opened."));
+    buttons->button(QDialogButtonBox::Cancel)->setToolTip(T("Leaves the schedules as they were when this window opened."));
     lay->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -522,7 +527,7 @@ SchedulesDialog::SchedulesDialog(const QList<Schedule>& list, std::function<QDat
         if (m_list[i->row()].enabled == on) return;
         m_list[i->row()].enabled = on;
         const QDateTime next = on ? m_list.at(i->row()).nextRun(m_now()) : QDateTime();
-        if (QTableWidgetItem* n = m_table->item(i->row(), 2)) n->setText(on ? autorun::whenText(next, m_now()) : QStringLiteral("Off"));
+        if (QTableWidgetItem* n = m_table->item(i->row(), 2)) n->setText(on ? autorun::whenText(next, m_now()) : T("Off"));
     });
     resize(820, 380);
     refresh();
@@ -538,10 +543,10 @@ void SchedulesDialog::refresh()
         auto* on = new QTableWidgetItem;
         on->setFlags(Qt::ItemIsUserCheckable | Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         on->setCheckState(s.enabled ? Qt::Checked : Qt::Unchecked);
-        on->setToolTip(QStringLiteral("Unticked: kept, but not played."));
+        on->setToolTip(T("Unticked: kept, but not played."));
         m_table->setItem(r, 0, on);
         m_table->setItem(r, 1, item(s.describe()));
-        m_table->setItem(r, 2, item(s.enabled ? autorun::whenText(s.nextRun(now), now) : QStringLiteral("Off")));
+        m_table->setItem(r, 2, item(s.enabled ? autorun::whenText(s.nextRun(now), now) : T("Off")));
         m_table->setItem(r, 3, item(QFileInfo(s.file).fileName(), QDir::toNativeSeparators(s.file)));
     }
     // "When" and "Next Time" are shown whole; the file name takes what's left (its full path is in the tooltip)
@@ -573,27 +578,27 @@ bool SchedulesDialog::editAt(int row)
 bool SchedulesDialog::edit(Schedule* s)
 {
     QDialog d(this);
-    d.setWindowTitle(s->file.isEmpty() ? QStringLiteral("Add Schedule") : QStringLiteral("Edit Schedule"));
+    d.setWindowTitle(s->file.isEmpty() ? T("Add Schedule") : T("Edit Schedule"));
     auto* lay = new QVBoxLayout(&d);
     auto* form = new QFormLayout;
     form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
     form->setHorizontalSpacing(12);   // room between each label and its field
     auto* file = new QLineEdit(QDir::toNativeSeparators(s->file));
-    form->addRow(QStringLiteral("Macro File:"), fileRow(file, &d, m_folder));
+    form->addRow(T("Macro File:"), fileRow(file, &d, m_folder));
     auto* repeat = new QComboBox;
-    const QList<QPair<QString, QString>> kinds = {{QStringLiteral("Once"), QStringLiteral("once")},
-                                                  {QStringLiteral("Every Day"), QStringLiteral("daily")},
-                                                  {QStringLiteral("On Chosen Days"), QStringLiteral("days")},
-                                                  {QStringLiteral("Every Few Minutes"), QStringLiteral("minutes")}};
+    const QList<QPair<QString, QString>> kinds = {{T("Once"), QStringLiteral("once")},
+                                                  {T("Every Day"), QStringLiteral("daily")},
+                                                  {T("On Chosen Days"), QStringLiteral("days")},
+                                                  {T("Every Few Minutes"), QStringLiteral("minutes")}};
     for (const auto& [text, key] : kinds) repeat->addItem(text, key);
     repeat->setCurrentIndex(qMax(0, repeat->findData(s->repeat)));
-    form->addRow(QStringLiteral("Repeat:"), repeat);
+    form->addRow(T("Repeat:"), repeat);
     auto* date = new QDateEdit(s->at.isValid() ? s->at.date() : m_now().date());
     date->setDisplayFormat(QLocale().dateFormat(QLocale::ShortFormat));
     date->setMinimumDate(QDate(2000, 1, 1));
     auto* time = new QTimeEdit(s->at.isValid() ? s->at.time() : QTime(9, 0));
     time->setDisplayFormat(QLocale().timeFormat(QLocale::ShortFormat));
-    form->addRow(QStringLiteral("Date:"), date);
+    form->addRow(T("Date:"), date);
     // The time box with the calendar button beside it: pick the day and time by clicking, or type them
     auto* timeRow = new QWidget;
     auto* th = new QHBoxLayout(timeRow);
@@ -604,10 +609,10 @@ bool SchedulesDialog::edit(Schedule* s)
     pick->setProperty("testId", QStringLiteral("pickWhen"));
     pick->setIcon(calendarIcon(pick->palette()));
     pick->setIconSize(QSize(18, 18));
-    pick->setAccessibleName(QStringLiteral("Pick on a Calendar"));
+    pick->setAccessibleName(T("Pick on a Calendar"));
     th->addWidget(pick);
     th->addStretch();
-    form->addRow(QStringLiteral("Time:"), timeRow);
+    form->addRow(T("Time:"), timeRow);
     auto* daysRow = new QWidget;
     auto* dh = new QHBoxLayout(daysRow);
     dh->setContentsMargins(0, 0, 0, 0);
@@ -619,13 +624,13 @@ bool SchedulesDialog::edit(Schedule* s)
         dh->addWidget(c);
     }
     dh->addStretch();
-    form->addRow(QStringLiteral("Days:"), daysRow);
+    form->addRow(T("Days:"), daysRow);
     auto* minutes = new QSpinBox;
     minutes->setRange(1, 100000);
     minutes->setValue(s->minutes);
     minutes->setSuffix(QStringLiteral(" min"));
     minutes->setMinimumWidth(110);
-    form->addRow(QStringLiteral("Every:"), minutes);
+    form->addRow(T("Every:"), minutes);
     lay->addLayout(form);
     QLabel* error = errorLabel();
     lay->addWidget(error);
@@ -638,9 +643,9 @@ bool SchedulesDialog::edit(Schedule* s)
         form->setRowVisible(daysRow, k == QLatin1String("days"));
         form->setRowVisible(minutes, k == QLatin1String("minutes"));
         if (auto* l = qobject_cast<QLabel*>(form->labelForField(timeRow)))
-            l->setText(k == QLatin1String("minutes") ? QStringLiteral("Starting At:") : QStringLiteral("Time:"));
-        pick->setToolTip(form->isRowVisible(date) ? QStringLiteral("Pick the day and the time on a calendar. They can be typed in the boxes too.")
-                                  : QStringLiteral("Pick the time from a list. It can be typed in the box too."));
+            l->setText(k == QLatin1String("minutes") ? T("Starting At:") : T("Time:"));
+        pick->setToolTip(form->isRowVisible(date) ? T("Pick the day and the time on a calendar. They can be typed in the boxes too.")
+                                                  : T("Pick the time from a list. It can be typed in the box too."));
         d.adjustSize();
     };
     connect(repeat, &QComboBox::currentIndexChanged, &d, sync);
@@ -663,8 +668,8 @@ bool SchedulesDialog::edit(Schedule* s)
             if (dayBoxes[i]->isChecked()) n.days |= 1 << i;
         n.minutes = minutes->value();
         QString why = checkMacro(n.file);
-        if (why.isEmpty() && n.repeat == QLatin1String("days") && n.days == 0) why = QStringLiteral("Tick at least one day.");
-        if (why.isEmpty() && n.repeat == QLatin1String("once") && n.at <= m_now()) why = QStringLiteral("That time has already passed.");
+        if (why.isEmpty() && n.repeat == QLatin1String("days") && n.days == 0) why = T("Tick at least one day.");
+        if (why.isEmpty() && n.repeat == QLatin1String("once") && n.at <= m_now()) why = T("That time has already passed.");
         if (!why.isEmpty()) {
             error->setText(why);
             error->show();

@@ -46,6 +46,8 @@ const Theme& forChoice(const QString& key)
     return *find(systemIsDark() ? QStringLiteral("dark") : QStringLiteral("light"));
 }
 
+QString displayName(const QString& name) { return QCoreApplication::translate("app", name.toUtf8().constData()); }
+
 static bool isLight(const QString& color)
 {
     const QColor c(color);

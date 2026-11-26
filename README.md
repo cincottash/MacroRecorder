@@ -28,6 +28,7 @@ Free and open source (GPL-3.0). One file to download: nothing to install.
 - **Ask AI** steps, answered by an AI model on your own PC (free, with LM Studio).
 - **Safe to stop:** moving the mouse or pressing a key stops playback, and held buttons or keys are always
   released.
+- **English or Spanish (Español):** chosen at the first start, changed any time in **File ▸ Settings ▸ Language**.
 - **38 color themes**, including popular editor schemes (see the credits below).
 
 ## Download
@@ -45,12 +46,19 @@ On Linux, see [Linux (experimental)](#linux-experimental).
 
 ## First run
 
-The app asks where to keep its settings. It suggests the usual place for app data (`%LOCALAPPDATA%\MacroRecorder`
+<img src=".github/readme/dialog-language.png" alt="The first start's question, in English and Spanish: which language the app should use" width="420" align="right">
+
+The app first asks which language to use: **English** or **Español** (Spanish). The answer is kept with the other
+settings; change it later in **File ▸ Settings ▸ Language** (the app offers to restart in the new language).
+
+<br clear="right">
+
+Then it asks where to keep its settings. It suggests the usual place for app data (`%LOCALAPPDATA%\MacroRecorder`
 on Windows, `~/.local/share/MacroRecorder` on Linux); pick any folder, or choose **Don't Keep App Data** to start
 fresh every time. While that choice is on, a **Settings Not Kept** link shows at the top of the window; click it to pick a
 folder. You can change this at any time in **File ▸ Settings ▸ Change App Data Folder…**. To go back to how the
-app was when first installed, use **File ▸ Settings ▸ Start Over…**: every setting returns to its default and this
-window shows again.
+app was when first installed, use **File ▸ Settings ▸ Start Over…**: every setting returns to its default and these
+questions show again.
 
 Your macros are saved wherever you choose when you save them.
 
@@ -359,8 +367,9 @@ played.
 - **File**: New, Open, Open Recent, Save, Save As, Export to CSV (separated the way your region's spreadsheets
   expect: commas in the US, semicolons in most of Europe), Create Desktop Shortcut, Copy Command Line (plays the
   saved macro and closes; for Windows Task Scheduler), Settings, Quit.
-  - **Settings**: Change App Data Folder, Reset Settings to Defaults, AI Server (for Ask AI steps), Start Over (every setting back to its
-    default, then the app restarts on the welcome window; your saved macros aren't touched), Confirm Before Deleting Steps, Start
+  - **Settings**: Language (English or Español; the app restarts in it), Change App Data Folder, Reset Settings to Defaults, AI Server
+    (for Ask AI steps), Start Over (every setting back to its default, then the app restarts and asks for the language and the
+    settings folder again; your saved macros aren't touched), Confirm Before Deleting Steps, Start
     Minimized, Start at Login, and on Windows: Send Keys as Scan Codes (for games that ignore normal key presses),
     Restart as Administrator (needed to control programs running as administrator).
 - **Macro**: Record, Record After Selected Step, New Recording, Play, Play Selection, Play From Selected Step,
@@ -380,7 +389,7 @@ played.
 <summary><b>Command line</b></summary>
 
 ```
-MacroRecorder.exe [file] [--play] [--repeat N] [--quit] [--minimized] [--data-folder FOLDER]
+MacroRecorder.exe [file] [--play] [--repeat N] [--quit] [--minimized] [--data-folder FOLDER] [--language en|es]
 ```
 
 | Option | What it does |
@@ -392,6 +401,7 @@ MacroRecorder.exe [file] [--play] [--repeat N] [--quit] [--minimized] [--data-fo
 | `--minimized` | Starts minimized. |
 | `--record FILE` | Starts minimized and recording at once; when you stop (Stop hotkey, Esc by default), saves to FILE and quits. |
 | `--data-folder FOLDER` | Keeps settings in FOLDER for this run, for example to run from a USB stick. |
+| `--language en` or `es` | Shows the app in English or Spanish for this run only (the saved choice stays as it is). |
 | `--screenshot FILE.png` | Saves a picture of the window and exits (used by the automatic build checks). |
 
 Example: `MacroRecorder.exe "C:\path\to\daily-report.macro" --play --repeat 3 --quit`
@@ -523,7 +533,8 @@ both start. On Linux it also records and plays back for real on a virtual X11 di
 |---|---|
 | `src/core` | Macro steps and file format (`Action`), recording logic (`Recorder`), playback (`Player`), mouse paths (`Paths`), variables and expressions (`Expr`), finding pictures and phrases on the screen (`ImageFind`). No operating-system code. |
 | `src/platform` | The operating-system layer: `win/` (hooks, input, hotkeys, windows, screen pictures, text recognition in `WinOcr`), `linux/` (X11 with XRecord and XTest, `/dev/uinput` for Wayland, and the choice between them). |
-| `src/app` | The window, cards, menus, step editor, themes, settings and app data folder; Macro Hotkeys and Schedules (`AutoRunDialogs`); the screen-area picker (`ScreenPicker`). |
+| `src/app` | The window, cards, menus, step editor, themes, settings and app data folder; Macro Hotkeys and Schedules (`AutoRunDialogs`); the screen-area picker (`ScreenPicker`); the language choice (`Language`). |
+| `src/app/i18n` | The translations: `es.json` holds every English text the app shows with its Spanish. Text in the code goes through `T("…")` (`src/core/Tr.h`); text without an entry shows in English. |
 | `resources` | Icon and small images used by the themes. |
 | `packaging` | Windows icon and version info, the icon tool, the Linux desktop entry. |
 

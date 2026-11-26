@@ -1,5 +1,6 @@
 #include "AppData.h"
 #include "FileDialogs.h"
+#include "core/Tr.h"
 
 #include <QCheckBox>
 #include <QDialog>
@@ -38,28 +39,27 @@ QString choiceFile()
 QString ask(QWidget* parent, const QString& current, bool firstRun)
 {
     QDialog d(parent);
-    d.setWindowTitle(firstRun ? QStringLiteral("Welcome to " APP_NAME) : QStringLiteral("App Data Folder"));
+    d.setWindowTitle(firstRun ? T("Welcome to " APP_NAME) : T("App Data Folder"));
     auto* lay = new QVBoxLayout(&d);
-    auto* intro = new QLabel(QStringLiteral(
-        "Where should " APP_NAME " keep its settings (theme, hotkeys, playback options, recent files)?\n"
-        "Your macros are saved wherever you choose when you save them, not here."));
+    auto* intro = new QLabel(T("Where should " APP_NAME " keep its settings (theme, hotkeys, playback options, recent files)?\n"
+                               "Your macros are saved wherever you choose when you save them, not here."));
     intro->setWordWrap(true);
     lay->addWidget(intro);
     auto* row = new QHBoxLayout;
     auto* path = new QLineEdit(current.isEmpty() || current == kNone ? suggestedFolder() : current);
-    auto* browse = new QPushButton(QStringLiteral("Browse…"));
+    auto* browse = new QPushButton(T("Browse…"));
     row->addWidget(path, 1);
     row->addWidget(browse);
     lay->addLayout(row);
-    auto* none = new QCheckBox(QStringLiteral("Don't Keep App Data"));
-    none->setToolTip(QStringLiteral("Start fresh every time; nothing is left behind."));
+    auto* none = new QCheckBox(T("Don't Keep App Data"));
+    none->setToolTip(T("Start fresh every time; nothing is left behind."));
     none->setChecked(current == kNone);
     lay->addWidget(none);
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    buttons->button(QDialogButtonBox::Ok)->setText(firstRun ? QStringLiteral("Continue") : QStringLiteral("Use This Folder"));
+    buttons->button(QDialogButtonBox::Ok)->setText(firstRun ? T("Continue") : T("Use This Folder"));
     lay->addWidget(buttons);
     QObject::connect(browse, &QPushButton::clicked, &d, [&] {
-        const QString f = QFileDialog::getExistingDirectory(&d, QStringLiteral("Choose App Data Folder"), path->text(),
+        const QString f = QFileDialog::getExistingDirectory(&d, T("Choose App Data Folder"), path->text(),
                                                             filedialogs::options(QFileDialog::ShowDirsOnly));
         if (!f.isEmpty()) path->setText(QDir::toNativeSeparators(f));
     });
@@ -72,11 +72,11 @@ QString ask(QWidget* parent, const QString& current, bool firstRun)
         const QString p = path->text().trimmed();
         if (p.isEmpty()) return;
         if (!QDir(p).exists()) {
-            if (QMessageBox::question(&d, QStringLiteral("Create Folder?"),
-                                      QStringLiteral("This folder doesn't exist. Create it?\n\n%1").arg(p)) != QMessageBox::Yes)
+            if (QMessageBox::question(&d, T("Create Folder?"),
+                                      T("This folder doesn't exist. Create it?\n\n%1").arg(p)) != QMessageBox::Yes)
                 return;
             if (!QDir().mkpath(p)) {
-                QMessageBox::warning(&d, QStringLiteral("Couldn't Create Folder"), QStringLiteral("Couldn't create %1.").arg(p));
+                QMessageBox::warning(&d, T("Couldn't Create Folder"), T("Couldn't create %1.").arg(p));
                 return;
             }
         }
@@ -149,6 +149,13 @@ QString resolve(const QString& override, QWidget* parent)
     return useFolder(choice) ? g_folder : QString();
 }
 
+QString knownSettingsFile(const QString& override)
+{
+    const QString choice = override.isEmpty() ? rememberedChoice() : override;
+    if (choice.isEmpty() || choice == kNone || !QDir(choice).exists()) return {};
+    return QDir(choice).filePath(QStringLiteral("settings.json"));
+}
+
 bool isTemporary() { return g_temp != nullptr; }
 bool usesOverride() { return g_override; }
 
@@ -172,14 +179,14 @@ bool change(QWidget* parent, QString* message)
     const QString choice = ask(parent, isTemporary() ? kNone : old, false);
     if (choice.isEmpty()) return false;
     if (!useFolder(choice)) {
-        if (message) *message = QStringLiteral("Couldn't use %1.").arg(choice);
+        if (message) *message = T("Couldn't use %1.").arg(choice);
         return false;
     }
     rememberChoice(choice);
     if (QFile::exists(oldSettings) && !QFile::exists(settingsFile())) QFile::copy(oldSettings, settingsFile());
     if (message)
-        *message = choice == kNone ? QStringLiteral("App data will no longer be kept after you close the app.")
-                                   : QStringLiteral("App data folder is now %1.").arg(QDir::toNativeSeparators(g_folder));
+        *message = choice == kNone ? T("App data will no longer be kept after you close the app.")
+                                   : T("App data folder is now %1.").arg(QDir::toNativeSeparators(g_folder));
     return true;
 }
 

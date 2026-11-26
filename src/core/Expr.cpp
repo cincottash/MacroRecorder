@@ -1,4 +1,5 @@
 #include "Expr.h"
+#include "Tr.h"
 
 #include <QDateTime>
 #include <QFile>
@@ -90,6 +91,9 @@ const Fn kFunctions[] = {
     {"clipboard", 0, 0, "clipboard(): the text on the clipboard"},
 };
 
+// A function's help in the app's language: "example: what it gives" (the example's own words translated too)
+QString helpText(const Fn& f) { return QCoreApplication::translate("app", f.help); }
+
 const Fn* findFn(const QString& name)
 {
     for (const Fn& f : kFunctions)
@@ -103,14 +107,17 @@ public:
 
     bool run(Value* out, QString* error)
     {
-        if (m_src.trimmed().isEmpty()) return fail(QStringLiteral("The expression is empty."), error);
+        if (m_src.trimmed().isEmpty()) { m_syntax = true; return fail(T("The expression is empty."), error); }
         if (!tokenize()) return fail(m_error, error);
         Value v;
         if (!parseOr(&v, true)) return fail(m_error, error);
-        if (cur().kind != Token::End) return fail(QStringLiteral("Unexpected “%1”.").arg(cur().text), error);
+        if (cur().kind != Token::End) { m_syntax = true; return fail(T("Unexpected “%1”.").arg(cur().text), error); }
         if (out) *out = v;
         return true;
     }
+
+    // The error was in how the expression is written, not in the values it met (check() reports only those)
+    bool syntaxError() const { return m_syntax; }
 
 private:
     bool fail(const QString& msg, QString* error)
@@ -122,6 +129,11 @@ private:
     {
         if (m_error.isEmpty()) m_error = msg;
         return false;
+    }
+    bool syntax(const QString& msg)
+    {
+        if (m_error.isEmpty()) m_syntax = true;
+        return err(msg);
     }
     const Token& cur() const { return m_tokens.at(m_i); }
     bool isOp(const char* op) const { return cur().kind == Token::Op && cur().text == QLatin1String(op); }
@@ -143,7 +155,7 @@ private:
                 t.text = m_src.mid(i, j - i);
                 bool ok = false;
                 t.num = t.text.toDouble(&ok);
-                if (!ok) return err(QStringLiteral("“%1” isn't a number.").arg(t.text));
+                if (!ok) return syntax(T("“%1” isn't a number.").arg(t.text));
                 i = j;
             } else if (c == QLatin1Char('"') || c == QLatin1Char('\'')) {
                 int j = i + 1;
@@ -157,7 +169,7 @@ private:
                     }
                     s += m_src.at(j++);
                 }
-                if (!closed) return err(QStringLiteral("A text in quotes isn't closed: add the closing %1.").arg(c));
+                if (!closed) return syntax(T("A text in quotes isn't closed: add the closing %1.").arg(c));
                 t.kind = Token::Str;
                 t.text = s;
                 i = j + 1;
@@ -183,13 +195,13 @@ private:
                         break;
                     }
                 }
-                if (!found) return err(QStringLiteral("“%1” can't be used in an expression.").arg(c));
+                if (!found) return syntax(T("“%1” can't be used in an expression.").arg(c));
             }
             m_tokens << t;
         }
         Token end;
         end.pos = n;
-        end.text = QStringLiteral("the end");
+        end.text = T("the end", "of an expression");
         m_tokens << end;
         return true;
     }
@@ -198,7 +210,7 @@ private:
     static constexpr qsizetype kMaxText = 10 * 1000 * 1000;
     bool tooLong(const Value& v)
     {
-        if (v.kind == Value::Text && v.str.size() > kMaxText) return !err(QStringLiteral("The text is too long (over 10 million characters)."));
+        if (v.kind == Value::Text && v.str.size() > kMaxText) return !err(T("The text is too long (over 10 million characters)."));
         return false;
     }
 
@@ -211,7 +223,7 @@ private:
             explicit Depth(int& x) : d(++x) {}
             ~Depth() { --d; }
         } depth(m_depth);
-        if (m_depth > 200) return err(QStringLiteral("The expression is nested too deeply."));
+        if (m_depth > 200) return err(T("The expression is nested too deeply."));
         if (!parseAnd(out, exec)) return false;
         while (isOp("||") || isWord("or")) {
             ++m_i;
@@ -240,7 +252,7 @@ private:
     {
         if (isOp("!") || isWord("not")) {
             ++m_i;
-            if (++m_notDepth > 200) return err(QStringLiteral("The expression is nested too deeply."));
+            if (++m_notDepth > 200) return err(T("The expression is nested too deeply."));
             Value v;
             if (!parseNot(&v, exec)) return false;
             if (exec) *out = Value::number(v.truthy() ? 0 : 1);
@@ -289,10 +301,10 @@ private:
             double a = 0, b = 0;
             const bool nums = out->toNumber(&a) && r.toNumber(&b);
             if (op == QLatin1String("&") || (op == QLatin1String("+") && !nums)) {
-                if (out->toText().size() + r.toText().size() > kMaxText) return err(QStringLiteral("The text is too long (over 10 million characters)."));
+                if (out->toText().size() + r.toText().size() > kMaxText) return err(T("The text is too long (over 10 million characters)."));
                 *out = Value::text(out->toText() + r.toText());   // + joins text when either side isn't a number
             } else if (!nums) {
-                return err(QStringLiteral("“-” needs two numbers (“%1” and “%2”).").arg(out->toText(), r.toText()));
+                return err(T("“-” needs two numbers (“%1” and “%2”).").arg(out->toText(), r.toText()));
             } else {
                 *out = Value::number(op == QLatin1String("+") ? a + b : a - b);
             }
@@ -311,8 +323,8 @@ private:
             if (!exec) continue;
             double a = 0, b = 0;
             if (!out->toNumber(&a) || !r.toNumber(&b))
-                return err(QStringLiteral("“%1” needs two numbers (“%2” and “%3”).").arg(op, out->toText(), r.toText()));
-            if ((op == QLatin1String("/") || op == QLatin1String("%")) && b == 0) return err(QStringLiteral("Division by zero."));
+                return err(T("“%1” needs two numbers (“%2” and “%3”).").arg(op, out->toText(), r.toText()));
+            if ((op == QLatin1String("/") || op == QLatin1String("%")) && b == 0) return err(T("Division by zero."));
             if (op == QLatin1String("*")) *out = Value::number(a * b);
             else if (op == QLatin1String("/")) *out = Value::number(a / b);
             else *out = Value::number(std::fmod(a, b));
@@ -325,12 +337,12 @@ private:
         if (isOp("-") || isOp("+")) {
             const bool neg = isOp("-");
             ++m_i;
-            if (++m_notDepth > 200) return err(QStringLiteral("The expression is nested too deeply."));
+            if (++m_notDepth > 200) return err(T("The expression is nested too deeply."));
             Value v;
             if (!parseUnary(&v, exec)) return false;
             if (!exec) return true;
             double d = 0;
-            if (!v.toNumber(&d)) return err(QStringLiteral("“-” needs a number, not “%1”.").arg(v.toText()));
+            if (!v.toNumber(&d)) return err(T("“-” needs a number, not “%1”.").arg(v.toText()));
             *out = Value::number(neg ? -d : d);
             return true;
         }
@@ -346,7 +358,7 @@ private:
         case Token::LParen: {
             ++m_i;
             if (!parseOr(out, exec)) return false;
-            if (cur().kind != Token::RParen) return err(QStringLiteral("A “(” isn't closed: add a “)”."));
+            if (cur().kind != Token::RParen) return syntax(T("A “(” isn't closed: add a “)”."));
             ++m_i;
             return true;
         }
@@ -355,23 +367,23 @@ private:
             const QString lower = t.text.toLower();
             if (lower == QLatin1String("true")) { if (exec) *out = Value::number(1); return true; }
             if (lower == QLatin1String("false")) { if (exec) *out = Value::number(0); return true; }
-            if (kWords.contains(lower)) return err(QStringLiteral("“%1” is missing something before or after it.").arg(t.text));
+            if (kWords.contains(lower)) return syntax(T("“%1” is missing something before or after it.").arg(t.text));
             if (cur().kind == Token::LParen) return parseCall(t.text, out, exec);
             if (!exec) return true;
             if (!m_scope || !m_scope->vars.contains(lower))
-                return err(QStringLiteral("No variable is named “%1” (set it with a Set Variable step first).").arg(t.text));
+                return err(T("No variable is named “%1” (set it with a Set Variable step first).").arg(t.text));
             *out = m_scope->vars.value(lower);
             return true;
         }
-        case Token::End: return err(QStringLiteral("The expression ends too early."));
-        default: return err(QStringLiteral("Unexpected “%1”.").arg(t.text));
+        case Token::End: return syntax(T("The expression ends too early."));
+        default: return syntax(T("Unexpected “%1”.").arg(t.text));
         }
     }
 
     bool parseCall(const QString& name, Value* out, bool exec)
     {
         const Fn* fn = findFn(name);
-        if (!fn) return err(QStringLiteral("There's no function named “%1”.").arg(name));
+        if (!fn) return syntax(T("There's no function named “%1”.").arg(name));
         ++m_i;   // (
         QList<Value> args;
         if (cur().kind != Token::RParen) {
@@ -383,16 +395,17 @@ private:
                 break;
             }
         }
-        if (cur().kind != Token::RParen) return err(QStringLiteral("%1( isn't closed: add a “)”.").arg(name));
+        if (cur().kind != Token::RParen) return syntax(T("%1( isn't closed: add a “)”.").arg(name));
         ++m_i;
         const int n = int(args.size());
         if (n < fn->minArgs || (fn->maxArgs >= 0 && n > fn->maxArgs)) {
+            const QString example = helpText(*fn).section(QStringLiteral(": "), 0, 0);
+            const QString name = QLatin1String(fn->name);
+            if (fn->minArgs == fn->maxArgs && fn->minArgs == 1) return syntax(T("%1() takes 1 value. Example: %2").arg(name, example));
             const QString want = fn->minArgs == fn->maxArgs ? QString::number(fn->minArgs)
-                                 : fn->maxArgs < 0 ? QStringLiteral("%1 or more").arg(fn->minArgs)
-                                                   : QStringLiteral("%1 to %2").arg(fn->minArgs).arg(fn->maxArgs);
-            return err(QStringLiteral("%1() takes %2 value%3. Example: %4").arg(QLatin1String(fn->name), want,
-                                                                               want == QLatin1String("1") ? QString() : QStringLiteral("s"),
-                                                                               QString::fromUtf8(fn->help).section(QLatin1Char(':'), 0, 0)));
+                                 : fn->maxArgs < 0 ? T("%1 or more", "values").arg(fn->minArgs)
+                                                   : T("%1 to %2", "values").arg(fn->minArgs).arg(fn->maxArgs);
+            return syntax(T("%1() takes %2 values. Example: %3").arg(name, want, example));
         }
         if (!exec) return true;
         return call(QLatin1String(fn->name), args, out);
@@ -401,7 +414,7 @@ private:
     bool numArg(const QList<Value>& args, int i, const QString& fn, double* out)
     {
         if (args.at(i).toNumber(out)) return true;
-        return err(QStringLiteral("%1() needs a number, not “%2”.").arg(fn, args.at(i).toText()));
+        return err(T("%1() needs a number, not “%2”.").arg(fn, args.at(i).toText()));
     }
     bool intArg(const QList<Value>& args, int i, const QString& fn, qint64* out)
     {
@@ -431,8 +444,8 @@ private:
     bool readLines(const QString& fn, const QString& path, QStringList* out)
     {
         QFile f(path);
-        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return err(QStringLiteral("%1(): can't read “%2”.").arg(fn, path));
-        if (f.size() > 50 * 1024 * 1024) return err(QStringLiteral("%1(): “%2” is too large (over 50 MB).").arg(fn, path));
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return err(T("%1(): can't read “%2”.").arg(fn, path));
+        if (f.size() > 50 * 1024 * 1024) return err(T("%1(): “%2” is too large (over 50 MB).").arg(fn, path));
         QStringList lines = QString::fromUtf8(f.readAll()).split(QLatin1Char('\n'));
         for (QString& l : lines) if (l.endsWith(QLatin1Char('\r'))) l.chop(1);
         if (!lines.isEmpty() && lines.last().isEmpty()) lines.removeLast();   // the file's last line break
@@ -455,11 +468,11 @@ private:
             const int sepArg = f == QLatin1String("item") ? 2 : 1;
             const QStringList items = splitList(txt(0), a.size() > sepArg ? txt(sepArg) : QString());
             if (f == QLatin1String("count")) { *out = Value::number(items.size()); return true; }
-            if (items.isEmpty()) return err(QStringLiteral("%1(): the list is empty.").arg(f));
+            if (items.isEmpty()) return syntax(T("%1(): the list is empty.").arg(f));   // (reported by check(), as before)
             qint64 n = 1;
             if (f == QLatin1String("pick")) n = randomBetween(1, items.size());
             else if (!intArg(a, 1, f, &n)) return false;
-            if (n < 1) return err(QStringLiteral("item() counts from 1, not %1.").arg(n));
+            if (n < 1) return err(T("item() counts from 1, not %1.").arg(n));
             *out = Value::text(items.at(wrapIndex(n, int(items.size()))));
             return true;
         }
@@ -469,8 +482,8 @@ private:
             if (f == QLatin1String("lines")) { *out = Value::number(lines.size()); return true; }
             qint64 n = 1;
             if (!intArg(a, 1, f, &n)) return false;
-            if (lines.isEmpty()) return err(QStringLiteral("line(): “%1” is empty.").arg(txt(0)));
-            if (n < 1) return err(QStringLiteral("line() counts from 1, not %1.").arg(n));
+            if (lines.isEmpty()) return syntax(T("line(): “%1” is empty.").arg(txt(0)));   // (reported by check(), as before)
+            if (n < 1) return err(T("line() counts from 1, not %1.").arg(n));
             *out = Value::text(lines.at(wrapIndex(n, int(lines.size()))));
             return true;
         }
@@ -513,7 +526,7 @@ private:
         if (f == QLatin1String("mid")) {
             qint64 start = 1, n = -1;
             if (!intArg(a, 1, f, &start) || (a.size() > 2 && !intArg(a, 2, f, &n))) return false;
-            if (start < 1) return err(QStringLiteral("mid() counts from 1, not %1.").arg(start));
+            if (start < 1) return err(T("mid() counts from 1, not %1.").arg(start));
             *out = Value::text(txt(0).mid(int(qMin<qint64>(start - 1, INT_MAX)), n < 0 ? -1 : int(qMin<qint64>(n, INT_MAX))));
             return true;
         }
@@ -523,7 +536,7 @@ private:
             QString s = txt(0);
             if (!txt(1).isEmpty()) {
                 if (txt(2).size() > txt(1).size() && s.size() / qMax<qsizetype>(1, txt(1).size()) * (txt(2).size() - txt(1).size()) > kMaxText)
-                    return err(QStringLiteral("The text is too long (over 10 million characters)."));
+                    return err(T("The text is too long (over 10 million characters)."));
                 s.replace(txt(1), txt(2));
             }
             *out = Value::text(s);
@@ -547,7 +560,7 @@ private:
             *out = Value::text(m_scope && m_scope->clipboard ? m_scope->clipboard() : QString());
             return true;
         }
-        return err(QStringLiteral("There's no function named “%1”.").arg(f));
+        return syntax(T("There's no function named “%1”.").arg(f));
     }
 
     QString m_src;
@@ -556,6 +569,7 @@ private:
     int m_i = 0;
     int m_depth = 0, m_notDepth = 0;
     QString m_error;
+    bool m_syntax = false;
 };
 
 // The end of a {=expression} starting at `from` (just after "{="): the first "}" outside quotes; -1 if none.
@@ -603,15 +617,10 @@ bool check(const QString& src, QString* error)
     if (checker.run(&dummy, &e)) return true;
     // Errors that come from the values rather than the syntax (a file that can't be read, a division by zero with
     // the stand-in values, "needs a number") aren't syntax errors: they're reported when the step plays.
-    static const QStringList syntax = {QStringLiteral("isn't closed"), QStringLiteral("Unexpected"), QStringLiteral("ends too early"),
-                                       QStringLiteral("can't be used"), QStringLiteral("no function"), QStringLiteral("takes"),
-                                       QStringLiteral("is empty."), QStringLiteral("is missing something"), QStringLiteral("isn't a number")};
-    for (const QString& s : syntax)
-        if (e.contains(s)) {
-            if (error) *error = e;
-            return false;
-        }
-    return true;
+    // (The parser says which kind it was: the message itself may be in another language.)
+    if (!checker.syntaxError()) return true;
+    if (error) *error = e;
+    return false;
 }
 
 QString substitute(const QString& text, Scope& scope, QStringList* errors)
@@ -658,7 +667,7 @@ bool hasPlaceholders(const QString& text)
 QStringList functionHelp()
 {
     QStringList l;
-    for (const Fn& f : kFunctions) l << QString::fromUtf8(f.help);
+    for (const Fn& f : kFunctions) l << helpText(f);
     return l;
 }
 

@@ -1,4 +1,5 @@
 #include "ThemeFile.h"
+#include "core/Tr.h"
 
 #include <QColor>
 #include <QFile>
@@ -158,7 +159,7 @@ Result parse(const QByteArray& data, const QString& fallbackName)
     QJsonDocument doc = QJsonDocument::fromJson(data, &pe);
     if (doc.isNull()) doc = QJsonDocument::fromJson(stripJsonc(data), &pe);
     if (!doc.isObject()) {
-        r.error = QStringLiteral("It isn't a theme file (it isn't valid JSON: %1).").arg(pe.errorString());
+        r.error = T("It isn't a theme file (it isn't valid JSON: %1).").arg(pe.errorString());
         return r;
     }
     const QJsonObject o = doc.object();
@@ -185,7 +186,7 @@ Result parse(const QByteArray& data, const QString& fallbackName)
         // A VS Code color theme: take the colors that play the same part in its window.
         const QColor bg = parseColor(colors.value(QStringLiteral("editor.background")).toString());
         if (!bg.isValid()) {
-            r.error = QStringLiteral("Its background color (\"editor.background\") isn't a color.");
+            r.error = T("Its background color (\"editor.background\") isn't a color.");
             return r;
         }
         const QColor solidBg(bg.red(), bg.green(), bg.blue());
@@ -215,13 +216,13 @@ Result parse(const QByteArray& data, const QString& fallbackName)
             darkKnown = true;
         }
     } else {
-        r.error = QStringLiteral("No theme colors were found in it. A theme file needs a \"colors\" section with at least "
+        r.error = T("No theme colors were found in it. A theme file needs a \"colors\" section with at least "
                                  "\"bg\" (or, for a VS Code theme, \"editor.background\").");
         return r;
     }
 
     if (!given.contains(QStringLiteral("bg")) || !given.value(QStringLiteral("bg")).isValid()) {
-        r.error = QStringLiteral("Its background color (\"bg\") isn't a color like #1E2128.");
+        r.error = T("Its background color (\"bg\") isn't a color like #1E2128.");
         return r;
     }
     const QColor bg = given.value(QStringLiteral("bg"));
@@ -229,15 +230,15 @@ Result parse(const QByteArray& data, const QString& fallbackName)
     if (!given.contains(QStringLiteral("text")))
         given.insert(QStringLiteral("text"), dark ? QColor(0xE6, 0xE8, 0xEB) : QColor(0x1F, 0x23, 0x28));
     if (!bad.isEmpty())
-        r.notes << QStringLiteral("These colors weren't valid and were worked out from the others instead: %1.").arg(bad.join(QStringLiteral(", ")));
+        r.notes << T("These colors weren't valid and were worked out from the others instead: %1.").arg(bad.join(QStringLiteral(", ")));
 
     if (name.isEmpty()) name = fallbackName.simplified();
-    if (name.isEmpty()) name = QStringLiteral("Custom Theme");
+    if (name.isEmpty()) name = T("Custom Theme");
     if (name.size() > kMaxNameLength) name = name.left(kMaxNameLength).trimmed();
     for (const themes::Theme& t : themes::all()) {
         if (t.group != themes::customGroup() && t.name.compare(name, Qt::CaseInsensitive) == 0) {
-            const QString renamed = name + QStringLiteral(" (Imported)");
-            r.notes << QStringLiteral("A built-in theme is already called \"%1\", so this one is called \"%2\".").arg(name, renamed);
+            const QString renamed = T("%1 (Imported)").arg(name);
+            r.notes << T("A built-in theme is already called \"%1\", so this one is called \"%2\".").arg(name, renamed);
             name = renamed;
             break;
         }
@@ -246,7 +247,7 @@ Result parse(const QByteArray& data, const QString& fallbackName)
     r.theme = themes::Theme{themes::customGroup(), name, keyFor(name), complete(given, dark)};
     const double c = contrast(QColor(r.theme.c(QStringLiteral("text"))), QColor(r.theme.c(QStringLiteral("card"))));
     if (c < 4.5)
-        r.notes << QStringLiteral("Its text may be hard to read: the contrast between text and background is %1:1 (4.5:1 or more "
+        r.notes << T("Its text may be hard to read: the contrast between text and background is %1:1 (4.5:1 or more "
                                   "reads well).").arg(c, 0, 'f', 1);
     return r;
 }
@@ -256,11 +257,11 @@ Result read(const QString& path)
     Result r;
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
-        r.error = QStringLiteral("It couldn't be opened: %1").arg(f.errorString());
+        r.error = T("It couldn't be opened: %1").arg(f.errorString());
         return r;
     }
     if (f.size() > kMaxFileBytes) {
-        r.error = QStringLiteral("It's too big to be a theme file (%1 MB).").arg(f.size() / (1024.0 * 1024.0), 0, 'f', 1);
+        r.error = T("It's too big to be a theme file (%1 MB).").arg(f.size() / (1024.0 * 1024.0), 0, 'f', 1);
         return r;
     }
     QString fallback = QFileInfo(path).completeBaseName();

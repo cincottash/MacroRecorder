@@ -1,0 +1,4066 @@
+{
+ "language": "es",
+ "name": "Español",
+ "about": "Spanish (neutral Latin American) for MacroRecorder. Each entry: the English shown in the app (\"en\"), its Spanish (\"es\"), a \"note\" where the same English means different things, and a \"context\" for Qt's own buttons. %1, %2... are filled in by the app; & marks a menu's shortcut letter.",
+ "strings": [
+  {
+   "en": "From X, Y:",
+   "es": "Desde X, Y:"
+  },
+  {
+   "en": "Pick Point and Color…",
+   "es": "Elegir punto y color…"
+  },
+  {
+   "en": "Use Mouse Position…",
+   "es": "Usar posición del mouse…"
+  },
+  {
+   "en": "After 3 seconds, takes the mouse pointer's position and the color under it. Point at the spot meanwhile. Or point at it and press the Capture Position hotkey (F8 unless you changed it).",
+   "es": "Tras 3 segundos, toma la posición del puntero del mouse y el color que hay debajo. Mientras tanto, apunta al lugar. O apunta y presiona la tecla rápida Capturar posición (F8, salvo que la hayas cambiado)."
+  },
+  {
+   "en": "After 3 seconds, takes the mouse pointer's position. Point at the spot meanwhile. Or point at it and press the Capture Position hotkey (F8 unless you changed it).",
+   "es": "Tras 3 segundos, toma la posición del puntero del mouse. Mientras tanto, apunta al lugar. O apunta y presiona la tecla rápida Capturar posición (F8, salvo que la hayas cambiado)."
+  },
+  {
+   "en": "To X, Y:",
+   "es": "Hasta X, Y:"
+  },
+  {
+   "en": "X, Y:",
+   "es": "X, Y:"
+  },
+  {
+   "en": "Relative to Active Window",
+   "es": "Relativo a la ventana activa"
+  },
+  {
+   "en": "Button:",
+   "es": "Botón:"
+  },
+  {
+   "en": "Single Click",
+   "es": "Clic simple"
+  },
+  {
+   "en": "Double-Click",
+   "es": "Doble clic"
+  },
+  {
+   "en": "Click:",
+   "es": "Clic:"
+  },
+  {
+   "en": "Find by Picture First",
+   "es": "Buscar primero por imagen"
+  },
+  {
+   "en": "Looks for this picture and clicks it wherever it is now; if it isn't on the screen, clicks the position above. Unticked: the picture is dropped.",
+   "es": "Busca esta imagen y hace clic en ella dondequiera que esté ahora; si no está en la pantalla, hace clic en la posición de arriba. Sin marcar: se descarta la imagen."
+  },
+  {
+   "en": "Picture:",
+   "es": "Imagen:"
+  },
+  {
+   "en": "notches",
+   "es": "muescas"
+  },
+  {
+   "en": "Positive scrolls up (or right), negative scrolls down (or left).",
+   "es": "Positivo desplaza hacia arriba (o a la derecha); negativo, hacia abajo (o a la izquierda)."
+  },
+  {
+   "en": "Horizontal (Left / Right)",
+   "es": "Horizontal (izquierda / derecha)"
+  },
+  {
+   "en": "Scroll:",
+   "es": "Desplazar:"
+  },
+  {
+   "en": "0 = a natural speed for the distance.",
+   "es": "0 = una velocidad natural para la distancia."
+  },
+  {
+   "en": "Duration:",
+   "es": "Duración:"
+  },
+  {
+   "en": "Key:",
+   "es": "Tecla:"
+  },
+  {
+   "en": "Held With:",
+   "es": "Manteniendo:"
+  },
+  {
+   "en": "Text:",
+   "es": "Texto:"
+  },
+  {
+   "en": "Changing the text drops the recorded typing rhythm; it's then typed at an even pace.",
+   "es": "Cambiar el texto descarta el ritmo de escritura grabado; después se escribe a un ritmo constante."
+  },
+  {
+   "en": "Wait:",
+   "es": "Esperar:"
+  },
+  {
+   "en": "Off",
+   "es": "Desactivado"
+  },
+  {
+   "en": "Waits a random time from the first value to this one, different each time. Off: always the same wait.",
+   "es": "Espera un tiempo aleatorio entre el primer valor y este, distinto cada vez. Desactivado: siempre la misma espera."
+  },
+  {
+   "en": "Random Up To:",
+   "es": "Aleatorio hasta:"
+  },
+  {
+   "en": "e.g. notepad.exe (empty = any program)",
+   "es": "p. ej., notepad.exe (vacío = cualquier programa)"
+  },
+  {
+   "en": "Is Exactly",
+   "es": "Es exactamente"
+  },
+  {
+   "en": "Starts With",
+   "es": "Empieza con"
+  },
+  {
+   "en": "Contains",
+   "es": "Contiene"
+  },
+  {
+   "en": "Any Title",
+   "es": "Cualquier título"
+  },
+  {
+   "en": "Program:",
+   "es": "Programa:"
+  },
+  {
+   "en": "Window Title:",
+   "es": "Título de la ventana:"
+  },
+  {
+   "en": "e.g. notepad.exe (empty = the active window)",
+   "es": "p. ej., notepad.exe (vacío = la ventana activa)"
+  },
+  {
+   "en": "Use Window Under Pointer…",
+   "es": "Usar la ventana bajo el puntero…"
+  },
+  {
+   "en": "After 3 seconds, takes the program, title, position and size of the window under the mouse pointer. Point at it meanwhile.",
+   "es": "Tras 3 segundos, toma el programa, el título, la posición y el tamaño de la ventana que está bajo el puntero del mouse. Mientras tanto, apunta a ella."
+  },
+  {
+   "en": "This Position and Size",
+   "es": "Esta posición y tamaño"
+  },
+  {
+   "en": "Maximized",
+   "es": "Maximizada"
+  },
+  {
+   "en": "Minimized",
+   "es": "Minimizada"
+  },
+  {
+   "en": "Restored (Not Maximized or Minimized)",
+   "es": "Restaurada (ni maximizada ni minimizada)"
+  },
+  {
+   "en": "Window State:",
+   "es": "Estado de la ventana:"
+  },
+  {
+   "en": "Width, Height:",
+   "es": "Ancho, alto:"
+  },
+  {
+   "en": "Functions…",
+   "es": "Funciones…"
+  },
+  {
+   "en": "What a value or condition can use.",
+   "es": "Lo que puede usar un valor o una condición."
+  },
+  {
+   "en": "<p><b>Values:</b> numbers (2.5), text in quotes (\"hello\"), variables (count), true and false.</p><p><b>Calculations:</b> + − * / and % (remainder). + adds numbers and joins text; &amp; always joins.</p><p><b>Comparisons:</b> = (or ==), != (or &lt;&gt;), &lt;, &lt;=, &gt;, &gt;=. Text is compared without regard to case. Combine with and, or, not.</p><p><b>Ready-made variables:</b> round (which time through the macro), found, found_x and found_y (after a Find Image step).</p><p><b>Functions:</b></p>",
+   "es": "<p><b>Valores:</b> números (2.5), texto entre comillas (\"hola\"), variables (contador), true y false.</p><p><b>Cálculos:</b> + − * / y % (resto). + suma números y une texto; &amp; siempre une.</p><p><b>Comparaciones:</b> = (o ==), != (o &lt;&gt;), &lt;, &lt;=, &gt;, &gt;=. El texto se compara sin distinguir mayúsculas de minúsculas. Se combinan con and, or, not.</p><p><b>Variables ya disponibles:</b> round (qué vuelta de la macro es), found, found_x y found_y (después de un paso Buscar imagen).</p><p><b>Funciones:</b></p>"
+  },
+  {
+   "en": "<p>In other steps' text, {name} puts in a variable's value and {=expression} a calculation.</p>",
+   "es": "<p>En el texto de otros pasos, {nombre} inserta el valor de una variable y {=expresión}, un cálculo.</p>"
+  },
+  {
+   "en": "Values and Conditions",
+   "es": "Valores y condiciones"
+  },
+  {
+   "en": "e.g. count",
+   "es": "p. ej., contador"
+  },
+  {
+   "en": "e.g. count + 1, random(1, 10), \"some text\"",
+   "es": "p. ej., contador + 1, random(1, 10), \"algún texto\""
+  },
+  {
+   "en": "Variable:",
+   "es": "Variable:"
+  },
+  {
+   "en": "Value:",
+   "es": "Valor:"
+  },
+  {
+   "en": "Numbers, \"text in quotes\", other variables and calculations. count + 1 counts up; random(1, 10) picks a number; item(\"a, b, c\", round) takes the next item of a list each round.",
+   "es": "Números, \"texto entre comillas\", otras variables y cálculos. contador + 1 cuenta hacia arriba; random(1, 10) elige un número; item(\"a, b, c\", round) toma el siguiente elemento de una lista en cada vuelta."
+  },
+  {
+   "en": "e.g. count < 10",
+   "es": "p. ej., contador < 10"
+  },
+  {
+   "en": "Condition:",
+   "es": "Condición:"
+  },
+  {
+   "en": "Examples: count < 10 · answer = \"yes\" · found (after a Find Image step) · round > 1 and not exists(\"C:\\done.txt\")",
+   "es": "Ejemplos: contador < 10 · respuesta = \"sí\" · found (después de un paso Buscar imagen) · round > 1 and not exists(\"C:\\listo.txt\")"
+  },
+  {
+   "en": "e.g. Which customer number?",
+   "es": "p. ej., ¿Qué número de cliente?"
+  },
+  {
+   "en": "optional",
+   "es": "opcional"
+  },
+  {
+   "en": "answer",
+   "es": "respuesta",
+   "note": "variable name"
+  },
+  {
+   "en": "Question:",
+   "es": "Pregunta:"
+  },
+  {
+   "en": "Default Answer:",
+   "es": "Respuesta predeterminada:"
+  },
+  {
+   "en": "Save Answer In:",
+   "es": "Guardar la respuesta en:"
+  },
+  {
+   "en": "Type the answer later with {answer} in a Text step (with the variable's name).",
+   "es": "Más adelante, escribe la respuesta con {respuesta} en un paso Texto (con el nombre de la variable)."
+  },
+  {
+   "en": "Capture From Screen…",
+   "es": "Capturar de la pantalla…"
+  },
+  {
+   "en": "Shows a still picture of the screen: drag a box around what to find. Esc cancels.",
+   "es": "Muestra una imagen fija de la pantalla: arrastra un recuadro alrededor de lo que se debe buscar. Esc cancela."
+  },
+  {
+   "en": "Moves the mouse from one point to another.",
+   "es": "Mueve el mouse de un punto a otro."
+  },
+  {
+   "en": "Drag a box around what to find",
+   "es": "Arrastra un recuadro alrededor de lo que se debe buscar"
+  },
+  {
+   "en": "Clicks a mouse button at a screen position.",
+   "es": "Hace clic con un botón del mouse en una posición de la pantalla."
+  },
+  {
+   "en": "Load From File…",
+   "es": "Cargar desde archivo…"
+  },
+  {
+   "en": "Choose a Picture",
+   "es": "Elegir una imagen"
+  },
+  {
+   "en": "Pictures (*.png *.bmp)",
+   "es": "Imágenes (*.png *.bmp)"
+  },
+  {
+   "en": "Presses and holds a mouse button (for dragging). Add a “button up” later.",
+   "es": "Presiona y mantiene un botón del mouse (para arrastrar). Agrega un “soltar botón” más adelante."
+  },
+  {
+   "en": "“%1” isn't a picture this app can read.",
+   "es": "“%1” no es una imagen que esta aplicación pueda leer."
+  },
+  {
+   "en": "Releases a held mouse button.",
+   "es": "Suelta un botón del mouse presionado."
+  },
+  {
+   "en": "e.g. Save As (empty: only read the text)",
+   "es": "p. ej., Guardar como (vacío: solo leer el texto)"
+  },
+  {
+   "en": "Text to Find:",
+   "es": "Texto a buscar:"
+  },
+  {
+   "en": "optional, e.g. screen_text",
+   "es": "opcional, p. ej., texto_pantalla"
+  },
+  {
+   "en": "Keep the Text In:",
+   "es": "Guardar el texto en:"
+  },
+  {
+   "en": "Every Screen",
+   "es": "Todas las pantallas"
+  },
+  {
+   "en": "This Area",
+   "es": "Esta área"
+  },
+  {
+   "en": "Scrolls the mouse wheel at a screen position.",
+   "es": "Gira la rueda del mouse en una posición de la pantalla."
+  },
+  {
+   "en": "Pick Area…",
+   "es": "Elegir área…"
+  },
+  {
+   "en": "Shows a still picture of the screen: drag a box around the area.",
+   "es": "Muestra una imagen fija de la pantalla: arrastra un recuadro alrededor del área."
+  },
+  {
+   "en": "Save:",
+   "es": "Guardar:"
+  },
+  {
+   "en": "Look In:",
+   "es": "Buscar en:"
+  },
+  {
+   "en": "Presses and releases a key, with any modifier keys held.",
+   "es": "Presiona y suelta una tecla, manteniendo las teclas modificadoras elegidas."
+  },
+  {
+   "en": "X, Y, width and height in screen pixels.",
+   "es": "X, Y, ancho y alto en píxeles de la pantalla."
+  },
+  {
+   "en": "Area:",
+   "es": "Área:"
+  },
+  {
+   "en": "How different the screen may be from the picture: 0 % = exactly the same pixels. 10 % allows small changes, such as a button lit up under the pointer.",
+   "es": "Cuánto puede diferir la pantalla de la imagen: 0 % = exactamente los mismos píxeles. 10 % permite pequeños cambios, como un botón que se ilumina bajo el puntero."
+  },
+  {
+   "en": "Presses and holds a key. Add a “key up” later.",
+   "es": "Presiona y mantiene una tecla. Agrega un “soltar tecla” más adelante."
+  },
+  {
+   "en": "Tolerance:",
+   "es": "Tolerancia:"
+  },
+  {
+   "en": "Nothing (Only Find)",
+   "es": "Nada (solo buscar)"
+  },
+  {
+   "en": "Move the Pointer There",
+   "es": "Mover el puntero allí"
+  },
+  {
+   "en": "Click",
+   "es": "Clic"
+  },
+  {
+   "en": "Right-Click",
+   "es": "Clic derecho"
+  },
+  {
+   "en": "Then:",
+   "es": "Después:"
+  },
+  {
+   "en": "Offset From Center:",
+   "es": "Desplazamiento desde el centro:"
+  },
+  {
+   "en": "Releases a held key.",
+   "es": "Suelta una tecla presionada."
+  },
+  {
+   "en": "Look Once",
+   "es": "Buscar una vez"
+  },
+  {
+   "en": "Keeps reading the screen until the text appears, up to this long.",
+   "es": "Sigue leyendo la pantalla hasta que aparezca el texto, como máximo este tiempo."
+  },
+  {
+   "en": "Keeps looking until the picture appears, up to this long.",
+   "es": "Sigue buscando hasta que aparezca la imagen, como máximo este tiempo."
+  },
+  {
+   "en": "Wait Up To:",
+   "es": "Esperar hasta:"
+  },
+  {
+   "en": "Wait Until Gone Instead",
+   "es": "En su lugar, esperar a que desaparezca"
+  },
+  {
+   "en": "Stop Playback If Not Found",
+   "es": "Detener la reproducción si no se encuentra"
+  },
+  {
+   "en": "Types text into the active window.",
+   "es": "Escribe texto en la ventana activa."
+  },
+  {
+   "en": "Reads the screen with the system's text recognition (case and spaces don't matter). Afterwards found is 1 (or 0), and found_x, found_y hold the text's position. A small area reads faster and more reliably than the whole screen.",
+   "es": "Lee la pantalla con el reconocimiento de texto del sistema (no importan las mayúsculas ni los espacios). Después, found vale 1 (o 0), y found_x, found_y guardan la posición del texto. Un área pequeña se lee más rápido y con más fiabilidad que toda la pantalla."
+  },
+  {
+   "en": "Pauses before the next step.",
+   "es": "Hace una pausa antes del siguiente paso."
+  },
+  {
+   "en": "Afterwards found is 1 (or 0 if it wasn't found), and found_x, found_y hold its position: use them in an If step.",
+   "es": "Después, found vale 1 (o 0 si no se encontró), y found_x, found_y guardan su posición: úsalas en un paso Si."
+  },
+  {
+   "en": "e.g. Write a one-line reply to this message: {=clipboard()}",
+   "es": "p. ej., Escribe una respuesta de una línea a este mensaje: {=clipboard()}"
+  },
+  {
+   "en": "Prompt:",
+   "es": "Instrucción:"
+  },
+  {
+   "en": "Brings a program's window to the front, waiting for it to appear. The program must already be running.",
+   "es": "Trae al frente la ventana de un programa y espera a que aparezca. El programa ya debe estar abierto."
+  },
+  {
+   "en": "Playback stops if there's no answer by then.",
+   "es": "La reproducción se detiene si no hay respuesta para entonces."
+  },
+  {
+   "en": "Give Up After:",
+   "es": "Tiempo límite:"
+  },
+  {
+   "en": "The prompt goes to the AI server in File > Settings > AI Server… (LM Studio on this PC unless changed). A Text step types the answer with the variable's name in braces, for example {answer}.",
+   "es": "La instrucción va al servidor de IA de Archivo > Configuración > Servidor de IA… (LM Studio en esta PC, salvo que lo cambies). Un paso Texto escribe la respuesta con el nombre de la variable entre llaves, por ejemplo {respuesta}."
+  },
+  {
+   "en": "Waits until a point on the screen turns a color (for example, a button that lights up).",
+   "es": "Espera hasta que un punto de la pantalla tome un color (por ejemplo, un botón que se ilumina)."
+  },
+  {
+   "en": "Waits until you press a key, then continues.",
+   "es": "Espera hasta que presiones una tecla y luego continúa."
+  },
+  {
+   "en": "Color:",
+   "es": "Color:"
+  },
+  {
+   "en": "Playback stops if the window doesn't appear in time.",
+   "es": "La reproducción se detiene si la ventana no aparece a tiempo."
+  },
+  {
+   "en": "Waits this long for the window to appear; then playback continues without it.",
+   "es": "Espera este tiempo a que aparezca la ventana; después, la reproducción continúa sin ella."
+  },
+  {
+   "en": "0 = wait as long as it takes. On timeout, playback continues.",
+   "es": "0 = esperar lo que haga falta. Si se agota el tiempo, la reproducción continúa."
+  },
+  {
+   "en": "Jumps back to a labeled step to repeat the steps in between.",
+   "es": "Vuelve a un paso con etiqueta para repetir los pasos intermedios."
+  },
+  {
+   "en": "Jump to Label:",
+   "es": "Saltar a la etiqueta:"
+  },
+  {
+   "en": "optional, e.g. count < 10 (empty: always jumps)",
+   "es": "opcional, p. ej., contador < 10 (vacío: siempre salta)"
+  },
+  {
+   "en": "Only If:",
+   "es": "Solo si:"
+  },
+  {
+   "en": "Jumps to a labeled step.",
+   "es": "Salta a un paso con etiqueta."
+  },
+  {
+   "en": "With a condition, Go To can make a loop that ends: it jumps back only while the condition is true.",
+   "es": "Con una condición, Ir a puede formar un bucle que termina: solo salta hacia atrás mientras la condición sea verdadera."
+  },
+  {
+   "en": "Times in Total",
+   "es": "Veces en total"
+  },
+  {
+   "en": "Seconds",
+   "es": "Segundos"
+  },
+  {
+   "en": "Until Stopped",
+   "es": "Hasta detenerla"
+  },
+  {
+   "en": "Repeat:",
+   "es": "Repetir:"
+  },
+  {
+   "en": "Starts a program or opens a file.",
+   "es": "Inicia un programa o abre un archivo."
+  },
+  {
+   "en": "Browse…",
+   "es": "Examinar…"
+  },
+  {
+   "en": "Choose a Program or File",
+   "es": "Elegir un programa o archivo"
+  },
+  {
+   "en": "Shows a notification.",
+   "es": "Muestra una notificación."
+  },
+  {
+   "en": "Arguments:",
+   "es": "Argumentos:"
+  },
+  {
+   "en": "Waits until a file appears, disappears or changes (for example, a download or an export finishing).",
+   "es": "Espera hasta que un archivo aparezca, desaparezca o cambie (por ejemplo, cuando termina una descarga o una exportación)."
+  },
+  {
+   "en": "Message:",
+   "es": "Mensaje:"
+  },
+  {
+   "en": "Shows a message and waits until you press OK.",
+   "es": "Muestra un mensaje y espera hasta que presiones Aceptar."
+  },
+  {
+   "en": "Choose a Macro",
+   "es": "Elegir una macro"
+  },
+  {
+   "en": "Macros (*.macro)",
+   "es": "Macros (*.macro)"
+  },
+  {
+   "en": "Save Screenshots As",
+   "es": "Guardar capturas de pantalla como"
+  },
+  {
+   "en": "PNG Pictures (*.png)",
+   "es": "Imágenes PNG (*.png)"
+  },
+  {
+   "en": "Choose File to Watch",
+   "es": "Elegir el archivo que se vigilará"
+  },
+  {
+   "en": "Plays the system sound.",
+   "es": "Reproduce el sonido del sistema."
+  },
+  {
+   "en": "Macro File:",
+   "es": "Archivo de macro:"
+  },
+  {
+   "en": "File:",
+   "es": "Archivo:"
+  },
+  {
+   "en": "A name without a folder saves in the Pictures folder. {=now(\"yyyy-MM-dd HH.mm.ss\")} in the name gives each picture its own name.",
+   "es": "Un nombre sin carpeta se guarda en la carpeta Imágenes. {=now(\"yyyy-MM-dd HH.mm.ss\")} en el nombre le da a cada imagen un nombre propio."
+  },
+  {
+   "en": "Plays another macro file at this point, then carries on with this one.",
+   "es": "Reproduce otro archivo de macro en este punto y luego continúa con esta."
+  },
+  {
+   "en": "Exists",
+   "es": "Existe"
+  },
+  {
+   "en": "Is Gone",
+   "es": "Desaparece"
+  },
+  {
+   "en": "Changes",
+   "es": "Cambia"
+  },
+  {
+   "en": "Continue When File:",
+   "es": "Continuar cuando el archivo:"
+  },
+  {
+   "en": "Gives a variable a value: a number, a text, or a calculation. Other steps can use it.",
+   "es": "Da un valor a una variable: un número, un texto o un cálculo. Otros pasos pueden usarla."
+  },
+  {
+   "en": "optional: a name Repeat / Go to can jump to",
+   "es": "opcional: un nombre para Repetir / Ir a"
+  },
+  {
+   "en": "A short pause before this step, kept from the recording (used when timing is exact).",
+   "es": "Una pausa breve antes de este paso, conservada de la grabación (se usa cuando el tiempo es exacto)."
+  },
+  {
+   "en": "Enabled",
+   "es": "Activado"
+  },
+  {
+   "en": "Unticked steps are skipped when playing.",
+   "es": "Los pasos sin marcar se omiten al reproducir."
+  },
+  {
+   "en": "The steps after it, up to Else (or End If), play only when the condition is true. The steps between Else and End If play when it's false.",
+   "es": "Los pasos que siguen, hasta Si no (o Fin de Si), se reproducen solo cuando la condición es verdadera. Los pasos entre Si no y Fin de Si se reproducen cuando es falsa."
+  },
+  {
+   "en": "e.g. Log In",
+   "es": "p. ej., Iniciar sesión"
+  },
+  {
+   "en": "Group Name:",
+   "es": "Nombre del grupo:"
+  },
+  {
+   "en": "Label:",
+   "es": "Etiqueta:"
+  },
+  {
+   "en": "Comment:",
+   "es": "Comentario:"
+  },
+  {
+   "en": "Pause Before:",
+   "es": "Pausa previa:"
+  },
+  {
+   "en": "Starts the steps that play when the If's condition is false.",
+   "es": "Inicia los pasos que se reproducen cuando la condición del Si es falsa."
+  },
+  {
+   "en": "Ends an If.",
+   "es": "Termina un Si."
+  },
+  {
+   "en": "Asks a question while playing and keeps the answer in a variable. Cancel stops playback.",
+   "es": "Hace una pregunta durante la reproducción y guarda la respuesta en una variable. Cancelar detiene la reproducción."
+  },
+  {
+   "en": "Point at It… 3",
+   "es": "Apunta… 3"
+  },
+  {
+   "en": "Point at It… %1",
+   "es": "Apunta… %1"
+  },
+  {
+   "en": "Starts a named group of steps, up to End Group. A group can be folded away in the list, and a disabled group skips all its steps.",
+   "es": "Inicia un grupo de pasos con nombre, hasta Fin de grupo. Un grupo se puede plegar en la lista, y un grupo desactivado omite todos sus pasos."
+  },
+  {
+   "en": "No picture yet",
+   "es": "Todavía no hay imagen"
+  },
+  {
+   "en": "Ends a group.",
+   "es": "Termina un grupo."
+  },
+  {
+   "en": "%1 × %2 px",
+   "es": "%1 × %2 px"
+  },
+  {
+   "en": "Moves and resizes a program's window, or maximizes, minimizes or restores it. The program must already be running.",
+   "es": "Mueve y cambia el tamaño de la ventana de un programa, o la maximiza, minimiza o restaura. El programa ya debe estar abierto."
+  },
+  {
+   "en": "Drag a box around the area",
+   "es": "Arrastra un recuadro alrededor del área"
+  },
+  {
+   "en": "Looks for a picture on the screen (a button, an icon), and can wait for it and click it wherever it is.",
+   "es": "Busca una imagen en la pantalla (un botón, un ícono); puede esperarla y hacer clic en ella dondequiera que esté."
+  },
+  {
+   "en": "No window was found under the pointer (or this system doesn't say which it is).",
+   "es": "No se encontró ninguna ventana bajo el puntero (o este sistema no indica cuál es)."
+  },
+  {
+   "en": "Saves a picture of the screen, or a part of it, as a PNG file.",
+   "es": "Guarda una imagen de la pantalla, o de una parte, como archivo PNG."
+  },
+  {
+   "en": "Puts text on the clipboard, ready to paste (Ctrl+V).",
+   "es": "Pone texto en el portapapeles, listo para pegar (Ctrl+V)."
+  },
+  {
+   "en": "Reads the text on the screen, or looks for a word or phrase there and can wait for it and click it wherever it is.",
+   "es": "Lee el texto de la pantalla, o busca allí una palabra o frase; puede esperarla y hacer clic en ella dondequiera que esté."
+  },
+  {
+   "en": "Scroll at least one notch (use a negative number to scroll down).",
+   "es": "Desplaza al menos una muesca (usa un número negativo para desplazar hacia abajo)."
+  },
+  {
+   "en": "“%1” isn't a key name this app knows. Pick one from the list.",
+   "es": "“%1” no es un nombre de tecla que esta aplicación conozca. Elige uno de la lista."
+  },
+  {
+   "en": "Asks an AI model a question while playing and keeps the answer in a variable: a reply to write, a summary, a decision for an If step.",
+   "es": "Hace una pregunta a un modelo de IA durante la reproducción y guarda la respuesta en una variable: una respuesta que escribir, un resumen, una decisión para un paso Si."
+  },
+  {
+   "en": "Enter the prompt: what to ask the AI.",
+   "es": "Escribe la instrucción: qué preguntarle a la IA."
+  },
+  {
+   "en": "Enter the text to type.",
+   "es": "Escribe el texto que se debe teclear."
+  },
+  {
+   "en": "“Random Up To” must be longer than the wait (or Off).",
+   "es": "“Aleatorio hasta” debe ser mayor que la espera (o Desactivado)."
+  },
+  {
+   "en": "Enter a program name, a window title, or both.",
+   "es": "Escribe un nombre de programa, un título de ventana o ambos."
+  },
+  {
+   "en": "Enter the variable's name.",
+   "es": "Escribe el nombre de la variable."
+  },
+  {
+   "en": "“%1” can't be a variable's name: use letters, digits and _, starting with a letter (for example count or file_2).",
+   "es": "“%1” no puede ser el nombre de una variable: usa letras, dígitos y _, y empieza con una letra (por ejemplo contador o archivo_2)."
+  },
+  {
+   "en": "Enter the condition, for example count < 10.",
+   "es": "Escribe la condición, por ejemplo contador < 10."
+  },
+  {
+   "en": "Enter the value, for example 0, count + 1 or \"text\".",
+   "es": "Escribe el valor, por ejemplo 0, contador + 1 o \"texto\"."
+  },
+  {
+   "en": "Enter the text to find, or a variable to keep the text read in.",
+   "es": "Escribe el texto que se debe buscar, o una variable donde guardar el texto leído."
+  },
+  {
+   "en": "Capture the picture to find from the screen first (or load it from a file).",
+   "es": "Primero captura de la pantalla la imagen que se debe buscar (o cárgala desde un archivo)."
+  },
+  {
+   "en": "Give the area a width and a height (or Pick Area…).",
+   "es": "Dale al área un ancho y un alto (o usa Elegir área…)."
+  },
+  {
+   "en": "The area is smaller than the picture (%1 × %2 px).",
+   "es": "El área es más pequeña que la imagen (%1 × %2 px)."
+  },
+  {
+   "en": "Enter the color as #RRGGBB, for example #FF8800.",
+   "es": "Escribe el color como #RRGGBB, por ejemplo #FF8800."
+  },
+  {
+   "en": "Choose the label to jump to. Give a step a label first (Label column).",
+   "es": "Elige la etiqueta a la que se saltará. Primero dale una etiqueta a un paso (columna Etiqueta)."
+  },
+  {
+   "en": "No step has the label “%1” yet. Give the step you want to jump to that label first.",
+   "es": "Ningún paso tiene todavía la etiqueta “%1”. Primero dale esa etiqueta al paso al que quieres saltar."
+  },
+  {
+   "en": "Choose the program or file to open.",
+   "es": "Elige el programa o archivo que se abrirá."
+  },
+  {
+   "en": "Enter the question to ask.",
+   "es": "Escribe la pregunta que se hará."
+  },
+  {
+   "en": "Enter the message to show.",
+   "es": "Escribe el mensaje que se mostrará."
+  },
+  {
+   "en": "Choose the macro file to play.",
+   "es": "Elige el archivo de macro que se reproducirá."
+  },
+  {
+   "en": "Enter the file to save the picture as.",
+   "es": "Escribe el archivo en el que se guardará la imagen."
+  },
+  {
+   "en": "Enter the file to watch.",
+   "es": "Escribe el archivo que se vigilará."
+  },
+  {
+   "en": "“%1” doesn't exist.",
+   "es": "“%1” no existe."
+  },
+  {
+   "en": "{name} puts in a variable's value, {=expression} a calculation.",
+   "es": "{nombre} inserta el valor de una variable; {=expresión}, un cálculo."
+  },
+  {
+   "en": "1 step",
+   "es": "1 paso"
+  },
+  {
+   "en": "%1 steps",
+   "es": "%1 pasos"
+  },
+  {
+   "en": "folded",
+   "es": "plegado"
+  },
+  {
+   "en": "(+%1 ms before)",
+   "es": "(+%1 ms antes)"
+  },
+  {
+   "en": "Disabled: every step inside is skipped when playing (Edit > Enable / Disable).",
+   "es": "Desactivado: todos los pasos de dentro se omiten al reproducir (Editar > Activar / desactivar)."
+  },
+  {
+   "en": "Disabled: skipped when playing (Edit > Enable / Disable).",
+   "es": "Desactivado: se omite al reproducir (Editar > Activar / desactivar)."
+  },
+  {
+   "en": "Click the arrow (or press Right) to show the steps in this group.",
+   "es": "Haz clic en la flecha (o presiona Derecha) para mostrar los pasos de este grupo."
+  },
+  {
+   "en": "Click the arrow (or press Left) to fold the steps in this group away.",
+   "es": "Haz clic en la flecha (o presiona Izquierda) para plegar los pasos de este grupo."
+  },
+  {
+   "en": "Double-click to name this step, so Repeat and Go to can jump here.",
+   "es": "Haz doble clic para ponerle nombre a este paso, así Repetir e Ir a pueden saltar aquí."
+  },
+  {
+   "en": "Action",
+   "es": "Acción"
+  },
+  {
+   "en": "Value",
+   "es": "Valor"
+  },
+  {
+   "en": "Label",
+   "es": "Etiqueta"
+  },
+  {
+   "en": "Comment",
+   "es": "Comentario"
+  },
+  {
+   "en": "%1 (in Window)",
+   "es": "%1 (en la ventana)"
+  },
+  {
+   "en": "Couldn't use %1.",
+   "es": "No se pudo usar %1."
+  },
+  {
+   "en": "App data will no longer be kept after you close the app.",
+   "es": "Los datos de la aplicación ya no se conservarán después de cerrarla."
+  },
+  {
+   "en": "App data folder is now %1.",
+   "es": "La carpeta de datos de la aplicación ahora es %1."
+  },
+  {
+   "en": "Welcome to MacroRecorder",
+   "es": "Te damos la bienvenida a MacroRecorder"
+  },
+  {
+   "en": "App Data Folder",
+   "es": "Carpeta de datos de la aplicación"
+  },
+  {
+   "en": "Where should MacroRecorder keep its settings (theme, hotkeys, playback options, recent files)?\nYour macros are saved wherever you choose when you save them, not here.",
+   "es": "¿Dónde debe guardar MacroRecorder su configuración (tema, teclas rápidas, opciones de reproducción, archivos recientes)?\nTus macros se guardan donde elijas al guardarlas, no aquí."
+  },
+  {
+   "en": "Don't Keep App Data",
+   "es": "No conservar los datos de la aplicación"
+  },
+  {
+   "en": "Start fresh every time; nothing is left behind.",
+   "es": "Empezar de cero cada vez; no queda nada guardado."
+  },
+  {
+   "en": "Continue",
+   "es": "Continuar"
+  },
+  {
+   "en": "Use This Folder",
+   "es": "Usar esta carpeta"
+  },
+  {
+   "en": "Choose App Data Folder",
+   "es": "Elegir la carpeta de datos de la aplicación"
+  },
+  {
+   "en": "Create Folder?",
+   "es": "¿Crear la carpeta?"
+  },
+  {
+   "en": "This folder doesn't exist. Create it?\n\n%1",
+   "es": "Esta carpeta no existe. ¿Quieres crearla?\n\n%1"
+  },
+  {
+   "en": "Couldn't Create Folder",
+   "es": "No se pudo crear la carpeta"
+  },
+  {
+   "en": "Couldn't create %1.",
+   "es": "No se pudo crear %1."
+  },
+  {
+   "en": "Previous month",
+   "es": "Mes anterior"
+  },
+  {
+   "en": "Next month",
+   "es": "Mes siguiente"
+  },
+  {
+   "en": "Hour",
+   "es": "Hora"
+  },
+  {
+   "en": "Minute",
+   "es": "Minuto"
+  },
+  {
+   "en": "Done",
+   "es": "Listo"
+  },
+  {
+   "en": "Any other minute can be typed in the Time box.",
+   "es": "Cualquier otro minuto se puede escribir en el cuadro Hora."
+  },
+  {
+   "en": "“%1” can't be played: %2",
+   "es": "“%1” no se puede reproducir: %2"
+  },
+  {
+   "en": "Not again",
+   "es": "No se repite"
+  },
+  {
+   "en": "Today %1",
+   "es": "Hoy %1"
+  },
+  {
+   "en": "Tomorrow %1",
+   "es": "Mañana %1"
+  },
+  {
+   "en": "Macro Hotkeys",
+   "es": "Teclas rápidas de macros"
+  },
+  {
+   "en": "A hotkey here plays its macro file right away, from any program, without opening it. Pressing it again while that macro plays stops it. The macro plays once, with the playback options of the main window.",
+   "es": "Una tecla rápida de esta lista reproduce su archivo de macro al instante, desde cualquier programa, sin abrirlo. Si la presionas otra vez mientras esa macro se reproduce, la detiene. La macro se reproduce una vez, con las opciones de reproducción de la ventana principal."
+  },
+  {
+   "en": "Hotkey",
+   "es": "Tecla rápida"
+  },
+  {
+   "en": "Macro File",
+   "es": "Archivo de macro"
+  },
+  {
+   "en": "Add…",
+   "es": "Agregar…"
+  },
+  {
+   "en": "Edit…",
+   "es": "Editar…"
+  },
+  {
+   "en": "Remove",
+   "es": "Quitar"
+  },
+  {
+   "en": "Leaves the hotkeys as they were when this window opened.",
+   "es": "Deja las teclas rápidas como estaban cuando se abrió esta ventana."
+  },
+  {
+   "en": "Add Macro Hotkey",
+   "es": "Agregar tecla rápida de macro"
+  },
+  {
+   "en": "Edit Macro Hotkey",
+   "es": "Editar tecla rápida de macro"
+  },
+  {
+   "en": "Hotkey:",
+   "es": "Tecla rápida:"
+  },
+  {
+   "en": "Click the hotkey box, then press the keys, for example Ctrl+Alt+1.",
+   "es": "Haz clic en el cuadro de la tecla rápida y luego presiona las teclas, por ejemplo Ctrl+Alt+1."
+  },
+  {
+   "en": "Press the keys for the hotkey in the Hotkey box.",
+   "es": "Presiona las teclas de la tecla rápida en el cuadro Tecla rápida."
+  },
+  {
+   "en": "%1 is already the %2 hotkey (in the main window's Hotkeys card).",
+   "es": "%1 ya es la tecla rápida de %2 (en la tarjeta Teclas rápidas de la ventana principal)."
+  },
+  {
+   "en": "%1 already plays %2.",
+   "es": "%1 ya reproduce %2."
+  },
+  {
+   "en": "Schedules",
+   "es": "Programaciones"
+  },
+  {
+   "en": "Plays a macro file at the times set here, while the app is running (minimized is fine). To be sure it's running, turn on File > Settings > Start at Login. A macro that's due while another one plays waits for it to finish.",
+   "es": "Reproduce un archivo de macro a las horas fijadas aquí, mientras la aplicación está abierta (puede estar minimizada). Para asegurarte de que esté abierta, activa Archivo > Configuración > Abrir al iniciar sesión. Una macro que toca mientras se reproduce otra espera a que esa termine."
+  },
+  {
+   "en": "On",
+   "es": "Activa",
+   "note": "column: schedule turned on"
+  },
+  {
+   "en": "When",
+   "es": "Cuándo"
+  },
+  {
+   "en": "Next Time",
+   "es": "Próxima vez"
+  },
+  {
+   "en": "Leaves the schedules as they were when this window opened.",
+   "es": "Deja las programaciones como estaban cuando se abrió esta ventana."
+  },
+  {
+   "en": "Unticked: kept, but not played.",
+   "es": "Sin marcar: se conserva, pero no se reproduce."
+  },
+  {
+   "en": "Add Schedule",
+   "es": "Agregar programación"
+  },
+  {
+   "en": "Edit Schedule",
+   "es": "Editar programación"
+  },
+  {
+   "en": "Once",
+   "es": "Una vez"
+  },
+  {
+   "en": "Every Day",
+   "es": "Todos los días"
+  },
+  {
+   "en": "On Chosen Days",
+   "es": "Los días elegidos"
+  },
+  {
+   "en": "Every Few Minutes",
+   "es": "Cada pocos minutos"
+  },
+  {
+   "en": "Date:",
+   "es": "Fecha:"
+  },
+  {
+   "en": "Pick on a Calendar",
+   "es": "Elegir en un calendario"
+  },
+  {
+   "en": "Time:",
+   "es": "Hora:"
+  },
+  {
+   "en": "Days:",
+   "es": "Días:"
+  },
+  {
+   "en": "Every:",
+   "es": "Cada:"
+  },
+  {
+   "en": "Starting At:",
+   "es": "A partir de:"
+  },
+  {
+   "en": "Pick the day and the time on a calendar. They can be typed in the boxes too.",
+   "es": "Elige el día y la hora en un calendario. También se pueden escribir en los cuadros."
+  },
+  {
+   "en": "Pick the time from a list. It can be typed in the box too.",
+   "es": "Elige la hora en una lista. También se puede escribir en el cuadro."
+  },
+  {
+   "en": "Tick at least one day.",
+   "es": "Marca al menos un día."
+  },
+  {
+   "en": "That time has already passed.",
+   "es": "Esa hora ya pasó."
+  },
+  {
+   "en": "Mouse Moves",
+   "es": "Movimientos del mouse"
+  },
+  {
+   "en": "Off: only clicks and scrolls are recorded; the mouse jumps straight to each click.",
+   "es": "Desactivado: solo se graban los clics y los desplazamientos; el mouse salta directamente a cada clic."
+  },
+  {
+   "en": "Movements smaller than this are left out of recorded paths.",
+   "es": "Los movimientos menores que esto se dejan fuera de las trayectorias grabadas."
+  },
+  {
+   "en": "Smallest",
+   "es": "Mínimo"
+  },
+  {
+   "en": "How closely mouse paths are kept. 100 % keeps every point; lower leaves out points that barely change a path's shape (smaller files, paths slightly less exact).",
+   "es": "Con qué precisión se conservan las trayectorias del mouse. 100 % conserva todos los puntos; menos deja fuera puntos que apenas cambian la forma de la trayectoria (archivos más pequeños, trayectorias algo menos exactas)."
+  },
+  {
+   "en": "Path Detail",
+   "es": "Detalle de trayectoria"
+  },
+  {
+   "en": "Merge Typing Into Text",
+   "es": "Unir lo escrito en un texto"
+  },
+  {
+   "en": "Typed characters become one Text step instead of one step per key.",
+   "es": "Los caracteres escritos forman un solo paso Texto en lugar de un paso por tecla."
+  },
+  {
+   "en": "Pauses at least this long become their own Wait steps you can edit. Shorter pauses are kept with the next step, so timing stays exact.",
+   "es": "Las pausas de al menos esta duración se convierten en pasos Esperar propios que puedes editar. Las pausas más cortas se guardan con el paso siguiente, así el tiempo sigue siendo exacto."
+  },
+  {
+   "en": "Show Pauses From",
+   "es": "Mostrar pausas desde"
+  },
+  {
+   "en": "Positions Relative to Window",
+   "es": "Posiciones relativas a la ventana"
+  },
+  {
+   "en": "Clicks are recorded from the window's top-left corner instead of the screen's, so the macro still works when the window is somewhere else.",
+   "es": "Los clics se graban desde la esquina superior izquierda de la ventana en lugar de la pantalla, así la macro sigue funcionando cuando la ventana está en otro lugar."
+  },
+  {
+   "en": "Find Clicked Buttons by Picture",
+   "es": "Buscar clics por imagen"
+  },
+  {
+   "en": "Keeps a small picture of what each click lands on. Playing, the click looks for that picture first and clicks it wherever it is now (a window that moved, a list that scrolled); if it isn't on the screen, it clicks where it was recorded.",
+   "es": "Guarda una pequeña imagen de lo que hay bajo cada clic. Al reproducir, el clic busca primero esa imagen y hace clic en ella dondequiera que esté ahora (una ventana que se movió, una lista que se desplazó); si no está en la pantalla, hace clic donde se grabó."
+  },
+  {
+   "en": "Minimize While Recording",
+   "es": "Minimizar al grabar"
+  },
+  {
+   "en": "Works from any program.",
+   "es": "Funciona desde cualquier programa."
+  },
+  {
+   "en": "Record / Stop",
+   "es": "Grabar / detener"
+  },
+  {
+   "en": "Records at the end of the list.",
+   "es": "Graba al final de la lista."
+  },
+  {
+   "en": "New Recording",
+   "es": "Nueva grabación"
+  },
+  {
+   "en": "Play / Pause",
+   "es": "Reproducir / pausar"
+  },
+  {
+   "en": "Play From Selected",
+   "es": "Reproducir desde la selección"
+  },
+  {
+   "en": "Plays from the selected step to the end.",
+   "es": "Reproduce desde el paso seleccionado hasta el final."
+  },
+  {
+   "en": "Play Selection",
+   "es": "Reproducir selección"
+  },
+  {
+   "en": "Plays only the selected steps.",
+   "es": "Reproduce solo los pasos seleccionados."
+  },
+  {
+   "en": "Stop",
+   "es": "Detener"
+  },
+  {
+   "en": "Active only while recording or playing, so the key keeps working normally otherwise.",
+   "es": "Solo está activa mientras se graba o reproduce, así la tecla funciona normalmente el resto del tiempo."
+  },
+  {
+   "en": "Capture Position",
+   "es": "Capturar posición"
+  },
+  {
+   "en": "While a step's editor is open: point at a spot and press this to take the mouse position (and the color, for Wait for pixel color). Active only then.",
+   "es": "Con el editor de un paso abierto: apunta a un lugar y presiona esta tecla para tomar la posición del mouse (y el color, para Esperar color de píxel). Solo está activa entonces."
+  },
+  {
+   "en": "Hotkeys are never recorded into macros.",
+   "es": "Las teclas rápidas nunca se graban en las macros."
+  },
+  {
+   "en": "+ Add",
+   "es": "+ Agregar"
+  },
+  {
+   "en": "Add a step after the selected one (or at the end).",
+   "es": "Agrega un paso después del seleccionado (o al final)."
+  },
+  {
+   "en": "Edit",
+   "es": "Editar",
+   "note": "button"
+  },
+  {
+   "en": "Edit the selected step (or double-click it).",
+   "es": "Edita el paso seleccionado (o haz doble clic en él)."
+  },
+  {
+   "en": "Delete",
+   "es": "Eliminar",
+   "note": "button"
+  },
+  {
+   "en": "Delete the selected steps.",
+   "es": "Elimina los pasos seleccionados."
+  },
+  {
+   "en": "Move up (Alt+Up)",
+   "es": "Subir (Alt+Arriba)"
+  },
+  {
+   "en": "Move down (Alt+Down)",
+   "es": "Bajar (Alt+Abajo)"
+  },
+  {
+   "en": "Show:",
+   "es": "Mostrar:"
+  },
+  {
+   "en": "Moves",
+   "es": "Movimientos",
+   "note": "filter"
+  },
+  {
+   "en": "Clicks",
+   "es": "Clics"
+  },
+  {
+   "en": "Keys",
+   "es": "Teclas"
+  },
+  {
+   "en": "Waits",
+   "es": "Esperas"
+  },
+  {
+   "en": "Windows",
+   "es": "Ventanas",
+   "note": "filter"
+  },
+  {
+   "en": "Hidden steps still play.",
+   "es": "Los pasos ocultos se siguen reproduciendo."
+  },
+  {
+   "en": "● Can't Record Here",
+   "es": "● No se puede grabar aquí"
+  },
+  {
+   "en": "● Ready (Playback Only)",
+   "es": "● Listo (solo reproducción)"
+  },
+  {
+   "en": "● Ready (%1)",
+   "es": "● Listo (%1)"
+  },
+  {
+   "en": "● Ready",
+   "es": "● Listo"
+  },
+  {
+   "en": "● Recording",
+   "es": "● Grabando"
+  },
+  {
+   "en": "▶ Playing",
+   "es": "▶ Reproduciendo"
+  },
+  {
+   "en": "■ Stop Recording",
+   "es": "■ Detener grabación"
+  },
+  {
+   "en": "Stop recording (%1)",
+   "es": "Detener la grabación (%1)"
+  },
+  {
+   "en": "Stop playback first.",
+   "es": "Primero detén la reproducción."
+  },
+  {
+   "en": "Record your mouse and keyboard, added to the end of the list (%1).",
+   "es": "Graba el mouse y el teclado y lo agrega al final de la lista (%1)."
+  },
+  {
+   "en": "Record or add some steps first.",
+   "es": "Primero graba o agrega algunos pasos."
+  },
+  {
+   "en": "Already busy.",
+   "es": "Ya hay algo en curso."
+  },
+  {
+   "en": "Play the whole macro (%1).",
+   "es": "Reproduce toda la macro (%1)."
+  },
+  {
+   "en": "Select the steps to play first.",
+   "es": "Primero selecciona los pasos que se reproducirán."
+  },
+  {
+   "en": "Play only the selected steps.",
+   "es": "Reproduce solo los pasos seleccionados."
+  },
+  {
+   "en": "▶ Resume",
+   "es": "▶ Reanudar"
+  },
+  {
+   "en": "Pause or resume playback (%1).",
+   "es": "Pausa o reanuda la reproducción (%1)."
+  },
+  {
+   "en": "Only while playing.",
+   "es": "Solo durante la reproducción."
+  },
+  {
+   "en": "Nothing is running.",
+   "es": "No hay nada en curso."
+  },
+  {
+   "en": "Stop (%1).",
+   "es": "Detener (%1)."
+  },
+  {
+   "en": "Can't be changed while playing. Stop first.",
+   "es": "No se puede cambiar durante la reproducción. Primero detenla."
+  },
+  {
+   "en": "Untitled",
+   "es": "Sin título"
+  },
+  {
+   "en": "1 action",
+   "es": "1 acción"
+  },
+  {
+   "en": "%1 actions",
+   "es": "%1 acciones"
+  },
+  {
+   "en": "Import Theme",
+   "es": "Importar tema"
+  },
+  {
+   "en": "Theme Files (*.json);;All Files (*)",
+   "es": "Archivos de tema (*.json);;Todos los archivos (*)"
+  },
+  {
+   "en": "Couldn't Import the Theme",
+   "es": "No se pudo importar el tema"
+  },
+  {
+   "en": "%1 can't be used as a theme.\n\n%2",
+   "es": "%1 no se puede usar como tema.\n\n%2"
+  },
+  {
+   "en": "Couldn't import the theme %1: %2",
+   "es": "No se pudo importar el tema %1: %2"
+  },
+  {
+   "en": "Updated the custom theme “%1”.",
+   "es": "Se actualizó el tema personalizado “%1”."
+  },
+  {
+   "en": "Imported the theme “%1”. It's in View > Theme > Custom Themes.",
+   "es": "Se importó el tema “%1”. Está en Ver > Tema > Temas personalizados."
+  },
+  {
+   "en": "Don't Keep App Data is on, so the imported theme will be gone the next time the app opens.",
+   "es": "No conservar los datos de la aplicación está activado, así que el tema importado ya no estará la próxima vez que se abra la aplicación."
+  },
+  {
+   "en": "Export Current Theme",
+   "es": "Exportar el tema actual"
+  },
+  {
+   "en": "Theme Files (*.json)",
+   "es": "Archivos de tema (*.json)"
+  },
+  {
+   "en": "Couldn't Export the Theme",
+   "es": "No se pudo exportar el tema"
+  },
+  {
+   "en": "%1 couldn't be saved: %2",
+   "es": "%1 no se pudo guardar: %2"
+  },
+  {
+   "en": "Exported the theme “%1” to %2. Change its colors and import it to make a theme of your own.",
+   "es": "Se exportó el tema “%1” a %2. Cambia sus colores e impórtalo para crear un tema propio."
+  },
+  {
+   "en": "Removed the custom theme “%1”.",
+   "es": "Se quitó el tema personalizado “%1”."
+  },
+  {
+   "en": "%1 s",
+   "es": "%1 s"
+  },
+  {
+   "en": "%1 min %2 s",
+   "es": "%1 min %2 s"
+  },
+  {
+   "en": "Unsaved Changes",
+   "es": "Cambios sin guardar"
+  },
+  {
+   "en": "Save the changes to this macro?",
+   "es": "¿Guardar los cambios de esta macro?"
+  },
+  {
+   "en": "Save the changes to %1?",
+   "es": "¿Guardar los cambios de %1?"
+  },
+  {
+   "en": "Save Macro",
+   "es": "Guardar macro"
+  },
+  {
+   "en": "Macros (*.%1)",
+   "es": "Macros (*.%1)"
+  },
+  {
+   "en": "Couldn't Save",
+   "es": "No se pudo guardar"
+  },
+  {
+   "en": "Couldn't save %1:\n%2",
+   "es": "No se pudo guardar %1:\n%2"
+  },
+  {
+   "en": "Saved %1 (1 action).",
+   "es": "Se guardó %1 (1 acción)."
+  },
+  {
+   "en": "Saved %1 (%2 actions).",
+   "es": "Se guardó %1 (%2 acciones)."
+  },
+  {
+   "en": "Open Macro",
+   "es": "Abrir macro"
+  },
+  {
+   "en": "Macros (*.%1);;All files (*)",
+   "es": "Macros (*.%1);;Todos los archivos (*)"
+  },
+  {
+   "en": "Not Found",
+   "es": "No se encontró"
+  },
+  {
+   "en": "%1 doesn't exist any more.",
+   "es": "%1 ya no existe."
+  },
+  {
+   "en": "Couldn't Open",
+   "es": "No se pudo abrir"
+  },
+  {
+   "en": "Couldn't open %1:\n%2",
+   "es": "No se pudo abrir %1:\n%2"
+  },
+  {
+   "en": "Opened %1 (1 action).",
+   "es": "Se abrió %1 (1 acción)."
+  },
+  {
+   "en": "Opened %1 (%2 actions).",
+   "es": "Se abrió %1 (%2 acciones)."
+  },
+  {
+   "en": "screen_text",
+   "es": "texto_pantalla",
+   "note": "variable name"
+  },
+  {
+   "en": "Group %1",
+   "es": "Grupo %1"
+  },
+  {
+   "en": "Screenshot {=now(\"yyyy-MM-dd HH.mm.ss\")}.png",
+   "es": "Captura {=now(\"yyyy-MM-dd HH.mm.ss\")}.png"
+  },
+  {
+   "en": "Add: %1",
+   "es": "Agregar: %1"
+  },
+  {
+   "en": "%1 added around 1 step.",
+   "es": "Se agregó %1 alrededor de 1 paso."
+  },
+  {
+   "en": "%1 added around %2 steps.",
+   "es": "Se agregó %1 alrededor de %2 pasos."
+  },
+  {
+   "en": "Show Group's Steps",
+   "es": "Mostrar los pasos del grupo"
+  },
+  {
+   "en": "Fold Group",
+   "es": "Plegar el grupo"
+  },
+  {
+   "en": "Add Action",
+   "es": "Agregar acción"
+  },
+  {
+   "en": "Ungroup: select a group's first step (its name).",
+   "es": "Desagrupar: selecciona el primer paso de un grupo (su nombre)."
+  },
+  {
+   "en": "Stopped: a key was pressed (Stop on Key Press is on).",
+   "es": "Detenido: se presionó una tecla (Detener al presionar una tecla está activado)."
+  },
+  {
+   "en": "Stopped: the mouse moved (Stop on Mouse Move is on).",
+   "es": "Detenido: el mouse se movió (Detener al mover el mouse está activado)."
+  },
+  {
+   "en": "Delete Steps",
+   "es": "Eliminar pasos"
+  },
+  {
+   "en": "Delete step %1?",
+   "es": "¿Eliminar el paso %1?"
+  },
+  {
+   "en": "Delete these %1 steps?",
+   "es": "¿Eliminar estos %1 pasos?"
+  },
+  {
+   "en": "Nothing to paste: copy some steps first.",
+   "es": "No hay nada que pegar: primero copia algunos pasos."
+  },
+  {
+   "en": "Recorded: %1 · %2",
+   "es": "Grabado: %1 · %2"
+  },
+  {
+   "en": "Select a single block of steps to move them.",
+   "es": "Selecciona un solo bloque de pasos para moverlos."
+  },
+  {
+   "en": "Clean up: nothing to tidy.",
+   "es": "Limpiar: no hay nada que ordenar."
+  },
+  {
+   "en": "Clean up: merged %1 step(s), removed %2 empty step(s).",
+   "es": "Limpiar: se unieron %1 paso(s) y se quitaron %2 paso(s) vacíos."
+  },
+  {
+   "en": "Step %1: %2",
+   "es": "Paso %1: %2"
+  },
+  {
+   "en": "▶ %1 · Step %2 of %3",
+   "es": "▶ %1 · Paso %2 de %3"
+  },
+  {
+   "en": "%1 of %2",
+   "es": "%1 de %2",
+   "note": "rounds"
+  },
+  {
+   "en": "round %1",
+   "es": "vuelta %1"
+  },
+  {
+   "en": "▶ Playing %1 · Step %2 of %3",
+   "es": "▶ Reproduciendo %1 · Paso %2 de %3"
+  },
+  {
+   "en": "Macro %1",
+   "es": "Macro %1"
+  },
+  {
+   "en": "%1: %2 is already the %3 hotkey.",
+   "es": "%1: %2 ya es la tecla rápida de %3."
+  },
+  {
+   "en": "Notification: %1",
+   "es": "Notificación: %1"
+  },
+  {
+   "en": "No Stop hotkey: you'll need to click Stop (or move the mouse) to stop playback.",
+   "es": "Sin tecla rápida para Detener: tendrás que hacer clic en Detener (o mover el mouse) para detener la reproducción."
+  },
+  {
+   "en": "Its hotkey was pressed again.",
+   "es": "Se volvió a presionar su tecla rápida."
+  },
+  {
+   "en": "%1 wasn't played: something else is recording or playing.",
+   "es": "%1 no se reprodujo: hay otra grabación o reproducción en curso."
+  },
+  {
+   "en": "its hotkey",
+   "es": "su tecla rápida"
+  },
+  {
+   "en": "Play selection: select some steps first.",
+   "es": "Reproducir selección: primero selecciona algunos pasos."
+  },
+  {
+   "en": "Can't Record",
+   "es": "No se puede grabar"
+  },
+  {
+   "en": "Recording after step %1… press %2 or click Stop recording to finish. Clicks on this window aren't recorded.",
+   "es": "Grabando después del paso %1… presiona %2 o haz clic en Detener grabación para terminar. Los clics en esta ventana no se graban."
+  },
+  {
+   "en": "Recording… press %1 or click Stop recording to finish. Clicks on this window aren't recorded.",
+   "es": "Grabando… presiona %1 o haz clic en Detener grabación para terminar. Los clics en esta ventana no se graban."
+  },
+  {
+   "en": "Recording stopped · 1 action · %1.",
+   "es": "Grabación detenida · 1 acción · %1."
+  },
+  {
+   "en": "Recording stopped · %1 actions · %2.",
+   "es": "Grabación detenida · %1 acciones · %2."
+  },
+  {
+   "en": "Can't Play",
+   "es": "No se puede reproducir"
+  },
+  {
+   "en": "Playing in %1 s. Switch to the window the macro works in.",
+   "es": "Reproducción en %1 s. Cambia a la ventana en la que trabaja la macro."
+  },
+  {
+   "en": "once",
+   "es": "una vez"
+  },
+  {
+   "en": "%1 times",
+   "es": "%1 veces"
+  },
+  {
+   "en": "for %1 s",
+   "es": "durante %1 s"
+  },
+  {
+   "en": "until stopped",
+   "es": "hasta detenerla"
+  },
+  {
+   "en": "Playing %1 at %2 %.",
+   "es": "Reproduciendo %1 al %2 %."
+  },
+  {
+   "en": "❚❚ Paused",
+   "es": "❚❚ En pausa"
+  },
+  {
+   "en": "Paused. Press %1 or Resume to continue.",
+   "es": "En pausa. Presiona %1 o Reanudar para continuar."
+  },
+  {
+   "en": "Resumed.",
+   "es": "Reanudado."
+  },
+  {
+   "en": "Playback cancelled.",
+   "es": "Reproducción cancelada."
+  },
+  {
+   "en": "%1 (%2) wasn't played: something else is recording or playing.",
+   "es": "%1 (%2) no se reprodujo: hay otra grabación o reproducción en curso."
+  },
+  {
+   "en": "%1 (%2) wasn't played: a window of this app is waiting for an answer.",
+   "es": "%1 (%2) no se reprodujo: una ventana de esta aplicación está esperando una respuesta."
+  },
+  {
+   "en": "%1 (%2) wasn't played: %3",
+   "es": "%1 (%2) no se reprodujo: %3"
+  },
+  {
+   "en": "%1 (%2) wasn't played: the file isn't there any more (%3).",
+   "es": "%1 (%2) no se reprodujo: el archivo ya no está (%3)."
+  },
+  {
+   "en": "%1: %2",
+   "es": "%1: %2"
+  },
+  {
+   "en": "%1 (%2) wasn't played: it has no steps.",
+   "es": "%1 (%2) no se reprodujo: no tiene pasos."
+  },
+  {
+   "en": "Playing %1 (%2).",
+   "es": "Reproduciendo %1 (%2)."
+  },
+  {
+   "en": "Stopped: %1%2",
+   "es": "Detenido: %1%2"
+  },
+  {
+   "en": "started again with --play",
+   "es": "se abrió de nuevo con --play"
+  },
+  {
+   "en": "%1 wasn't opened: finish what's running (or close the open window) first.",
+   "es": "%1 no se abrió: primero termina lo que está en curso (o cierra la ventana abierta)."
+  },
+  {
+   "en": "Playback stopped.",
+   "es": "Reproducción detenida."
+  },
+  {
+   "en": "Playback finished.",
+   "es": "Reproducción terminada."
+  },
+  {
+   "en": "Create Desktop Shortcut",
+   "es": "Crear acceso directo en el escritorio"
+  },
+  {
+   "en": "The shortcut plays the saved macro file. Save the macro first?",
+   "es": "El acceso directo reproduce el archivo de macro guardado. ¿Guardar primero la macro?"
+  },
+  {
+   "en": "There's already a shortcut named “%1” on the desktop. Replace it?",
+   "es": "Ya hay un acceso directo llamado “%1” en el escritorio. ¿Reemplazarlo?"
+  },
+  {
+   "en": "Plays the macro %1 with %2.",
+   "es": "Reproduce la macro %1 con %2."
+  },
+  {
+   "en": "The shortcut couldn't be made: %1",
+   "es": "No se pudo crear el acceso directo: %1"
+  },
+  {
+   "en": "Desktop shortcut made: %1. Double-click it to play %2 (it plays in this window if the app is already running).",
+   "es": "Acceso directo creado: %1. Haz doble clic en él para reproducir %2 (se reproduce en esta ventana si la aplicación ya está abierta)."
+  },
+  {
+   "en": "Checking for updates…",
+   "es": "Buscando actualizaciones…"
+  },
+  {
+   "en": "Check for Updates",
+   "es": "Buscar actualizaciones"
+  },
+  {
+   "en": "no answer within 15 seconds",
+   "es": "no hubo respuesta en 15 segundos"
+  },
+  {
+   "en": "Couldn't check for updates: %1",
+   "es": "No se pudo buscar actualizaciones: %1"
+  },
+  {
+   "en": "Couldn't check for updates: %1.\n\nThe releases are also listed on the project's website (Help > Project Website).",
+   "es": "No se pudo buscar actualizaciones: %1.\n\nLas versiones también aparecen en el sitio web del proyecto (Ayuda > Sitio web del proyecto)."
+  },
+  {
+   "en": "Couldn't check for updates: GitHub's answer had no version in it.",
+   "es": "No se pudo buscar actualizaciones: la respuesta de GitHub no incluía ninguna versión."
+  },
+  {
+   "en": "This is a test build (%1). The latest release is %2 %3.",
+   "es": "Esta es una versión de prueba (%1). La última versión publicada es %2 %3."
+  },
+  {
+   "en": "%1 %2 is available. This is %3.",
+   "es": "Ya está disponible %1 %2. Tienes la versión %3."
+  },
+  {
+   "en": "Open Download Page",
+   "es": "Abrir la página de descarga"
+  },
+  {
+   "en": "%1 %2 is the latest version.",
+   "es": "%1 %2 es la última versión."
+  },
+  {
+   "en": "no AI server answered at %1. Start LM Studio's local server (its Developer tab), or set another server in File > Settings > AI Server…",
+   "es": "ningún servidor de IA respondió en %1. Inicia el servidor local de LM Studio (su pestaña Developer) o elige otro servidor en Archivo > Configuración > Servidor de IA…"
+  },
+  {
+   "en": "no answer from the AI server in time.",
+   "es": "el servidor de IA no respondió a tiempo."
+  },
+  {
+   "en": "the AI server said: %1",
+   "es": "el servidor de IA dijo: %1"
+  },
+  {
+   "en": "Starting in %1 s…",
+   "es": "Empieza en %1 s…"
+  },
+  {
+   "en": "Ask AI: waiting for the answer from %1…",
+   "es": "Preguntar a la IA: esperando la respuesta de %1…"
+  },
+  {
+   "en": "the AI server's answer was empty.",
+   "es": "la respuesta del servidor de IA estaba vacía."
+  },
+  {
+   "en": "Ask AI: answered (%1 characters).",
+   "es": "Preguntar a la IA: respondió (%1 caracteres)."
+  },
+  {
+   "en": "AI Server",
+   "es": "Servidor de IA"
+  },
+  {
+   "en": "Ask AI steps send their questions here. Free and private: LM Studio (lmstudio.ai) runs models on this PC; start its server in its Developer tab. Any server that speaks the OpenAI API works too, for example Ollama at http://localhost:11434/v1.",
+   "es": "Los pasos Preguntar a la IA envían sus preguntas aquí. Gratis y privado: LM Studio (lmstudio.ai) ejecuta modelos en esta PC; inicia su servidor en la pestaña Developer. También funciona cualquier servidor compatible con la API de OpenAI, por ejemplo Ollama en http://localhost:11434/v1."
+  },
+  {
+   "en": "empty: the model the server has loaded",
+   "es": "vacío: el modelo que tiene cargado el servidor"
+  },
+  {
+   "en": "List Models",
+   "es": "Listar modelos"
+  },
+  {
+   "en": "Asks the server which models it has (nothing is loaded or downloaded).",
+   "es": "Pregunta al servidor qué modelos tiene (no se carga ni se descarga nada)."
+  },
+  {
+   "en": "Server Address:",
+   "es": "Dirección del servidor:"
+  },
+  {
+   "en": "Model:",
+   "es": "Modelo:"
+  },
+  {
+   "en": "Asking %1…",
+   "es": "Consultando %1…"
+  },
+  {
+   "en": "Couldn't list the models: %1",
+   "es": "No se pudieron listar los modelos: %1"
+  },
+  {
+   "en": "The server answered, but has no models.",
+   "es": "El servidor respondió, pero no tiene modelos."
+  },
+  {
+   "en": "The server has 1 model.",
+   "es": "El servidor tiene 1 modelo."
+  },
+  {
+   "en": "The server has %1 models.",
+   "es": "El servidor tiene %1 modelos."
+  },
+  {
+   "en": "AI server: %1%2.",
+   "es": "Servidor de IA: %1%2."
+  },
+  {
+   "en": "Schedule: %1 wasn't played at %2 (the app was busy or the computer asleep).",
+   "es": "Programación: %1 no se reprodujo a las %2 (la aplicación estaba ocupada o la computadora suspendida)."
+  },
+  {
+   "en": "Schedule: %1 is due; it plays when the app is free (finish recording or playing, or close the open window).",
+   "es": "Programación: le toca a %1; se reproducirá cuando la aplicación esté libre (termina la grabación o reproducción, o cierra la ventana abierta)."
+  },
+  {
+   "en": "schedule: %1",
+   "es": "programación: %1"
+  },
+  {
+   "en": "Macro hotkeys: %1 set.",
+   "es": "Teclas rápidas de macros: %1 configuradas."
+  },
+  {
+   "en": "Schedules: %1 on; the next one plays %2.",
+   "es": "Programaciones: %1 activas; la próxima se reproduce %2."
+  },
+  {
+   "en": "Schedules: none on.",
+   "es": "Programaciones: ninguna activa."
+  },
+  {
+   "en": "Combine: those are drags (pressed and released at different places), so they stay as they are.",
+   "es": "Combinar: son arrastres (se presionó y se soltó en lugares distintos), así que se quedan como están."
+  },
+  {
+   "en": "Combine: select a button down and its button up (or a key down and its key up).",
+   "es": "Combinar: selecciona un “presionar botón” y su “soltar botón” (o un “presionar tecla” y su “soltar tecla”)."
+  },
+  {
+   "en": "Combined 1 pair into a single step.",
+   "es": "Se combinó 1 par en un solo paso."
+  },
+  {
+   "en": "Combined %1 pairs into single steps.",
+   "es": "Se combinaron %1 pares en pasos individuales."
+  },
+  {
+   "en": "Find and Replace",
+   "es": "Buscar y reemplazar"
+  },
+  {
+   "en": "Match Case",
+   "es": "Coincidir mayúsculas y minúsculas"
+  },
+  {
+   "en": "Find:",
+   "es": "Buscar:"
+  },
+  {
+   "en": "Replace With:",
+   "es": "Reemplazar con:"
+  },
+  {
+   "en": "Looks in what the list shows (Action, Value, Label, Comment). Replace changes typed text, window titles and programs, file names, messages, labels and comments.",
+   "es": "Busca en lo que muestra la lista (Acción, Valor, Etiqueta, Comentario). Reemplazar cambia el texto escrito, los títulos de ventana y los programas, los nombres de archivo, los mensajes, las etiquetas y los comentarios."
+  },
+  {
+   "en": "Find Next",
+   "es": "Buscar siguiente"
+  },
+  {
+   "en": "Replace All",
+   "es": "Reemplazar todo"
+  },
+  {
+   "en": "Found in step %1 (hidden by the Show filter).",
+   "es": "Se encontró en el paso %1 (oculto por el filtro Mostrar)."
+  },
+  {
+   "en": "Found in step %1.",
+   "es": "Se encontró en el paso %1."
+  },
+  {
+   "en": "“%1” isn't in any step.",
+   "es": "“%1” no está en ningún paso."
+  },
+  {
+   "en": "Nothing to replace.",
+   "es": "No hay nada que reemplazar."
+  },
+  {
+   "en": "Changed 1 step (Undo puts it back).",
+   "es": "Se cambió 1 paso (Deshacer lo restaura)."
+  },
+  {
+   "en": "Changed %1 steps (Undo puts them back).",
+   "es": "Se cambiaron %1 pasos (Deshacer los restaura)."
+  },
+  {
+   "en": "Replaced “%1” with “%2” in %3 step(s).",
+   "es": "Se reemplazó “%1” por “%2” en %3 paso(s)."
+  },
+  {
+   "en": "Nothing to export: the list is empty.",
+   "es": "No hay nada que exportar: la lista está vacía."
+  },
+  {
+   "en": "Export to CSV",
+   "es": "Exportar a CSV"
+  },
+  {
+   "en": "CSV files (*.csv)",
+   "es": "Archivos CSV (*.csv)"
+  },
+  {
+   "en": "Step",
+   "es": "Paso"
+  },
+  {
+   "en": "Pause before (ms)",
+   "es": "Pausa previa (ms)"
+  },
+  {
+   "en": "yes",
+   "es": "sí"
+  },
+  {
+   "en": "no",
+   "es": "no"
+  },
+  {
+   "en": "Couldn't Export",
+   "es": "No se pudo exportar"
+  },
+  {
+   "en": "Couldn't write %1:\n%2",
+   "es": "No se pudo escribir %1:\n%2"
+  },
+  {
+   "en": "Exported %1 steps to %2.",
+   "es": "Se exportaron %1 pasos a %2."
+  },
+  {
+   "en": "Copy Command Line",
+   "es": "Copiar línea de comandos"
+  },
+  {
+   "en": "Save the macro first: the command line plays the saved file.",
+   "es": "Primero guarda la macro: la línea de comandos reproduce el archivo guardado."
+  },
+  {
+   "en": "Copied the command line that plays %1 to the clipboard.",
+   "es": "Se copió al portapapeles la línea de comandos que reproduce %1."
+  },
+  {
+   "en": "Ready. Input method: %1.",
+   "es": "Listo. Método de entrada: %1."
+  },
+  {
+   "en": "Message: %1 (waiting for OK)",
+   "es": "Mensaje: %1 (esperando Aceptar)"
+  },
+  {
+   "en": "Settings aren't being kept (Don't Keep App Data is on): the theme and options reset when the app closes. To keep them, choose a folder in File > Settings > Change App Data Folder…",
+   "es": "La configuración no se está conservando (No conservar los datos de la aplicación está activado): el tema y las opciones se restablecen al cerrar la aplicación. Para conservarlos, elige una carpeta en Archivo > Configuración > Cambiar la carpeta de datos de la aplicación…"
+  },
+  {
+   "en": "Stops playback.",
+   "es": "Detiene la reproducción."
+  },
+  {
+   "en": "Question: %1 (waiting for an answer)",
+   "es": "Pregunta: %1 (esperando una respuesta)"
+  },
+  {
+   "en": "Closing (When Finished: Close App).",
+   "es": "Cerrando (Al terminar: cerrar la aplicación)."
+  },
+  {
+   "en": "Locking the computer",
+   "es": "Bloqueando la computadora"
+  },
+  {
+   "en": "Lock Now",
+   "es": "Bloquear ahora"
+  },
+  {
+   "en": "Going to sleep",
+   "es": "Suspendiendo"
+  },
+  {
+   "en": "Sleep Now",
+   "es": "Suspender ahora"
+  },
+  {
+   "en": "Logging off",
+   "es": "Cerrando la sesión"
+  },
+  {
+   "en": "Log Off Now",
+   "es": "Cerrar sesión ahora"
+  },
+  {
+   "en": "Restarting",
+   "es": "Reiniciando"
+  },
+  {
+   "en": "Restart Now",
+   "es": "Reiniciar ahora"
+  },
+  {
+   "en": "Shutting down",
+   "es": "Apagando"
+  },
+  {
+   "en": "Shut Down Now",
+   "es": "Apagar ahora"
+  },
+  {
+   "en": "The macro finished. %1 in %2 s…",
+   "es": "La macro terminó. %1 en %2 s…"
+  },
+  {
+   "en": "When Finished: cancelled.",
+   "es": "Al terminar: cancelado."
+  },
+  {
+   "en": "When Finished: %1.",
+   "es": "Al terminar: %1."
+  },
+  {
+   "en": "Couldn't do that: %1",
+   "es": "No se pudo hacer: %1"
+  },
+  {
+   "en": "Start Over",
+   "es": "Empezar de cero"
+  },
+  {
+   "en": "Start over as if %1 had just been installed?",
+   "es": "¿Empezar de cero como si %1 se acabara de instalar?"
+  },
+  {
+   "en": "Every setting goes back to its default: the language, the theme and imported themes, the layout, Window Opacity, hotkeys, macro hotkeys and schedules, playback and recording options, and recent files. Start at Login is turned off.",
+   "es": "Toda la configuración vuelve a sus valores predeterminados: el idioma, el tema y los temas importados, la distribución, la opacidad de la ventana, las teclas rápidas, las teclas rápidas de macros y las programaciones, las opciones de reproducción y grabación, y los archivos recientes. Se desactiva Abrir al iniciar sesión."
+  },
+  {
+   "en": "Then %1 starts again with the same app data folder.",
+   "es": "Después, %1 se vuelve a abrir con la misma carpeta de datos de la aplicación."
+  },
+  {
+   "en": "Then %1 starts again and asks for the language and where to keep its settings.",
+   "es": "Después, %1 se vuelve a abrir y pregunta el idioma y dónde guardar su configuración."
+  },
+  {
+   "en": "Your saved macros aren't touched.",
+   "es": "Tus macros guardadas no se tocan."
+  },
+  {
+   "en": "&File",
+   "es": "&Archivo"
+  },
+  {
+   "en": "&New",
+   "es": "&Nuevo"
+  },
+  {
+   "en": "The settings are reset, but %1 couldn't start again by itself. Open it again to continue.",
+   "es": "La configuración se restableció, pero %1 no pudo volver a iniciarse automáticamente. Vuelve a abrir %1 para continuar."
+  },
+  {
+   "en": "&Open…",
+   "es": "&Abrir…"
+  },
+  {
+   "en": "Open &Recent",
+   "es": "Abrir &reciente"
+  },
+  {
+   "en": "Language: %1.",
+   "es": "Idioma: %1."
+  },
+  {
+   "en": "Language: %1 from the next start.",
+   "es": "Idioma: %1 desde el próximo inicio."
+  },
+  {
+   "en": "%1 shows in %2 once it starts again. Restart it now?",
+   "es": "%1 se mostrará en %2 cuando vuelva a iniciarse. ¿Reiniciar ahora?"
+  },
+  {
+   "en": "Later",
+   "es": "Más tarde"
+  },
+  {
+   "en": "%1 couldn't start again by itself: open it again to see it in %2.",
+   "es": "%1 no pudo volver a iniciarse automáticamente: vuelve a abrir %1 para verlo en %2."
+  },
+  {
+   "en": "&Save",
+   "es": "&Guardar"
+  },
+  {
+   "en": "Save &As…",
+   "es": "Guardar &como…"
+  },
+  {
+   "en": "&Export to CSV…",
+   "es": "&Exportar a CSV…"
+  },
+  {
+   "en": "Create &Desktop Shortcut…",
+   "es": "Crear acceso &directo en el escritorio…"
+  },
+  {
+   "en": "A shortcut on the desktop that plays the saved macro (and then closes the app, if it wasn't already running).",
+   "es": "Un acceso directo en el escritorio que reproduce la macro guardada (y luego cierra la aplicación, si no estaba ya abierta)."
+  },
+  {
+   "en": "Copy &Command Line",
+   "es": "Copiar &línea de comandos"
+  },
+  {
+   "en": "For a desktop shortcut or Windows Task Scheduler: plays the saved macro, then closes.",
+   "es": "Para un acceso directo o el Programador de tareas de Windows: reproduce la macro guardada y luego se cierra."
+  },
+  {
+   "en": "Se&ttings",
+   "es": "Con&figuración"
+  },
+  {
+   "en": "Language",
+   "es": "Idioma"
+  },
+  {
+   "en": "Change App Data Folder…",
+   "es": "Cambiar la carpeta de datos de la aplicación…"
+  },
+  {
+   "en": "Reset Settings to Defaults…",
+   "es": "Restablecer la configuración predeterminada…"
+  },
+  {
+   "en": "Reset Settings",
+   "es": "Restablecer la configuración"
+  },
+  {
+   "en": "Reset playback, recording and hotkey settings to their defaults?\nYour theme, layout and recent files are kept.",
+   "es": "¿Restablecer los valores predeterminados de reproducción, grabación y teclas rápidas?\nSe conservan el tema, la distribución y los archivos recientes."
+  },
+  {
+   "en": "Settings reset to defaults.",
+   "es": "Se restableció la configuración predeterminada."
+  },
+  {
+   "en": "AI Server…",
+   "es": "Servidor de IA…"
+  },
+  {
+   "en": "Where Ask AI steps send their questions: LM Studio on this PC (free) unless changed.",
+   "es": "Adónde envían sus preguntas los pasos Preguntar a la IA: LM Studio en esta PC (gratis), salvo que lo cambies."
+  },
+  {
+   "en": "Start Over…",
+   "es": "Empezar de cero…"
+  },
+  {
+   "en": "Every setting back to its default, as if the app had just been installed. Your saved macros aren't touched.",
+   "es": "Toda la configuración vuelve a sus valores predeterminados, como si la aplicación se acabara de instalar. Tus macros guardadas no se tocan."
+  },
+  {
+   "en": "Confirm Before Deleting Steps",
+   "es": "Confirmar antes de eliminar pasos"
+  },
+  {
+   "en": "Start Minimized",
+   "es": "Iniciar minimizado"
+  },
+  {
+   "en": "Start at Login",
+   "es": "Abrir al iniciar sesión"
+  },
+  {
+   "en": "Starts minimized, ready for your hotkeys.",
+   "es": "Se abre minimizado, listo para tus teclas rápidas."
+  },
+  {
+   "en": "Start at Login: %1",
+   "es": "Abrir al iniciar sesión: %1"
+  },
+  {
+   "en": "%1 will start when you log in.",
+   "es": "%1 se abrirá cuando inicies sesión."
+  },
+  {
+   "en": "%1 won't start when you log in any more.",
+   "es": "%1 ya no se abrirá cuando inicies sesión."
+  },
+  {
+   "en": "Send Keys as Scan Codes (Games)",
+   "es": "Enviar teclas como códigos de escaneo (juegos)"
+  },
+  {
+   "en": "Some games read only the keyboard's hardware codes. Leave off unless keys don't arrive.",
+   "es": "Algunos juegos solo leen los códigos de hardware del teclado. Déjalo desactivado salvo que las teclas no lleguen."
+  },
+  {
+   "en": "Restart as Administrator…",
+   "es": "Reiniciar como administrador…"
+  },
+  {
+   "en": "Restart as administrator: %1",
+   "es": "Reiniciar como administrador: %1"
+  },
+  {
+   "en": "Needed to control programs that run as administrator.",
+   "es": "Necesario para controlar programas que se ejecutan como administrador."
+  },
+  {
+   "en": "&Quit",
+   "es": "&Salir"
+  },
+  {
+   "en": "&Macro",
+   "es": "&Macro"
+  },
+  {
+   "en": "&Record",
+   "es": "&Grabar"
+  },
+  {
+   "en": "Record After Selected Step",
+   "es": "Grabar después del paso seleccionado"
+  },
+  {
+   "en": "&New Recording",
+   "es": "&Nueva grabación"
+  },
+  {
+   "en": "Starts a new macro (asks to save changes first) and records.",
+   "es": "Empieza una macro nueva (antes pregunta si quieres guardar los cambios) y graba."
+  },
+  {
+   "en": "&Play",
+   "es": "&Reproducir"
+  },
+  {
+   "en": "Play &Selection",
+   "es": "Reproducir &selección"
+  },
+  {
+   "en": "Play From Selected &Step",
+   "es": "Reproducir desde el &paso seleccionado"
+  },
+  {
+   "en": "Play &Up to Selected Step",
+   "es": "Reproducir &hasta el paso seleccionado"
+  },
+  {
+   "en": "Play This Step &Only",
+   "es": "Reproducir s&olo este paso"
+  },
+  {
+   "en": "P&ause / Resume",
+   "es": "Pa&usar / reanudar"
+  },
+  {
+   "en": "S&top",
+   "es": "&Detener"
+  },
+  {
+   "en": "&Add Action",
+   "es": "&Agregar acción"
+  },
+  {
+   "en": "&Clean Up",
+   "es": "&Limpiar"
+  },
+  {
+   "en": "Merges back-to-back waits and moves, and removes empty ones.",
+   "es": "Une las esperas y los movimientos consecutivos, y quita los vacíos."
+  },
+  {
+   "en": "Macro &Hotkeys…",
+   "es": "&Teclas rápidas de macros…"
+  },
+  {
+   "en": "Hotkeys that play a saved macro from any program, without opening it.",
+   "es": "Teclas rápidas que reproducen una macro guardada desde cualquier programa, sin abrirla."
+  },
+  {
+   "en": "Sc&hedules…",
+   "es": "Progra&maciones…"
+  },
+  {
+   "en": "Plays saved macros at set times while the app runs.",
+   "es": "Reproduce macros guardadas a horas fijadas mientras la aplicación está abierta."
+  },
+  {
+   "en": "&Edit",
+   "es": "&Editar"
+  },
+  {
+   "en": "&Undo",
+   "es": "&Deshacer"
+  },
+  {
+   "en": "&Redo",
+   "es": "&Rehacer"
+  },
+  {
+   "en": "Cu&t",
+   "es": "Cor&tar"
+  },
+  {
+   "en": "&Copy",
+   "es": "&Copiar"
+  },
+  {
+   "en": "&Paste",
+   "es": "&Pegar"
+  },
+  {
+   "en": "&Delete",
+   "es": "E&liminar"
+  },
+  {
+   "en": "Select &All",
+   "es": "&Seleccionar todo"
+  },
+  {
+   "en": "&Edit Step…",
+   "es": "&Editar paso…"
+  },
+  {
+   "en": "E&nable / Disable",
+   "es": "Acti&var / desactivar"
+  },
+  {
+   "en": "Move &Up",
+   "es": "S&ubir"
+  },
+  {
+   "en": "Move Do&wn",
+   "es": "&Bajar"
+  },
+  {
+   "en": "C&ombine Into Click or Key Press",
+   "es": "C&ombinar en un clic o una pulsación de tecla"
+  },
+  {
+   "en": "Select a button down and its button up (or a key down and up): they become one click (key press).",
+   "es": "Selecciona un “presionar botón” y su “soltar botón” (o un “presionar tecla” y su “soltar tecla”): se convierten en un clic (una pulsación de tecla)."
+  },
+  {
+   "en": "&Find and Replace…",
+   "es": "Buscar &y reemplazar…"
+  },
+  {
+   "en": "&Group Selected Steps",
+   "es": "&Agrupar los pasos seleccionados"
+  },
+  {
+   "en": "Puts the selected steps in a named group that can be folded away (and turned off as a whole).",
+   "es": "Pone los pasos seleccionados en un grupo con nombre que se puede plegar (y desactivar entero)."
+  },
+  {
+   "en": "U&ngroup",
+   "es": "Desa&grupar"
+  },
+  {
+   "en": "Fold All Groups",
+   "es": "Plegar todos los grupos"
+  },
+  {
+   "en": "Unfold All Groups",
+   "es": "Desplegar todos los grupos"
+  },
+  {
+   "en": "&View",
+   "es": "&Ver"
+  },
+  {
+   "en": "&Theme",
+   "es": "&Tema"
+  },
+  {
+   "en": "Match Operating System",
+   "es": "Igual que el sistema operativo"
+  },
+  {
+   "en": "&Import Theme…",
+   "es": "&Importar tema…"
+  },
+  {
+   "en": "Adds a theme from a .json file: one exported from here, or a VS Code color theme. It's kept with the other themes under Custom Themes.",
+   "es": "Agrega un tema desde un archivo .json: uno exportado desde aquí o un tema de color de VS Code. Se guarda con los demás temas en Temas personalizados."
+  },
+  {
+   "en": "&Export Current Theme…",
+   "es": "&Exportar el tema actual…"
+  },
+  {
+   "en": "Saves the theme in use as a .json file: a starting point for a theme of your own.",
+   "es": "Guarda el tema en uso como archivo .json: un punto de partida para un tema propio."
+  },
+  {
+   "en": "&Remove Custom Theme",
+   "es": "&Quitar tema personalizado"
+  },
+  {
+   "en": "Show Activity &Log",
+   "es": "Mostrar el &registro de actividad"
+  },
+  {
+   "en": "&Detailed Activity Log",
+   "es": "Registro de actividad &detallado"
+  },
+  {
+   "en": "Also logs every recorded action and every step played.",
+   "es": "También registra cada acción grabada y cada paso reproducido."
+  },
+  {
+   "en": "Always on &Top",
+   "es": "Siempre &encima"
+  },
+  {
+   "en": "Window &Opacity",
+   "es": "&Opacidad de la ventana"
+  },
+  {
+   "en": "%1 %",
+   "es": "%1 %"
+  },
+  {
+   "en": "Opacity",
+   "es": "Opacidad"
+  },
+  {
+   "en": "&Mark Selected Step on Screen",
+   "es": "&Marcar el paso seleccionado en la pantalla"
+  },
+  {
+   "en": "&Preview Steps on Hover",
+   "es": "Vista &previa de los pasos al pasar el puntero"
+  },
+  {
+   "en": "Pointing at a mouse step in the list shows its path or position, animated.",
+   "es": "Al apuntar a un paso del mouse en la lista se muestra su trayectoria o posición, animada."
+  },
+  {
+   "en": "&Reset View Options",
+   "es": "Restablecer las opciones de &vista"
+  },
+  {
+   "en": "&Help",
+   "es": "A&yuda"
+  },
+  {
+   "en": "Project &Website",
+   "es": "&Sitio web del proyecto"
+  },
+  {
+   "en": "Open App &Data Folder",
+   "es": "Abrir la carpeta de &datos de la aplicación"
+  },
+  {
+   "en": "&Report a Problem",
+   "es": "&Informar un problema"
+  },
+  {
+   "en": "Check for &Updates…",
+   "es": "Buscar act&ualizaciones…"
+  },
+  {
+   "en": "Asks GitHub for the latest release. Nothing is downloaded or installed by itself.",
+   "es": "Consulta en GitHub la última versión. No se descarga ni se instala nada automáticamente."
+  },
+  {
+   "en": "&About MacroRecorder",
+   "es": "&Acerca de MacroRecorder"
+  },
+  {
+   "en": "About MacroRecorder",
+   "es": "Acerca de MacroRecorder"
+  },
+  {
+   "en": "Records and plays back mouse and keyboard actions.",
+   "es": "Graba y reproduce acciones del mouse y del teclado."
+  },
+  {
+   "en": "Licensed under the GNU GPL v3.0.",
+   "es": "Con licencia GNU GPL v3.0."
+  },
+  {
+   "en": "Input method: %1",
+   "es": "Método de entrada: %1"
+  },
+  {
+   "en": "Mouse",
+   "es": "Mouse"
+  },
+  {
+   "en": "Click Image",
+   "es": "Clic en imagen"
+  },
+  {
+   "en": "Click Text",
+   "es": "Clic en texto"
+  },
+  {
+   "en": "Move",
+   "es": "Mover"
+  },
+  {
+   "en": "Scroll",
+   "es": "Desplazar"
+  },
+  {
+   "en": "Button Down (Start a Drag)",
+   "es": "Presionar botón (empezar a arrastrar)"
+  },
+  {
+   "en": "Button Up (End a Drag)",
+   "es": "Soltar botón (terminar de arrastrar)"
+  },
+  {
+   "en": "Keyboard",
+   "es": "Teclado"
+  },
+  {
+   "en": "Key Press / Shortcut",
+   "es": "Pulsar tecla / atajo"
+  },
+  {
+   "en": "Text",
+   "es": "Texto"
+  },
+  {
+   "en": "Key Down (Hold)",
+   "es": "Presionar tecla (mantener)"
+  },
+  {
+   "en": "Key Up (Release)",
+   "es": "Soltar tecla"
+  },
+  {
+   "en": "Wait",
+   "es": "Esperar",
+   "note": "menu of waiting steps"
+  },
+  {
+   "en": "Wait",
+   "es": "Esperar",
+   "note": "step type"
+  },
+  {
+   "en": "Wait for Image",
+   "es": "Esperar imagen"
+  },
+  {
+   "en": "Wait for Text",
+   "es": "Esperar texto"
+  },
+  {
+   "en": "Wait for Pixel Color",
+   "es": "Esperar color de píxel"
+  },
+  {
+   "en": "Wait for Key",
+   "es": "Esperar tecla"
+  },
+  {
+   "en": "Wait for File",
+   "es": "Esperar archivo"
+  },
+  {
+   "en": "Ask for Text",
+   "es": "Pedir texto"
+  },
+  {
+   "en": "Flow",
+   "es": "Flujo"
+  },
+  {
+   "en": "Repeat",
+   "es": "Repetir",
+   "note": "step type"
+  },
+  {
+   "en": "Go To",
+   "es": "Ir a"
+  },
+  {
+   "en": "Run Another Macro",
+   "es": "Ejecutar otra macro"
+  },
+  {
+   "en": "Group",
+   "es": "Grupo",
+   "note": "step type"
+  },
+  {
+   "en": "Variables and Conditions",
+   "es": "Variables y condiciones"
+  },
+  {
+   "en": "Set Variable",
+   "es": "Asignar variable"
+  },
+  {
+   "en": "If",
+   "es": "Si"
+  },
+  {
+   "en": "Else",
+   "es": "Si no"
+  },
+  {
+   "en": "End If",
+   "es": "Fin de Si"
+  },
+  {
+   "en": "Read Text From Screen",
+   "es": "Leer texto de la pantalla"
+  },
+  {
+   "en": "Ask AI",
+   "es": "Preguntar a la IA"
+  },
+  {
+   "en": "Programs and Windows",
+   "es": "Programas y ventanas"
+  },
+  {
+   "en": "Window Focus",
+   "es": "Activar ventana"
+  },
+  {
+   "en": "Move / Resize Window",
+   "es": "Mover / cambiar tamaño de ventana"
+  },
+  {
+   "en": "Run Program",
+   "es": "Ejecutar programa"
+  },
+  {
+   "en": "Notification",
+   "es": "Notificación"
+  },
+  {
+   "en": "Message Box",
+   "es": "Cuadro de mensaje"
+  },
+  {
+   "en": "Beep",
+   "es": "Pitido"
+  },
+  {
+   "en": "Find Image",
+   "es": "Buscar imagen"
+  },
+  {
+   "en": "Save Screenshot",
+   "es": "Guardar captura de pantalla"
+  },
+  {
+   "en": "Set Clipboard",
+   "es": "Poner en el portapapeles"
+  },
+  {
+   "en": "Hide ▾",
+   "es": "Ocultar ▾"
+  },
+  {
+   "en": "Show ▴",
+   "es": "Mostrar ▴"
+  },
+  {
+   "en": "Settings Not Kept",
+   "es": "La configuración no se conserva"
+  },
+  {
+   "en": "Don't Keep App Data is on, so the theme and every other setting start fresh each time the app opens. Click to choose a folder to keep them in.",
+   "es": "No conservar los datos de la aplicación está activado, así que el tema y el resto de la configuración empiezan de cero cada vez que se abre la aplicación. Haz clic para elegir una carpeta donde conservarlos."
+  },
+  {
+   "en": "What's Limited?",
+   "es": "¿Qué está limitado?"
+  },
+  {
+   "en": "▶ Play Selection",
+   "es": "▶ Reproducir selección"
+  },
+  {
+   "en": "● Record",
+   "es": "● Grabar"
+  },
+  {
+   "en": "▶ Play",
+   "es": "▶ Reproducir"
+  },
+  {
+   "en": "❚❚ Pause",
+   "es": "❚❚ Pausar"
+  },
+  {
+   "en": "■ Stop",
+   "es": "■ Detener"
+  },
+  {
+   "en": "100 % plays at the recorded speed; 200 % is twice as fast.",
+   "es": "100 % reproduce a la velocidad grabada; 200 % es el doble de rápido."
+  },
+  {
+   "en": "Speed",
+   "es": "Velocidad"
+  },
+  {
+   "en": "Time",
+   "es": "vez",
+   "note": "repeat once"
+  },
+  {
+   "en": "Times",
+   "es": "veces",
+   "note": "repeat count"
+  },
+  {
+   "en": "Repeat",
+   "es": "Repetir"
+  },
+  {
+   "en": "As Recorded",
+   "es": "Como se grabó"
+  },
+  {
+   "en": "Straight Line",
+   "es": "Línea recta"
+  },
+  {
+   "en": "Smooth Curve",
+   "es": "Curva suave"
+  },
+  {
+   "en": "Human-Like",
+   "es": "Como una persona"
+  },
+  {
+   "en": "How the mouse travels between points. Human-like wobbles and slows down near the target, for programs that notice robotic movement.",
+   "es": "Cómo se desplaza el mouse entre puntos. Como una persona tiembla un poco y frena cerca del objetivo, para programas que detectan movimientos robóticos."
+  },
+  {
+   "en": "Mouse Path",
+   "es": "Trayectoria del mouse"
+  },
+  {
+   "en": "Instant",
+   "es": "Instantánea"
+  },
+  {
+   "en": "As recorded keeps your typing rhythm (some programs miss keys typed too fast).",
+   "es": "Como se grabó conserva tu ritmo de escritura (algunos programas pierden teclas escritas demasiado rápido)."
+  },
+  {
+   "en": "Typing",
+   "es": "Escritura"
+  },
+  {
+   "en": "Do Nothing",
+   "es": "No hacer nada"
+  },
+  {
+   "en": "Close App",
+   "es": "Cerrar la aplicación"
+  },
+  {
+   "en": "Lock Computer",
+   "es": "Bloquear la computadora"
+  },
+  {
+   "en": "Sleep",
+   "es": "Suspender"
+  },
+  {
+   "en": "Log Off",
+   "es": "Cerrar sesión"
+  },
+  {
+   "en": "Restart",
+   "es": "Reiniciar"
+  },
+  {
+   "en": "Shut Down",
+   "es": "Apagar"
+  },
+  {
+   "en": "After the macro finishes on its own (not when you stop it). Lock, sleep, log off, restart and shut down wait 30 seconds first, so you can cancel.",
+   "es": "Cuando la macro termina sola (no cuando la detienes). Bloquear, suspender, cerrar sesión, reiniciar y apagar esperan antes 30 segundos, para que puedas cancelar."
+  },
+  {
+   "en": "When Finished",
+   "es": "Al terminar"
+  },
+  {
+   "en": "Countdown Before Playing",
+   "es": "Cuenta regresiva antes de reproducir"
+  },
+  {
+   "en": "Stop on Key Press",
+   "es": "Detener al presionar una tecla"
+  },
+  {
+   "en": "Stop on Mouse Move",
+   "es": "Detener al mover el mouse"
+  },
+  {
+   "en": "Block Keyboard While Playing",
+   "es": "Bloquear el teclado al reproducir"
+  },
+  {
+   "en": "Keys you press don't reach other programs while a macro plays. The Stop and Pause hotkeys still work.",
+   "es": "Las teclas que presionas no llegan a otros programas mientras se reproduce una macro. Las teclas rápidas Detener y Pausar siguen funcionando."
+  },
+  {
+   "en": "Only available on Windows.",
+   "es": "Solo disponible en Windows."
+  },
+  {
+   "en": "Restore Mouse Position",
+   "es": "Restaurar la posición del mouse"
+  },
+  {
+   "en": "Show Notifications",
+   "es": "Mostrar notificaciones"
+  },
+  {
+   "en": "Notification steps pop up on the desktop. Off: they're only written to the activity log.",
+   "es": "Los pasos Notificación aparecen en el escritorio. Desactivado: solo se escriben en el registro de actividad."
+  },
+  {
+   "en": "Minimize While Playing",
+   "es": "Minimizar al reproducir"
+  },
+  {
+   "en": "Pictures of the screen can't be taken here.",
+   "es": "Aquí no se pueden tomar imágenes de la pantalla."
+  },
+  {
+   "en": "Esc: Cancel",
+   "es": "Esc: cancelar"
+  },
+  {
+   "en": "Once, %1",
+   "es": "Una vez, %1"
+  },
+  {
+   "en": "Every %1 min from %2",
+   "es": "Cada %1 min desde %2"
+  },
+  {
+   "en": "Every day at %1",
+   "es": "Todos los días a las %1"
+  },
+  {
+   "en": "Weekdays at %1",
+   "es": "De lunes a viernes a las %1"
+  },
+  {
+   "en": "Weekends at %1",
+   "es": "Fines de semana a las %1"
+  },
+  {
+   "en": "No days chosen",
+   "es": "Ningún día elegido"
+  },
+  {
+   "en": "%1 at %2",
+   "es": "%1 a las %2",
+   "note": "days at a time"
+  },
+  {
+   "en": "It isn't a theme file (it isn't valid JSON: %1).",
+   "es": "No es un archivo de tema (no es JSON válido: %1)."
+  },
+  {
+   "en": "Its background color (\"editor.background\") isn't a color.",
+   "es": "Su color de fondo (\"editor.background\") no es un color."
+  },
+  {
+   "en": "No theme colors were found in it. A theme file needs a \"colors\" section with at least \"bg\" (or, for a VS Code theme, \"editor.background\").",
+   "es": "No se encontraron colores de tema. Un archivo de tema necesita una sección \"colors\" con al menos \"bg\" (o, en un tema de VS Code, \"editor.background\")."
+  },
+  {
+   "en": "Its background color (\"bg\") isn't a color like #1E2128.",
+   "es": "Su color de fondo (\"bg\") no es un color como #1E2128."
+  },
+  {
+   "en": "These colors weren't valid and were worked out from the others instead: %1.",
+   "es": "Estos colores no eran válidos y se calcularon a partir de los demás: %1."
+  },
+  {
+   "en": "Custom Theme",
+   "es": "Tema personalizado"
+  },
+  {
+   "en": "%1 (Imported)",
+   "es": "%1 (importado)"
+  },
+  {
+   "en": "A built-in theme is already called \"%1\", so this one is called \"%2\".",
+   "es": "Ya hay un tema incluido llamado \"%1\", así que este se llama \"%2\"."
+  },
+  {
+   "en": "Its text may be hard to read: the contrast between text and background is %1:1 (4.5:1 or more reads well).",
+   "es": "Su texto puede ser difícil de leer: el contraste entre el texto y el fondo es %1:1 (4.5:1 o más se lee bien)."
+  },
+  {
+   "en": "It couldn't be opened: %1",
+   "es": "No se pudo abrir: %1"
+  },
+  {
+   "en": "It's too big to be a theme file (%1 MB).",
+   "es": "Es demasiado grande para ser un archivo de tema (%1 MB)."
+  },
+  {
+   "en": "--play needs a macro file to play.",
+   "es": "--play necesita un archivo de macro para reproducir."
+  },
+  {
+   "en": "Back (X1)",
+   "es": "Atrás (X1)",
+   "note": "mouse button"
+  },
+  {
+   "en": "Forward (X2)",
+   "es": "Adelante (X2)",
+   "note": "mouse button"
+  },
+  {
+   "en": "Left",
+   "es": "izquierdo",
+   "note": "mouse button, inside a step name"
+  },
+  {
+   "en": "Right",
+   "es": "derecho",
+   "note": "mouse button, inside a step name"
+  },
+  {
+   "en": "Middle",
+   "es": "central",
+   "note": "mouse button, inside a step name"
+  },
+  {
+   "en": "Back (X1)",
+   "es": "atrás (X1)",
+   "note": "mouse button, inside a step name"
+  },
+  {
+   "en": "Forward (X2)",
+   "es": "adelante (X2)",
+   "note": "mouse button, inside a step name"
+  },
+  {
+   "en": "Mouse Move",
+   "es": "Mover el mouse"
+  },
+  {
+   "en": "%1 Double-Click",
+   "es": "Doble clic %1"
+  },
+  {
+   "en": "%1 Click",
+   "es": "Clic %1"
+  },
+  {
+   "en": "%1 Button Down",
+   "es": "Presionar botón %1"
+  },
+  {
+   "en": "%1 Button Up",
+   "es": "Soltar botón %1"
+  },
+  {
+   "en": "Scroll Right",
+   "es": "Desplazar a la derecha"
+  },
+  {
+   "en": "Scroll Left",
+   "es": "Desplazar a la izquierda"
+  },
+  {
+   "en": "Scroll Up",
+   "es": "Desplazar hacia arriba"
+  },
+  {
+   "en": "Scroll Down",
+   "es": "Desplazar hacia abajo"
+  },
+  {
+   "en": "Key Press",
+   "es": "Pulsar tecla"
+  },
+  {
+   "en": "Key Down",
+   "es": "Presionar tecla"
+  },
+  {
+   "en": "Key Up",
+   "es": "Soltar tecla"
+  },
+  {
+   "en": "Run Macro",
+   "es": "Ejecutar macro"
+  },
+  {
+   "en": "End Group",
+   "es": "Fin de grupo"
+  },
+  {
+   "en": "Wait for Image to Go",
+   "es": "Esperar a que desaparezca la imagen"
+  },
+  {
+   "en": "Double-Click Image",
+   "es": "Doble clic en imagen"
+  },
+  {
+   "en": "Right-Click Image",
+   "es": "Clic derecho en imagen"
+  },
+  {
+   "en": "Point at Image",
+   "es": "Apuntar a imagen"
+  },
+  {
+   "en": "Read Text",
+   "es": "Leer texto"
+  },
+  {
+   "en": "Wait for Text to Go",
+   "es": "Esperar a que desaparezca el texto"
+  },
+  {
+   "en": "Double-Click Text",
+   "es": "Doble clic en texto"
+  },
+  {
+   "en": "Right-Click Text",
+   "es": "Clic derecho en texto"
+  },
+  {
+   "en": "Point at Text",
+   "es": "Apuntar a texto"
+  },
+  {
+   "en": "Find Text",
+   "es": "Buscar texto"
+  },
+  {
+   "en": "%1, %2 px (in window)",
+   "es": "%1, %2 px (en la ventana)"
+  },
+  {
+   "en": "give up after %1",
+   "es": "tiempo límite %1"
+  },
+  {
+   "en": "finds its picture",
+   "es": "busca su imagen"
+  },
+  {
+   "en": "1 notch at %1",
+   "es": "1 muesca en %1"
+  },
+  {
+   "en": "%1 notches at %2",
+   "es": "%1 muescas en %2"
+  },
+  {
+   "en": "%1 to %2 (random)",
+   "es": "%1 a %2 (aleatorio)"
+  },
+  {
+   "en": "any program",
+   "es": "cualquier programa"
+  },
+  {
+   "en": "%1 at %2, %3 px",
+   "es": "%1 en %2, %3 px"
+  },
+  {
+   "en": "from “%1” %2",
+   "es": "desde “%1”, %2"
+  },
+  {
+   "en": "“%1” if %2",
+   "es": "“%1” si %2"
+  },
+  {
+   "en": "%1 exists",
+   "es": "%1 existe"
+  },
+  {
+   "en": "%1 is gone",
+   "es": "%1 desaparece"
+  },
+  {
+   "en": "%1 changes",
+   "es": "%1 cambia"
+  },
+  {
+   "en": "active window",
+   "es": "ventana activa"
+  },
+  {
+   "en": "maximize",
+   "es": "maximizar"
+  },
+  {
+   "en": "minimize",
+   "es": "minimizar"
+  },
+  {
+   "en": "restore",
+   "es": "restaurar"
+  },
+  {
+   "en": "anywhere on screen",
+   "es": "en cualquier parte de la pantalla"
+  },
+  {
+   "en": "in %1",
+   "es": "en %1",
+   "note": "an area of the screen"
+  },
+  {
+   "en": "wait up to %1",
+   "es": "esperar hasta %1"
+  },
+  {
+   "en": "offset %1, %2 px",
+   "es": "desplazamiento %1, %2 px"
+  },
+  {
+   "en": "This file isn't a macro saved by this app.",
+   "es": "Este archivo no es una macro guardada por esta aplicación."
+  },
+  {
+   "en": "This macro was saved by a newer version of the app. Please update.",
+   "es": "Esta macro se guardó con una versión más nueva de la aplicación. Actualiza la aplicación."
+  },
+  {
+   "en": "%1 unknown action(s) were skipped.",
+   "es": "Se omitieron acciones desconocidas: %1."
+  },
+  {
+   "en": "Left",
+   "es": "Izquierdo",
+   "note": "mouse button"
+  },
+  {
+   "en": "Right",
+   "es": "Derecho",
+   "note": "mouse button"
+  },
+  {
+   "en": "Middle",
+   "es": "Central",
+   "note": "mouse button"
+  },
+  {
+   "en": "The expression is empty.",
+   "es": "La expresión está vacía."
+  },
+  {
+   "en": "Unexpected “%1”.",
+   "es": "No se esperaba “%1”."
+  },
+  {
+   "en": "“%1” isn't a number.",
+   "es": "“%1” no es un número."
+  },
+  {
+   "en": "A text in quotes isn't closed: add the closing %1.",
+   "es": "Un texto entre comillas no está cerrado: agrega la comilla de cierre (%1)."
+  },
+  {
+   "en": "“%1” can't be used in an expression.",
+   "es": "“%1” no se puede usar en una expresión."
+  },
+  {
+   "en": "the end",
+   "es": "el final",
+   "note": "of an expression"
+  },
+  {
+   "en": "The text is too long (over 10 million characters).",
+   "es": "El texto es demasiado largo (más de 10 millones de caracteres)."
+  },
+  {
+   "en": "The expression is nested too deeply.",
+   "es": "La expresión tiene demasiados niveles anidados."
+  },
+  {
+   "en": "“-” needs two numbers (“%1” and “%2”).",
+   "es": "“-” necesita dos números (“%1” y “%2”)."
+  },
+  {
+   "en": "“%1” needs two numbers (“%2” and “%3”).",
+   "es": "“%1” necesita dos números (“%2” y “%3”)."
+  },
+  {
+   "en": "Division by zero.",
+   "es": "División por cero."
+  },
+  {
+   "en": "“-” needs a number, not “%1”.",
+   "es": "“-” necesita un número, no “%1”."
+  },
+  {
+   "en": "A “(” isn't closed: add a “)”.",
+   "es": "Hay un “(” sin cerrar: agrega un “)”."
+  },
+  {
+   "en": "“%1” is missing something before or after it.",
+   "es": "A “%1” le falta algo antes o después."
+  },
+  {
+   "en": "No variable is named “%1” (set it with a Set Variable step first).",
+   "es": "No hay ninguna variable llamada “%1” (primero asígnala con un paso Asignar variable)."
+  },
+  {
+   "en": "The expression ends too early.",
+   "es": "La expresión termina demasiado pronto."
+  },
+  {
+   "en": "There's no function named “%1”.",
+   "es": "No hay ninguna función llamada “%1”."
+  },
+  {
+   "en": "%1( isn't closed: add a “)”.",
+   "es": "%1( no está cerrado: agrega un “)”."
+  },
+  {
+   "en": "%1() takes 1 value. Example: %2",
+   "es": "%1() admite 1 valor. Ejemplo: %2"
+  },
+  {
+   "en": "%1 or more",
+   "es": "%1 o más",
+   "note": "values"
+  },
+  {
+   "en": "%1 to %2",
+   "es": "de %1 a %2",
+   "note": "values"
+  },
+  {
+   "en": "%1() takes %2 values. Example: %3",
+   "es": "%1() admite %2 valores. Ejemplo: %3"
+  },
+  {
+   "en": "%1() needs a number, not “%2”.",
+   "es": "%1() necesita un número, no “%2”."
+  },
+  {
+   "en": "%1(): can't read “%2”.",
+   "es": "%1(): no se puede leer “%2”."
+  },
+  {
+   "en": "%1(): “%2” is too large (over 50 MB).",
+   "es": "%1(): “%2” es demasiado grande (más de 50 MB)."
+  },
+  {
+   "en": "%1(): the list is empty.",
+   "es": "%1(): la lista está vacía."
+  },
+  {
+   "en": "item() counts from 1, not %1.",
+   "es": "item() cuenta desde 1, no desde %1."
+  },
+  {
+   "en": "line(): “%1” is empty.",
+   "es": "line(): “%1” está vacío."
+  },
+  {
+   "en": "line() counts from 1, not %1.",
+   "es": "line() cuenta desde 1, no desde %1."
+  },
+  {
+   "en": "mid() counts from 1, not %1.",
+   "es": "mid() cuenta desde 1, no desde %1."
+  },
+  {
+   "en": "Step %1",
+   "es": "Paso %1"
+  },
+  {
+   "en": "%1: Else without an If before it.",
+   "es": "%1: Si no sin un Si antes."
+  },
+  {
+   "en": "%1: a second Else for the same If.",
+   "es": "%1: un segundo Si no para el mismo Si."
+  },
+  {
+   "en": "%1: End If without an If before it.",
+   "es": "%1: Fin de Si sin un Si antes."
+  },
+  {
+   "en": "%1: End Group without a Group before it.",
+   "es": "%1: Fin de grupo sin un Grupo antes."
+  },
+  {
+   "en": "%1: If without an End If after it.",
+   "es": "%1: Si sin un Fin de Si después."
+  },
+  {
+   "en": "In “%1”: %2",
+   "es": "En “%1”: %2"
+  },
+  {
+   "en": "%1 “%2”: %3 Treated as false.",
+   "es": "%1 “%2”: %3 Se toma como falso."
+  },
+  {
+   "en": "true",
+   "es": "verdadero",
+   "note": "a condition's result"
+  },
+  {
+   "en": "false",
+   "es": "falso",
+   "note": "a condition's result"
+  },
+  {
+   "en": "%1 = %2",
+   "es": "%1 = %2"
+  },
+  {
+   "en": "%1: the step has no picture to look for; skipped.",
+   "es": "%1: el paso no tiene ninguna imagen que buscar; se omitió."
+  },
+  {
+   "en": "%1: pictures of the screen can't be taken here; skipped.",
+   "es": "%1: aquí no se pueden tomar imágenes de la pantalla; se omitió."
+  },
+  {
+   "en": "Picture found at %1, %2 px (difference %3 %).",
+   "es": "Imagen encontrada en %1, %2 px (diferencia %3 %)."
+  },
+  {
+   "en": "%1: the picture was still there after %2 s; continuing.",
+   "es": "%1: la imagen seguía allí después de %2 s; se continúa."
+  },
+  {
+   "en": "The picture of the %1 step wasn't found within %2 s.",
+   "es": "La imagen del paso %1 no se encontró en %2 s."
+  },
+  {
+   "en": "The picture of the %1 step wasn't on the screen.",
+   "es": "La imagen del paso %1 no estaba en la pantalla."
+  },
+  {
+   "en": "%1: the picture wasn't found; continuing (found = 0).",
+   "es": "%1: no se encontró la imagen; se continúa (found = 0)."
+  },
+  {
+   "en": "Smart click: found what was clicked %1, %2 px from where it was recorded.",
+   "es": "Clic inteligente: se encontró lo que se pulsó a %1, %2 px de donde se grabó."
+  },
+  {
+   "en": "Step %1 (smart click): what was clicked when recording isn't on the screen; clicked where it was recorded.",
+   "es": "Paso %1 (clic inteligente): lo que se pulsó al grabar no está en la pantalla; se hizo clic donde se grabó."
+  },
+  {
+   "en": "“%1” found at %2, %3 px.",
+   "es": "“%1” encontrado en %2, %3 px."
+  },
+  {
+   "en": "%1: “%2” was still there after %3 s; continuing.",
+   "es": "%1: “%2” seguía allí después de %3 s; se continúa."
+  },
+  {
+   "en": "“%1” wasn't found on the screen within %2 s.",
+   "es": "“%1” no se encontró en la pantalla en %2 s."
+  },
+  {
+   "en": "“%1” wasn't on the screen.",
+   "es": "“%1” no estaba en la pantalla."
+  },
+  {
+   "en": "%1: “%2” wasn't found; continuing (found = 0).",
+   "es": "%1: no se encontró “%2”; se continúa (found = 0)."
+  },
+  {
+   "en": "Save Screenshot: pictures of the screen can't be taken here; skipped.",
+   "es": "Guardar captura de pantalla: aquí no se pueden tomar imágenes de la pantalla; se omitió."
+  },
+  {
+   "en": "Screenshot %1.png",
+   "es": "Captura %1.png"
+  },
+  {
+   "en": "Save Screenshot: couldn't save “%1”.",
+   "es": "Guardar captura de pantalla: no se pudo guardar “%1”."
+  },
+  {
+   "en": "Screenshot saved: %1",
+   "es": "Captura guardada: %1"
+  },
+  {
+   "en": "Unknown key “%1” was skipped.",
+   "es": "Se omitió la tecla desconocida “%1”."
+  },
+  {
+   "en": "No window titled “%1”; used another %2 window.",
+   "es": "No hay ninguna ventana titulada “%1”; se usó otra ventana de %2."
+  },
+  {
+   "en": "Couldn't find the window “%1” (%2) within %3 s.",
+   "es": "No se encontró la ventana “%1” (%2) en %3 s."
+  },
+  {
+   "en": "Pixel %1, %2 px didn't turn %3 within %4 s; continuing.",
+   "es": "El píxel %1, %2 px no se volvió %3 en %4 s; se continúa."
+  },
+  {
+   "en": "“%1” wasn't pressed within %2 s; continuing.",
+   "es": "No se presionó “%1” en %2 s; se continúa."
+  },
+  {
+   "en": "Couldn't start “%1”.",
+   "es": "No se pudo iniciar “%1”."
+  },
+  {
+   "en": "The question “%1” was cancelled.",
+   "es": "Se canceló la pregunta “%1”."
+  },
+  {
+   "en": "Ask AI: %1",
+   "es": "Preguntar a la IA: %1"
+  },
+  {
+   "en": "Set Variable %1 = %2: %3 The variable wasn't changed.",
+   "es": "Asignar variable %1 = %2: %3 La variable no cambió."
+  },
+  {
+   "en": "Move / Resize Window: no window matched %1%2; continuing.",
+   "es": "Mover / cambiar tamaño de ventana: ninguna ventana coincidió con %1%2; se continúa."
+  },
+  {
+   "en": "(any program)",
+   "es": "(cualquier programa)"
+  },
+  {
+   "en": "“%1” didn't appear within %2 s; continuing.",
+   "es": "“%1” no apareció en %2 s; se continúa."
+  },
+  {
+   "en": "“%1” didn't go away within %2 s; continuing.",
+   "es": "“%1” no desapareció en %2 s; se continúa."
+  },
+  {
+   "en": "“%1” didn't change within %2 s; continuing.",
+   "es": "“%1” no cambió en %2 s; se continúa."
+  },
+  {
+   "en": "“Run macro” steps are nested more than %1 deep (a macro that runs itself?); skipped.",
+   "es": "Los pasos “Ejecutar macro” están anidados en más de %1 niveles (¿una macro que se ejecuta a sí misma?); se omitió."
+  },
+  {
+   "en": "Couldn't run the macro “%1”: %2",
+   "es": "No se pudo ejecutar la macro “%1”: %2"
+  },
+  {
+   "en": "Go To if",
+   "es": "Ir a si"
+  },
+  {
+   "en": "No action has the label “%1”; skipping the go-to.",
+   "es": "Ninguna acción tiene la etiqueta “%1”; se omite el Ir a."
+  },
+  {
+   "en": "No action has the label “%1”; skipping the repeat.",
+   "es": "Ninguna acción tiene la etiqueta “%1”; se omite el Repetir."
+  },
+  {
+   "en": "Waited %1 ms for Shift, Ctrl, Alt and Win to be let go.",
+   "es": "Se esperaron %1 ms a que se soltaran Shift, Ctrl, Alt y Win."
+  },
+  {
+   "en": "No graphical session was found (neither X11 nor Wayland).",
+   "es": "No se encontró ninguna sesión gráfica (ni X11 ni Wayland)."
+  },
+  {
+   "en": "This Wayland session has no XWayland, and the app has %1.",
+   "es": "Esta sesión de Wayland no tiene XWayland y la aplicación no puede usar uinput: %1."
+  },
+  {
+   "en": "Wayland: playback works in every program (plain US-keyboard characters only). Recording, hotkeys, the active window and Stop on Mouse Move only see programs running through XWayland.",
+   "es": "Wayland: la reproducción funciona en todos los programas (solo caracteres simples del teclado de EE. UU.). La grabación, las teclas rápidas, la ventana activa y Detener al mover el mouse solo ven los programas que se ejecutan mediante XWayland."
+  },
+  {
+   "en": "Wayland: recording and playback only work with programs running through XWayland (%1).",
+   "es": "Wayland: la grabación y la reproducción solo funcionan con programas que se ejecutan mediante XWayland (%1)."
+  },
+  {
+   "en": "Couldn't run %1.",
+   "es": "No se pudo ejecutar %1."
+  },
+  {
+   "en": "Couldn't remove %1.",
+   "es": "No se pudo quitar %1."
+  },
+  {
+   "en": "Couldn't write %1.",
+   "es": "No se pudo escribir %1."
+  },
+  {
+   "en": "Not needed on Linux.",
+   "es": "No hace falta en Linux."
+  },
+  {
+   "en": "For recording on Wayland, choose an “X11” or “Xorg” session at the login screen. For playback into every program, give the app access to /dev/uinput (see the README, “Linux setup”).",
+   "es": "Para grabar en Wayland, elige una sesión “X11” o “Xorg” en la pantalla de inicio de sesión. Para reproducir en todos los programas, dale a la aplicación acceso a /dev/uinput (consulta el README, “Linux setup”)."
+  },
+  {
+   "en": "Global hotkeys aren't available here.",
+   "es": "Aquí no hay teclas rápidas globales disponibles."
+  },
+  {
+   "en": "Recording isn't possible on this Wayland session (no XWayland).",
+   "es": "No se puede grabar en esta sesión de Wayland (no hay XWayland)."
+  },
+  {
+   "en": "Wayland: playback works in every program, but hotkeys and Stop on Mouse Move aren't available. Use the Stop button to stop.",
+   "es": "Wayland: la reproducción funciona en todos los programas, pero no hay teclas rápidas ni Detener al mover el mouse. Usa el botón Detener para detener."
+  },
+  {
+   "en": "Wayland: Limited",
+   "es": "Wayland: limitado"
+  },
+  {
+   "en": "Global hotkeys aren't available on Wayland without XWayland.",
+   "es": "Las teclas rápidas globales no están disponibles en Wayland sin XWayland."
+  },
+  {
+   "en": "On Wayland only plain (US keyboard) characters can be typed; “%1” was skipped.",
+   "es": "En Wayland solo se pueden escribir caracteres simples (teclado de EE. UU.); se omitió “%1”."
+  },
+  {
+   "en": "On Wayland, programs can't bring other windows to the front: “Window focus” steps were skipped. Make sure the right window is in front before playing.",
+   "es": "En Wayland, los programas no pueden traer otras ventanas al frente: se omitieron los pasos “Activar ventana”. Asegúrate de que la ventana correcta esté al frente antes de reproducir."
+  },
+  {
+   "en": "On Wayland, window positions aren't available: positions “relative to the window” were used as screen positions.",
+   "es": "En Wayland no hay posiciones de ventanas: las posiciones “relativas a la ventana” se usaron como posiciones de pantalla."
+  },
+  {
+   "en": "On Wayland, programs can't read the screen: “Wait for pixel color” steps time out.",
+   "es": "En Wayland, los programas no pueden leer la pantalla: los pasos “Esperar color de píxel” agotan el tiempo."
+  },
+  {
+   "en": "On Wayland, “Wait for key” can't see key presses: those steps time out.",
+   "es": "En Wayland, “Esperar tecla” no ve las pulsaciones: esos pasos agotan el tiempo."
+  },
+  {
+   "en": "no access to /dev/uinput (%1)",
+   "es": "sin acceso a /dev/uinput (%1)"
+  },
+  {
+   "en": "couldn't create the virtual input device (%1)",
+   "es": "no se pudo crear el dispositivo de entrada virtual (%1)"
+  },
+  {
+   "en": "The virtual input device stopped accepting input.",
+   "es": "El dispositivo de entrada virtual dejó de aceptar entradas."
+  },
+  {
+   "en": "Some characters couldn't be typed: the keyboard layout has no free key to use.",
+   "es": "Algunos caracteres no se pudieron escribir: la distribución del teclado no tiene ninguna tecla libre que usar."
+  },
+  {
+   "en": "reading text on Linux needs Tesseract: install it (for example: sudo apt install tesseract-ocr).",
+   "es": "para leer texto en Linux hace falta Tesseract: instálalo (por ejemplo: sudo apt install tesseract-ocr)."
+  },
+  {
+   "en": "Tesseract didn't start.",
+   "es": "Tesseract no se inició."
+  },
+  {
+   "en": "Tesseract couldn't read the picture.",
+   "es": "Tesseract no pudo leer la imagen."
+  },
+  {
+   "en": "Couldn't connect to the X11 display.",
+   "es": "No se pudo conectar con la pantalla X11."
+  },
+  {
+   "en": "The X server doesn't support XTest, which playback needs.",
+   "es": "El servidor X no admite XTest, que hace falta para reproducir."
+  },
+  {
+   "en": "The X server doesn't support XRecord, which recording needs.",
+   "es": "El servidor X no admite XRecord, que hace falta para grabar."
+  },
+  {
+   "en": "“%1” can't be used as a hotkey.",
+   "es": "“%1” no se puede usar como tecla rápida."
+  },
+  {
+   "en": "Global hotkeys aren't available.",
+   "es": "Las teclas rápidas globales no están disponibles."
+  },
+  {
+   "en": "%1 is already used by another program.",
+   "es": "%1 ya lo usa otro programa."
+  },
+  {
+   "en": "Windows blocked some of the clicks or keys. This happens when the window in front runs as administrator: run MacroRecorder as administrator too to control it.",
+   "es": "Windows bloqueó algunos clics o teclas. Esto pasa cuando la ventana del frente se ejecuta como administrador: ejecuta también MacroRecorder como administrador para controlarla."
+  },
+  {
+   "en": "Couldn't register %1 (error %2).",
+   "es": "No se pudo registrar %1 (error %2)."
+  },
+  {
+   "en": "Windows refused (error %1).",
+   "es": "Windows lo rechazó (error %1)."
+  },
+  {
+   "en": "Couldn't change the Windows start-up list.",
+   "es": "No se pudo cambiar la lista de inicio de Windows."
+  },
+  {
+   "en": "Cancelled.",
+   "es": "Cancelado."
+  },
+  {
+   "en": "Windows couldn't start it (error %1).",
+   "es": "Windows no pudo iniciarlo (error %1)."
+  },
+  {
+   "en": "Windows couldn't create the shortcut (error 0x%1).",
+   "es": "Windows no pudo crear el acceso directo (error 0x%1)."
+  },
+  {
+   "en": "the text recognition didn't start.",
+   "es": "el reconocimiento de texto no se inició."
+  },
+  {
+   "en": "the text recognition took too long.",
+   "es": "el reconocimiento de texto tardó demasiado."
+  },
+  {
+   "en": "the text recognition failed.",
+   "es": "el reconocimiento de texto falló."
+  },
+  {
+   "en": "Windows' text recognition isn't available (it needs Windows 10 or later).",
+   "es": "El reconocimiento de texto de Windows no está disponible (necesita Windows 10 o posterior)."
+  },
+  {
+   "en": "Windows has no text recognition for the display languages set up (Settings > Time & Language > Language: add the language's optional features).",
+   "es": "Windows no tiene reconocimiento de texto para los idiomas de visualización configurados (Configuración > Hora e idioma > Idioma: agrega las características opcionales del idioma)."
+  },
+  {
+   "en": "Windows' imaging isn't available.",
+   "es": "Las funciones de imagen de Windows no están disponibles."
+  },
+  {
+   "en": "the picture is too small to read.",
+   "es": "la imagen es demasiado pequeña para leerla."
+  },
+  {
+   "en": "the picture couldn't be handed to the text recognition.",
+   "es": "no se pudo pasar la imagen al reconocimiento de texto."
+  },
+  {
+   "en": "the picture couldn't be copied for the text recognition.",
+   "es": "no se pudo copiar la imagen para el reconocimiento de texto."
+  },
+  {
+   "en": "PLAYBACK",
+   "es": "REPRODUCCIÓN"
+  },
+  {
+   "en": "RECORDING",
+   "es": "GRABACIÓN"
+  },
+  {
+   "en": "HOTKEYS",
+   "es": "TECLAS RÁPIDAS"
+  },
+  {
+   "en": "ACTIONS",
+   "es": "ACCIONES"
+  },
+  {
+   "en": "ACTIVITY",
+   "es": "ACTIVIDAD"
+  },
+  {
+   "en": "Dark Themes",
+   "es": "Temas oscuros"
+  },
+  {
+   "en": "Light Themes",
+   "es": "Temas claros"
+  },
+  {
+   "en": "Custom Themes",
+   "es": "Temas personalizados"
+  },
+  {
+   "en": "Light",
+   "es": "Claro"
+  },
+  {
+   "en": "Dark",
+   "es": "Oscuro"
+  },
+  {
+   "en": "High Contrast",
+   "es": "Alto contraste"
+  },
+  {
+   "en": "Paper",
+   "es": "Papel"
+  },
+  {
+   "en": "Sepia",
+   "es": "Sepia"
+  },
+  {
+   "en": "random(1, 10): a whole number from 1 to 10 (random(6) is 1 to 6)",
+   "es": "random(1, 10): un número entero del 1 al 10 (random(6) es del 1 al 6)"
+  },
+  {
+   "en": "pick(\"red, green, blue\"): one item of a list, chosen at random",
+   "es": "pick(\"rojo, verde, azul\"): un elemento de una lista, elegido al azar"
+  },
+  {
+   "en": "item(\"red, green, blue\", 2): the 2nd item (green); after the last it starts over",
+   "es": "item(\"rojo, verde, azul\", 2): el 2.º elemento (verde); después del último vuelve a empezar"
+  },
+  {
+   "en": "count(\"red, green, blue\"): how many items a list has (3)",
+   "es": "count(\"rojo, verde, azul\"): cuántos elementos tiene una lista (3)"
+  },
+  {
+   "en": "line(\"C:\\names.txt\", 3): the 3rd line of a text file; after the last it starts over",
+   "es": "line(\"C:\\nombres.txt\", 3): la 3.ª línea de un archivo de texto; después de la última vuelve a empezar"
+  },
+  {
+   "en": "lines(\"C:\\names.txt\"): how many lines a text file has",
+   "es": "lines(\"C:\\nombres.txt\"): cuántas líneas tiene un archivo de texto"
+  },
+  {
+   "en": "round(2.567, 1): 2.6 (no second number: a whole number)",
+   "es": "round(2.567, 1): 2.6 (sin segundo número: un número entero)"
+  },
+  {
+   "en": "floor(2.7): 2",
+   "es": "floor(2.7): 2"
+  },
+  {
+   "en": "ceil(2.1): 3",
+   "es": "ceil(2.1): 3"
+  },
+  {
+   "en": "abs(-5): 5",
+   "es": "abs(-5): 5"
+  },
+  {
+   "en": "min(4, 9, 2): 2",
+   "es": "min(4, 9, 2): 2"
+  },
+  {
+   "en": "max(4, 9, 2): 9",
+   "es": "max(4, 9, 2): 9"
+  },
+  {
+   "en": "len(\"hello\"): 5",
+   "es": "len(\"hola\"): 4"
+  },
+  {
+   "en": "upper(\"hello\"): HELLO",
+   "es": "upper(\"hola\"): HOLA"
+  },
+  {
+   "en": "lower(\"HELLO\"): hello",
+   "es": "lower(\"HOLA\"): hola"
+  },
+  {
+   "en": "trim(\"  hi  \"): hi",
+   "es": "trim(\"  hola  \"): hola"
+  },
+  {
+   "en": "left(\"hello\", 2): he",
+   "es": "left(\"hola\", 2): ho"
+  },
+  {
+   "en": "right(\"hello\", 2): lo",
+   "es": "right(\"hola\", 2): la"
+  },
+  {
+   "en": "mid(\"hello\", 2, 3): ell (from the 2nd character, 3 characters)",
+   "es": "mid(\"hola\", 2, 3): ola (desde el 2.º carácter, 3 caracteres)"
+  },
+  {
+   "en": "find(\"hello\", \"l\"): 3 (where it first appears; 0 = not found)",
+   "es": "find(\"hola\", \"l\"): 3 (dónde aparece por primera vez; 0 = no está)"
+  },
+  {
+   "en": "contains(\"hello\", \"ell\"): true",
+   "es": "contains(\"hola\", \"ol\"): true"
+  },
+  {
+   "en": "replace(\"a-b-c\", \"-\", \"+\"): a+b+c",
+   "es": "replace(\"a-b-c\", \"-\", \"+\"): a+b+c"
+  },
+  {
+   "en": "number(\"12\"): 12 as a number",
+   "es": "number(\"12\"): 12 como número"
+  },
+  {
+   "en": "text(12): 12 as text",
+   "es": "text(12): 12 como texto"
+  },
+  {
+   "en": "if(count > 3, \"many\", \"few\"): the 2nd value when true, else the 3rd",
+   "es": "if(contador > 3, \"muchos\", \"pocos\"): el 2.º valor si es verdadero; si no, el 3.º"
+  },
+  {
+   "en": "exists(\"C:\\report.pdf\"): true when the file or folder is there",
+   "es": "exists(\"C:\\informe.pdf\"): true si el archivo o la carpeta existe"
+  },
+  {
+   "en": "now(\"yyyy-MM-dd HH:mm\"): the date and time in that form",
+   "es": "now(\"yyyy-MM-dd HH:mm\"): la fecha y la hora en ese formato"
+  },
+  {
+   "en": "clipboard(): the text on the clipboard",
+   "es": "clipboard(): el texto del portapapeles"
+  },
+  {
+   "context": "QPlatformTheme",
+   "en": "OK",
+   "es": "Aceptar"
+  },
+  {
+   "context": "QPlatformTheme",
+   "en": "Cancel",
+   "es": "Cancelar"
+  },
+  {
+   "context": "QPlatformTheme",
+   "en": "&Yes",
+   "es": "&Sí"
+  },
+  {
+   "context": "QPlatformTheme",
+   "en": "&No",
+   "es": "&No"
+  },
+  {
+   "context": "QPlatformTheme",
+   "en": "Save",
+   "es": "Guardar"
+  },
+  {
+   "context": "QPlatformTheme",
+   "en": "Discard",
+   "es": "Descartar"
+  },
+  {
+   "context": "QPlatformTheme",
+   "en": "Don't Save",
+   "es": "No guardar"
+  },
+  {
+   "context": "QPlatformTheme",
+   "en": "Close",
+   "es": "Cerrar"
+  },
+  {
+   "context": "QPlatformTheme",
+   "en": "Apply",
+   "es": "Aplicar"
+  },
+  {
+   "context": "QLineEdit",
+   "en": "&Undo",
+   "es": "&Deshacer"
+  },
+  {
+   "context": "QLineEdit",
+   "en": "&Redo",
+   "es": "&Rehacer"
+  },
+  {
+   "context": "QLineEdit",
+   "en": "Cu&t",
+   "es": "Cor&tar"
+  },
+  {
+   "context": "QLineEdit",
+   "en": "&Copy",
+   "es": "&Copiar"
+  },
+  {
+   "context": "QLineEdit",
+   "en": "&Paste",
+   "es": "&Pegar"
+  },
+  {
+   "context": "QLineEdit",
+   "en": "Delete",
+   "es": "Eliminar"
+  },
+  {
+   "context": "QLineEdit",
+   "en": "Select All",
+   "es": "Seleccionar todo"
+  }
+ ]
+}
