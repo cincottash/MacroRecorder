@@ -206,11 +206,14 @@ The **Functions…** button in the editors lists them too.
   Pressing it again while that macro plays stops it.
 - **Macro ▸ Schedules…:** once, every day, on chosen days, or every few minutes. The app must be running
   (minimized is fine; **File ▸ Settings ▸ Start at Login** makes sure of it). A schedule that comes due while
-  something else plays waits for it.
+  something else plays waits for it. To set the time, click the calendar button beside **Time** and pick the
+  day, hour and minute, or type them in the boxes.
 - **File ▸ Create Desktop Shortcut…:** double-click the shortcut to play the macro. If the app is already
   running, the macro plays there; otherwise the app starts, plays it and closes.
 
 <br clear="right">
+
+<img src=".github/readme/dialog-schedule-calendar.png" alt="Add Schedule with the calendar open: a month to click the day in, and columns of hours and minutes" width="600">
 
 ## Ask AI
 

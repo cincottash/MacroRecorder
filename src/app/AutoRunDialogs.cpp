@@ -3,6 +3,7 @@
 #include "FileDialogs.h"
 #include "core/Action.h"
 
+#include <QCalendarWidget>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDateTimeEdit>
@@ -16,13 +17,232 @@
 #include <QKeySequenceEdit>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QLocale>
+#include <QPainter>
+#include <QPainterPath>
 #include <QPushButton>
+#include <QScreen>
 #include <QSpinBox>
 #include <QTableWidget>
+#include <QTextCharFormat>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 namespace {
+
+// A small calendar in the theme's colours: the frame in the button's text colour, its top in the accent
+QIcon calendarIcon(const QPalette& pal)
+{
+    const QColor ink = pal.color(QPalette::ButtonText), band = pal.color(QPalette::Highlight);
+    QIcon icon;
+    for (int s : {16, 20, 24, 32, 40, 48}) {
+        QPixmap pm(s, s);
+        pm.fill(Qt::transparent);
+        QPainter p(&pm);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.scale(s / 16.0, s / 16.0);
+        QPainterPath body;
+        body.addRoundedRect(QRectF(1.5, 2.5, 13, 12), 2, 2);
+        p.save();
+        p.setClipRect(QRectF(0, 0, 16, 6));
+        p.fillPath(body, band);
+        p.restore();
+        p.setPen(QPen(ink, 1.2));
+        p.setBrush(Qt::NoBrush);
+        p.drawPath(body);
+        p.setPen(QPen(ink, 1.5, Qt::SolidLine, Qt::RoundCap));
+        p.drawLine(QPointF(5, 1), QPointF(5, 4));
+        p.drawLine(QPointF(11, 1), QPointF(11, 4));
+        p.setPen(Qt::NoPen);
+        p.setBrush(ink);
+        for (int r = 0; r < 2; ++r)
+            for (int c = 0; c < 3; ++c) p.drawRect(QRectF(3.6 + c * 3.2, 7.6 + r * 3.2, 1.9, 1.9));
+        p.end();
+        icon.addPixmap(pm);
+    }
+    return icon;
+}
+
+// The calendar's month arrows in the theme's text colour (Qt's own are dark on every theme)
+QIcon chevronIcon(const QColor& ink, bool left)
+{
+    QIcon icon;
+    for (int s : {16, 24, 32, 48}) {
+        QPixmap pm(s, s);
+        pm.fill(Qt::transparent);
+        QPainter p(&pm);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.scale(s / 16.0, s / 16.0);
+        p.setPen(QPen(ink, 1.8, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        const qreal x = left ? 10 : 6, tip = left ? 5.5 : 10.5;
+        p.drawPolyline(QPolygonF({QPointF(x, 3.5), QPointF(tip, 8), QPointF(x, 12.5)}));
+        p.end();
+        icon.addPixmap(pm);
+    }
+    return icon;
+}
+
+// The calendar button's pop-up: a month to click the day in, and columns of hours and minutes to click the time
+// in. Each click goes straight into the Date and Time boxes, which still take typing (any minute, not only the
+// five-minute steps listed here).
+class WhenPicker : public QFrame {
+public:
+    WhenPicker(QDateEdit* date, QTimeEdit* time, bool withDate, const QDate& firstDay, QWidget* parent)
+        : QFrame(parent, Qt::Popup), m_date(date), m_time(time)
+    {
+        setObjectName(QStringLiteral("whenPicker"));
+        setProperty("testId", QStringLiteral("whenPicker"));
+        setAttribute(Qt::WA_DeleteOnClose);
+        auto* lay = new QVBoxLayout(this);
+        lay->setContentsMargins(10, 10, 10, 10);
+        auto* row = new QHBoxLayout;
+        row->setSpacing(10);
+        if (withDate) {
+            m_cal = new QCalendarWidget;
+            m_cal->setProperty("testId", QStringLiteral("pickDay"));
+            m_cal->setVerticalHeaderFormat(QCalendarWidget::NoVerticalHeader);
+            m_cal->setHorizontalHeaderFormat(QCalendarWidget::ShortDayNames);
+            m_cal->setFirstDayOfWeek(QLocale().firstDayOfWeek());
+            if (firstDay.isValid()) m_cal->setMinimumDate(firstDay);
+            m_cal->setSelectedDate(date->date());
+            // Every day in the normal text colour (Qt draws weekends red and Saturdays blue, hard to read on dark themes)
+            QTextCharFormat day;
+            day.setForeground(palette().color(QPalette::Text));
+            for (int dn = Qt::Monday; dn <= Qt::Sunday; ++dn) m_cal->setWeekdayTextFormat(Qt::DayOfWeek(dn), day);
+            // Days that can't be picked (before today, for Once) look it: Qt draws them like the rest
+            if (firstDay.isValid()) {
+                QTextCharFormat past;
+                past.setForeground(palette().color(QPalette::Disabled, QPalette::Text));
+                for (QDate p = firstDay.addDays(-42); p < firstDay; p = p.addDays(1)) m_cal->setDateTextFormat(p, past);
+            }
+            // Columns wide enough for the day names ("Wed" was cut to "…")
+            int dayW = 0;
+            for (int dn = 1; dn <= 7; ++dn) dayW = qMax(dayW, fontMetrics().horizontalAdvance(QLocale().dayName(dn, QLocale::ShortFormat)));
+            m_cal->setMinimumWidth(7 * (dayW + 22) + 4);
+            QTextCharFormat head;
+            head.setForeground(palette().color(QPalette::PlaceholderText));
+            head.setFontWeight(QFont::DemiBold);
+            m_cal->setHeaderTextFormat(head);
+            for (const auto& [name, left] : {std::pair{"qt_calendar_prevmonth", true}, std::pair{"qt_calendar_nextmonth", false}})
+                if (auto* b = m_cal->findChild<QToolButton*>(QLatin1String(name))) {
+                    b->setIcon(chevronIcon(palette().color(QPalette::Text), left));
+                    b->setToolTip(left ? QStringLiteral("Previous month") : QStringLiteral("Next month"));
+                }
+            connect(m_cal, &QCalendarWidget::selectionChanged, this, [this] { m_date->setDate(m_cal->selectedDate()); });
+            row->addWidget(m_cal, 1);
+        }
+        const bool twelve = QLocale().timeFormat(QLocale::ShortFormat).contains(QLatin1String("ap"), Qt::CaseInsensitive);
+        m_hours = column(QStringLiteral("pickHour"));
+        for (int h = 0; h < 24; ++h)
+            addTime(m_hours, twelve ? QLocale().toString(QTime(h, 0), QStringLiteral("h AP")) : QStringLiteral("%1").arg(h, 2, 10, QLatin1Char('0')), h);
+        m_minutes = column(QStringLiteral("pickMinute"));
+        for (int m = 0; m < 60; m += 5) addTime(m_minutes, QStringLiteral(":%1").arg(m, 2, 10, QLatin1Char('0')), m);
+        row->addLayout(labelled(QStringLiteral("Hour"), m_hours));
+        row->addLayout(labelled(QStringLiteral("Minute"), m_minutes));
+        lay->addLayout(row);
+        auto* done = new QPushButton(QStringLiteral("Done"));
+        done->setObjectName(QStringLiteral("primary"));
+        done->setProperty("testId", QStringLiteral("pickDone"));
+        connect(done, &QPushButton::clicked, this, &QWidget::close);
+        auto* bottom = new QHBoxLayout;
+        auto* hint = new QLabel(QStringLiteral("Any other minute can be typed in the Time box."));
+        hint->setObjectName(QStringLiteral("muted"));
+        bottom->addWidget(hint, 1);
+        bottom->addWidget(done);
+        lay->addLayout(bottom);
+        showTime();
+        // A click or the arrow keys: the time box follows
+        connect(m_hours, &QListWidget::currentRowChanged, this, [this](int r) {
+            if (r >= 0) m_time->setTime(QTime(m_hours->item(r)->data(Qt::UserRole).toInt(), m_time->time().minute()));
+        });
+        connect(m_minutes, &QListWidget::currentRowChanged, this, [this](int r) {
+            if (r >= 0) m_time->setTime(QTime(m_time->time().hour(), m_minutes->item(r)->data(Qt::UserRole).toInt()));
+        });
+        // Typing in the boxes while this is open (it isn't, normally: a pop-up takes the keyboard) keeps it in step
+        connect(m_time, &QTimeEdit::timeChanged, this, [this] { showTime(); });
+        if (m_cal) connect(m_date, &QDateEdit::dateChanged, this, [this](QDate d) { if (m_cal->selectedDate() != d) m_cal->setSelectedDate(d); });
+    }
+
+    // Opens below `anchor`, its right edge on the anchor's, kept on the anchor's screen
+    void openAt(QWidget* anchor)
+    {
+        adjustSize();
+        if (m_cal) {   // the time columns as tall as the month
+            const int h = m_cal->sizeHint().height();
+            m_hours->setFixedHeight(h);
+            m_minutes->setFixedHeight(h);
+        } else {
+            m_hours->setFixedHeight(m_hours->sizeHintForRow(0) * 9 + 4);
+            m_minutes->setFixedHeight(m_hours->height());
+        }
+        adjustSize();
+        QPoint at = anchor->mapToGlobal(QPoint(anchor->width() - width(), anchor->height() + 2));
+        if (const QScreen* s = anchor->screen()) {
+            const QRect avail = s->availableGeometry();
+            if (at.y() + height() > avail.bottom()) at.setY(anchor->mapToGlobal(QPoint(0, 0)).y() - height() - 2);   // above instead
+            at.setX(qBound(avail.left(), at.x(), avail.right() - width()));
+            at.setY(qBound(avail.top(), at.y(), avail.bottom() - height()));
+        }
+        move(at);
+        show();
+        // The chosen hour and minute in view
+        if (QListWidgetItem* i = m_hours->currentItem()) m_hours->scrollToItem(i, QAbstractItemView::PositionAtCenter);
+        if (QListWidgetItem* i = m_minutes->currentItem()) m_minutes->scrollToItem(i, QAbstractItemView::PositionAtCenter);
+        if (m_cal) m_cal->setFocus();
+    }
+
+private:
+    static QListWidget* column(const QString& id)
+    {
+        auto* l = new QListWidget;
+        l->setProperty("testId", id);
+        l->setSelectionMode(QAbstractItemView::SingleSelection);
+        l->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        l->setUniformItemSizes(true);
+        return l;
+    }
+    static void addTime(QListWidget* l, const QString& text, int value)
+    {
+        auto* i = new QListWidgetItem(text);
+        i->setData(Qt::UserRole, value);
+        i->setTextAlignment(Qt::AlignCenter);
+        l->addItem(i);
+    }
+    static QVBoxLayout* labelled(const QString& title, QListWidget* list)
+    {
+        auto* v = new QVBoxLayout;
+        v->setSpacing(4);
+        auto* t = new QLabel(title);
+        t->setObjectName(QStringLiteral("muted"));
+        t->setAlignment(Qt::AlignCenter);
+        v->addWidget(t);
+        v->addWidget(list);
+        // Wide enough for the longest entry and a scroll bar
+        int w = 0;
+        for (int r = 0; r < list->count(); ++r) w = qMax(w, list->fontMetrics().horizontalAdvance(list->item(r)->text()));
+        w = qMax(w, t->fontMetrics().horizontalAdvance(title));
+        list->setFixedWidth(w + list->style()->pixelMetric(QStyle::PM_ScrollBarExtent) + 28);
+        return v;
+    }
+    void showTime()
+    {
+        const QSignalBlocker a(m_hours), b(m_minutes);
+        const QTime t = m_time->time();
+        m_hours->setCurrentRow(t.hour());
+        if (t.minute() % 5 == 0) m_minutes->setCurrentRow(t.minute() / 5);
+        else {   // a typed minute between the steps: none of them is chosen
+            m_minutes->setCurrentRow(-1);
+            m_minutes->clearSelection();
+        }
+    }
+
+    QDateEdit* m_date;
+    QTimeEdit* m_time;
+    QCalendarWidget* m_cal = nullptr;
+    QListWidget* m_hours = nullptr;
+    QListWidget* m_minutes = nullptr;
+};
 
 QLabel* intro(const QString& text)
 {
@@ -374,7 +594,20 @@ bool SchedulesDialog::edit(Schedule* s)
     auto* time = new QTimeEdit(s->at.isValid() ? s->at.time() : QTime(9, 0));
     time->setDisplayFormat(QLocale().timeFormat(QLocale::ShortFormat));
     form->addRow(QStringLiteral("Date:"), date);
-    form->addRow(QStringLiteral("Time:"), time);
+    // The time box with the calendar button beside it: pick the day and time by clicking, or type them
+    auto* timeRow = new QWidget;
+    auto* th = new QHBoxLayout(timeRow);
+    th->setContentsMargins(0, 0, 0, 0);
+    th->addWidget(time);
+    auto* pick = new QToolButton;
+    pick->setObjectName(QStringLiteral("tool"));
+    pick->setProperty("testId", QStringLiteral("pickWhen"));
+    pick->setIcon(calendarIcon(pick->palette()));
+    pick->setIconSize(QSize(18, 18));
+    pick->setAccessibleName(QStringLiteral("Pick on a Calendar"));
+    th->addWidget(pick);
+    th->addStretch();
+    form->addRow(QStringLiteral("Time:"), timeRow);
     auto* daysRow = new QWidget;
     auto* dh = new QHBoxLayout(daysRow);
     dh->setContentsMargins(0, 0, 0, 0);
@@ -404,12 +637,19 @@ bool SchedulesDialog::edit(Schedule* s)
         form->setRowVisible(date, k == QLatin1String("once") || k == QLatin1String("minutes"));
         form->setRowVisible(daysRow, k == QLatin1String("days"));
         form->setRowVisible(minutes, k == QLatin1String("minutes"));
-        if (auto* l = qobject_cast<QLabel*>(form->labelForField(time)))
+        if (auto* l = qobject_cast<QLabel*>(form->labelForField(timeRow)))
             l->setText(k == QLatin1String("minutes") ? QStringLiteral("Starting At:") : QStringLiteral("Time:"));
+        pick->setToolTip(form->isRowVisible(date) ? QStringLiteral("Pick the day and the time on a calendar. They can be typed in the boxes too.")
+                                  : QStringLiteral("Pick the time from a list. It can be typed in the box too."));
         d.adjustSize();
     };
     connect(repeat, &QComboBox::currentIndexChanged, &d, sync);
     sync();
+    connect(pick, &QToolButton::clicked, &d, [&] {
+        const bool once = repeat->currentData().toString() == QLatin1String("once");
+        auto* picker = new WhenPicker(date, time, form->isRowVisible(date), once ? m_now().date() : QDate(), &d);
+        picker->openAt(pick);
+    });
     connect(buttons, &QDialogButtonBox::rejected, &d, &QDialog::reject);
     connect(buttons, &QDialogButtonBox::accepted, &d, [&] {
         Schedule n = *s;
