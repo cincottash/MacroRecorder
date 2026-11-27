@@ -3,6 +3,8 @@
 #include <QApplication>
 #include <QColor>
 #include <QPalette>
+#include <QProxyStyle>
+#include <QStyleFactory>
 #include <QStyleHints>
 #include <QWidget>
 
@@ -159,6 +161,25 @@ QCalendarWidget QTableView::item { padding: 0; }
     s.replace(QStringLiteral("@down"), darkTheme ? QStringLiteral(":/down_light.svg") : QStringLiteral(":/down_dark.svg"));
     s.replace(QStringLiteral("@up"), darkTheme ? QStringLiteral(":/up_light.svg") : QStringLiteral(":/up_dark.svg"));
     return s;
+}
+
+namespace {
+// Fusion underlines every shortcut letter (File, Edit, View...) all the time; this draws them plain.
+class NoUnderlineStyle : public QProxyStyle
+{
+public:
+    using QProxyStyle::QProxyStyle;
+    int styleHint(StyleHint hint, const QStyleOption* option, const QWidget* widget, QStyleHintReturn* ret) const override
+    {
+        if (hint == QStyle::SH_UnderlineShortcut) return 0;
+        return QProxyStyle::styleHint(hint, option, widget, ret);
+    }
+};
+}  // namespace
+
+void installStyle()
+{
+    QApplication::setStyle(new NoUnderlineStyle(QStyleFactory::create(QStringLiteral("Fusion"))));
 }
 
 void apply(const Theme& t, QWidget* only)
