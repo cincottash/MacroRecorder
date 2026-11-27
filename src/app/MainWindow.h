@@ -149,6 +149,7 @@ private:
     void exportCsv();
     void copyCommandLine();
     void applyFilter();
+    void updateShowButton();   // "Show: All", "Show: Clicks, Keys", "Show: 3 of 5"...
     void selectRows(int first, int last);
     QStringList labels() const;
 
@@ -238,7 +239,9 @@ private:
     QPlainTextEdit* m_log = nullptr;
     QPushButton *m_recordBtn = nullptr, *m_playBtn = nullptr, *m_pauseBtn = nullptr, *m_stopBtn = nullptr, *m_playSelBtn = nullptr;
     QToolButton *m_addBtn = nullptr, *m_editBtn = nullptr, *m_deleteBtn = nullptr, *m_upBtn = nullptr, *m_downBtn = nullptr;
-    QHash<QString, QCheckBox*> m_filters;
+    QToolButton* m_showBtn = nullptr;      // the Show drop-down above the step list
+    QList<QAction*> m_filterOrder;          // its kinds of step, in menu order
+    QHash<QString, QAction*> m_filters;     // the same, by key ("moves", "clicks"...)
     QSpinBox *m_speed = nullptr, *m_repeatTimes = nullptr, *m_repeatSecs = nullptr, *m_countdownSecs = nullptr;
     QRadioButton *m_rTimes = nullptr, *m_rSecs = nullptr, *m_rForever = nullptr;
     QComboBox *m_pathStyle = nullptr, *m_typing = nullptr;

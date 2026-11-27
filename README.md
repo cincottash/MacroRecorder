@@ -105,8 +105,11 @@ there.
 **Use Mouse Position…** fills in the position from the screen. While an editor is open, **F8** captures the spot
 under the pointer (and its color, for Wait for Pixel Color).
 
-**Show:** above the list hides kinds of steps (hidden steps still play). The selected step's position is marked
+The **Show** drop-down above the list hides kinds of steps: moves, clicks, keys, waits, windows (hidden steps
+still play). Its menu stays open while you tick several. The selected step's position is marked
 on the screen with a red ring (**View ▸ Mark Selected Step on Screen**).
+
+<img src=".github/readme/menu-show.png" alt="The Show drop-down with Moves and Waits unticked: Show: 3 of 5" width="155">
 
 <br clear="right">
 
