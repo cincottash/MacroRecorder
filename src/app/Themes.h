@@ -32,6 +32,10 @@ QString displayName(const QString& name);
 bool systemIsDark();
 const Theme& forChoice(const QString& key);  // "system" or unknown keys -> Light/Dark by the OS setting
 
+// The app's base look: Fusion, without the underlined shortcut letters in menus and on buttons (Alt+F and the
+// other Alt shortcuts still work). Called once, right after the QApplication is made.
+void installStyle();
+
 // Style the whole application, or only `only` and its children (for previews).
 void apply(const Theme& t, QWidget* only = nullptr);
 

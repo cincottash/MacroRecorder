@@ -86,7 +86,7 @@ int main(int argc, char* argv[])
     QApplication::setApplicationName(QStringLiteral(APP_NAME));
     QApplication::setOrganizationName(QStringLiteral(APP_ORG));
     QApplication::setApplicationVersion(QStringLiteral(APP_VERSION));
-    QApplication::setStyle(QStringLiteral("Fusion"));
+    themes::installStyle();
     QFont f(QStringLiteral("Segoe UI"), 10);
     QApplication::setFont(f);
 
