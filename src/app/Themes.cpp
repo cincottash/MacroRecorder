@@ -131,6 +131,22 @@ QCheckBox::indicator:checked { background: @accent; border-color: @accent; image
 QCheckBox::indicator:disabled { background: @track; border-color: @border; }
 QCheckBox::indicator:checked:disabled { background: @muted; border-color: @muted; }
 QToolTip { background: @card; color: @text; border: 1px solid @border; padding: 4px; }
+QToolButton#tool[testId="pickWhen"] { padding: 4px 8px; }
+QFrame#whenPicker { background: @card; border: 1px solid @border; border-radius: 8px; }
+QFrame#whenPicker QLabel { background: transparent; }
+QFrame#whenPicker QListWidget { background: @input; border: 1px solid @border; border-radius: 6px; outline: none; }
+QFrame#whenPicker QListWidget::item { padding: 3px 4px; border-radius: 4px; }
+QFrame#whenPicker QListWidget::item:hover { background: @track; }
+QFrame#whenPicker QListWidget::item:selected { background: @accent; color: @accent_text; }
+QCalendarWidget QWidget#qt_calendar_navigationbar { background: @card; }
+QCalendarWidget QToolButton { color: @text; background: transparent; border: none; border-radius: 4px; padding: 4px 8px;
+    font-weight: 600; }
+QCalendarWidget QToolButton:hover { background: @track; }
+QCalendarWidget QToolButton::menu-indicator { image: none; }
+QCalendarWidget QSpinBox { padding: 2px 4px; }
+QCalendarWidget QTableView { border: 1px solid @border; border-radius: 6px; alternate-background-color: @input; outline: none; }
+QCalendarWidget QTableView:disabled { color: @muted; }
+QCalendarWidget QTableView::item { padding: 0; }
 )");
     // Longest keys first, so "@accent" doesn't eat the start of "@accent_text".
     QStringList keys = t.colors.keys();
