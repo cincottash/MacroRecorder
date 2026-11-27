@@ -221,7 +221,7 @@ public:
             if (empty) spare = kc;
         }
         if (map) XFree(map);
-        if (!spare) { m_problem = QStringLiteral("Some characters couldn't be typed: the keyboard layout has no free key to use."); return; }
+        if (!spare) { m_problem = T("Some characters couldn't be typed: the keyboard layout has no free key to use."); return; }
         KeySym both[2] = {KeySym(ks), KeySym(ks)};
         XChangeKeyboardMapping(m_d, spare, 2, both, 1);
         XSync(m_d, False);
@@ -347,7 +347,7 @@ public:
     {
         const QString exe = QStandardPaths::findExecutable(QStringLiteral("tesseract"));
         if (exe.isEmpty()) {
-            if (error) *error = QStringLiteral("reading text on Linux needs Tesseract: install it (for example: sudo apt install tesseract-ocr).");
+            if (error) *error = T("reading text on Linux needs Tesseract: install it (for example: sudo apt install tesseract-ocr).");
             return false;
         }
         QByteArray png;
@@ -357,12 +357,12 @@ public:
         img.scaled(img.size() * 2, Qt::IgnoreAspectRatio, Qt::SmoothTransformation).save(&buf, "PNG");
         QProcess p;
         p.start(exe, {QStringLiteral("stdin"), QStringLiteral("stdout"), QStringLiteral("tsv")});
-        if (!p.waitForStarted(5000)) { if (error) *error = QStringLiteral("Tesseract didn't start."); return false; }
+        if (!p.waitForStarted(5000)) { if (error) *error = T("Tesseract didn't start."); return false; }
         p.write(png);
         p.closeWriteChannel();
         if (!p.waitForFinished(30000) || p.exitCode() != 0) {
             p.kill();
-            if (error) *error = QStringLiteral("Tesseract couldn't read the picture.");
+            if (error) *error = T("Tesseract couldn't read the picture.");
             return false;
         }
         // TSV: level page block par line word left top width height conf text; words are level 5
@@ -719,11 +719,11 @@ X11Backend::X11Backend(QObject* parent, core::Injector* playbackInjector) : Back
     d->hk = XOpenDisplay(nullptr);
     int major = 0, minor = 0, ev = 0, err = 0;
     if (!d->ctrl || !d->data || !d->query || !d->hk)
-        d->unavailable = QStringLiteral("Couldn't connect to the X11 display.");
+        d->unavailable = T("Couldn't connect to the X11 display.");
     else if (!XTestQueryExtension(d->ctrl, &ev, &err, &major, &minor))
-        d->unavailable = QStringLiteral("The X server doesn't support XTest, which playback needs.");
+        d->unavailable = T("The X server doesn't support XTest, which playback needs.");
     else if (!XRecordQueryVersion(d->ctrl, &major, &minor))
-        d->unavailable = QStringLiteral("The X server doesn't support XRecord, which recording needs.");
+        d->unavailable = T("The X server doesn't support XRecord, which recording needs.");
     d->xinj = std::make_unique<X11Injector>([this](const Expected& e) { d->expect(e); });
     d->inj = playbackInjector ? playbackInjector : d->xinj.get();
     if (d->hk && pipe(d->wake) == 0) d->hotkeyThread = std::thread([this] { d->hotkeyLoop(); });
@@ -770,11 +770,11 @@ bool X11Backend::setHotkey(int id, const QKeySequence& seq, QString* error)
     unsigned mods = 0;
     const bool clear = seq.isEmpty();
     if (!clear && !lnx::keysymFromQt(seq[0], &ks, &mods)) {
-        if (error) *error = QStringLiteral("“%1” can't be used as a hotkey.").arg(seq.toString(QKeySequence::NativeText));
+        if (error) *error = T("“%1” can't be used as a hotkey.").arg(seq.toString(QKeySequence::NativeText));
         return false;
     }
     if (!d->hk || !d->hotkeyThread.joinable()) {
-        if (error && !clear) *error = QStringLiteral("Global hotkeys aren't available.");
+        if (error && !clear) *error = T("Global hotkeys aren't available.");
         return clear;
     }
     bool ok = true;
@@ -800,7 +800,7 @@ bool X11Backend::setHotkey(int id, const QKeySequence& seq, QString* error)
         }
         d->hotkeys.insert(id, {kc, mods});
     });
-    if (!ok && error) *error = QStringLiteral("%1 is already used by another program.").arg(seq.toString(QKeySequence::NativeText));
+    if (!ok && error) *error = T("%1 is already used by another program.").arg(seq.toString(QKeySequence::NativeText));
     return ok;
 }
 

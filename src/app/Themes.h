@@ -26,6 +26,9 @@ const Theme* find(const QString& key);
 QStringList groups();            // the built-in groups, in menu order
 QString customGroup();           // "Custom Themes": the group of imported themes
 void setCustom(const QList<Theme>& list);   // replaces the imported themes (references from all() become invalid)
+// A group's or theme's name in the app's language ("Dark Themes", "Light", "Paper"); proper names such as
+// "Dracula" stay as they are. Names and groups stay English in the code, the settings and theme files.
+QString displayName(const QString& name);
 bool systemIsDark();
 const Theme& forChoice(const QString& key);  // "system" or unknown keys -> Light/Dark by the OS setting
 

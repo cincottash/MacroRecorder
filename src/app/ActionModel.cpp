@@ -1,6 +1,7 @@
 #include "ActionModel.h"
 
 #include "core/Player.h"
+#include "core/Tr.h"
 
 #include <QApplication>
 #include <QLocale>
@@ -98,10 +99,10 @@ QVariant ActionModel::data(const QModelIndex& i, int role) const
             if (a.type == ActionType::Group && role == Qt::DisplayRole) {
                 const int end = groupEnd(i.row());
                 const int n = qMax(0, (end < 0 ? int(m_actions.size()) : end) - i.row() - 1);
-                v = QStringLiteral("%1 step%2").arg(QLocale().toString(n), n == 1 ? QString() : QStringLiteral("s"));
-                if (a.collapsed) v += QStringLiteral(" · folded");
+                v = n == 1 ? T("1 step") : T("%1 steps").arg(QLocale().toString(n));
+                if (a.collapsed) v += QStringLiteral(" · ") + T("folded");
             }
-            if (a.delayMs > 0 && role == Qt::DisplayRole) v += QStringLiteral("   (+%1 ms before)").arg(a.delayMs);
+            if (a.delayMs > 0 && role == Qt::DisplayRole) v += QStringLiteral("   ") + T("(+%1 ms before)").arg(a.delayMs);
             // A text over several lines shows all of them, its line breaks as ⏎ (a cell shows only its first line)
             if (role == Qt::DisplayRole && v.contains(QLatin1Char('\n'))) {
                 v.replace(QLatin1String("\r\n"), QLatin1String("\n"));
@@ -123,13 +124,13 @@ QVariant ActionModel::data(const QModelIndex& i, int role) const
         break;
     case Qt::ToolTipRole:
         if (!a.enabled && (a.type == ActionType::Group || a.type == ActionType::If))
-            return QStringLiteral("Disabled: every step inside is skipped when playing (Edit > Enable / Disable).");
-        if (!a.enabled) return QStringLiteral("Disabled: skipped when playing (Edit > Enable / Disable).");
+            return T("Disabled: every step inside is skipped when playing (Edit > Enable / Disable).");
+        if (!a.enabled) return T("Disabled: skipped when playing (Edit > Enable / Disable).");
         if (a.type == ActionType::Group && i.column() == ColAction)
-            return a.collapsed ? QStringLiteral("Click the arrow (or press Right) to show the steps in this group.")
-                               : QStringLiteral("Click the arrow (or press Left) to fold the steps in this group away.");
+            return a.collapsed ? T("Click the arrow (or press Right) to show the steps in this group.")
+                               : T("Click the arrow (or press Left) to fold the steps in this group away.");
         if (i.column() == ColValue && (a.type == ActionType::SetVariable || a.type == ActionType::If)) return a.valueText();
-        if (i.column() == ColLabel) return QStringLiteral("Double-click to name this step, so Repeat and Go to can jump here.");
+        if (i.column() == ColLabel) return T("Double-click to name this step, so Repeat and Go to can jump here.");
         if (i.column() == ColValue && a.type == ActionType::Text) return a.text;
         break;
     case Qt::ForegroundRole:
@@ -159,10 +160,10 @@ QVariant ActionModel::headerData(int section, Qt::Orientation o, int role) const
     if (role != Qt::DisplayRole) return {};
     switch (section) {
     case ColNum: return QStringLiteral("#");
-    case ColAction: return QStringLiteral("Action");
-    case ColValue: return QStringLiteral("Value");
-    case ColLabel: return QStringLiteral("Label");
-    case ColComment: return QStringLiteral("Comment");
+    case ColAction: return T("Action");
+    case ColValue: return T("Value");
+    case ColLabel: return T("Label");
+    case ColComment: return T("Comment");
     }
     return {};
 }

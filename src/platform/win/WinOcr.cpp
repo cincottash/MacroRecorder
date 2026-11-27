@@ -8,6 +8,7 @@
 //   IMemoryBuffer: 6 CreateReference      IMemoryBufferByteAccess (plain COM): 3 GetBuffer   IClosable: 6 Close
 // (slots 0-5 are IUnknown's and IInspectable's).
 #include "WinOcr.h"
+#include "core/Tr.h"
 
 #include <QElapsedTimer>
 
@@ -74,7 +75,7 @@ bool readPiece(IUnknown* engine, IUnknown* factory, const QImage& img, QVector<c
 {
     Ptr bmp;
     if (FAILED(call(factory, 6, kBgra8, INT32(img.width()), INT32(img.height()), bmp.out())) || !bmp.p) {
-        *error = QStringLiteral("the picture couldn't be handed to the text recognition.");
+        *error = T("the picture couldn't be handed to the text recognition.");
         return false;
     }
     {
@@ -85,7 +86,7 @@ bool readPiece(IUnknown* engine, IUnknown* factory, const QImage& img, QVector<c
         if (FAILED(call(bmp.p, 15, kWrite, buffer.out())) || !buffer.p || FAILED(call(buffer.p, 7, INT32(0), &pd))
             || FAILED(buffer.p->QueryInterface(kMemoryBuffer, mem.out())) || FAILED(call(mem.p, 6, ref.out())) || !ref.p
             || FAILED(ref.p->QueryInterface(kMemoryBufferByteAccess, bytes.out())) || FAILED(call(bytes.p, 3, &data, &cap)) || !data) {
-            *error = QStringLiteral("the picture couldn't be copied for the text recognition.");
+            *error = T("the picture couldn't be copied for the text recognition.");
             return false;
         }
         const QImage src = img.convertToFormat(QImage::Format_RGB32);   // B, G, R, 255 in memory: Bgra8
@@ -100,7 +101,7 @@ bool readPiece(IUnknown* engine, IUnknown* factory, const QImage& img, QVector<c
     }
     Ptr op, info, result, lineList;
     if (FAILED(call(engine, 6, bmp.p, op.out())) || !op.p || FAILED(op.p->QueryInterface(kAsyncInfo, info.out()))) {
-        *error = QStringLiteral("the text recognition didn't start.");
+        *error = T("the text recognition didn't start.");
         return false;
     }
     INT32 status = 0;   // 0 Started, 1 Completed, 2 Canceled, 3 Error
@@ -109,13 +110,13 @@ bool readPiece(IUnknown* engine, IUnknown* factory, const QImage& img, QVector<c
     while (SUCCEEDED(call(info.p, 7, &status)) && status == 0) {
         if (t.elapsed() > 20000) {
             call(info.p, 9);
-            *error = QStringLiteral("the text recognition took too long.");
+            *error = T("the text recognition took too long.");
             return false;
         }
         Sleep(3);
     }
     if (status != 1 || FAILED(call(op.p, 8, result.out())) || !result.p || FAILED(call(result.p, 6, lineList.out())) || !lineList.p) {
-        *error = QStringLiteral("the text recognition failed.");
+        *error = T("the text recognition failed.");
         return false;
     }
     UINT32 n = 0;
@@ -145,16 +146,16 @@ bool recognize(const QImage& img, QVector<core::TextWord>* words, QString* error
     Ptr statics, engine, factory;
     HStr ocrClass(L"Windows.Media.Ocr.OcrEngine"), bitmapClass(L"Windows.Graphics.Imaging.SoftwareBitmap");
     if (FAILED(RoGetActivationFactory(ocrClass.h, kOcrEngineStatics, statics.out())) || !statics.p) {
-        *error = QStringLiteral("Windows' text recognition isn't available (it needs Windows 10 or later).");
+        *error = T("Windows' text recognition isn't available (it needs Windows 10 or later).");
         return false;
     }
     if (FAILED(call(statics.p, 10, engine.out())) || !engine.p) {   // TryCreateFromUserProfileLanguages
-        *error = QStringLiteral("Windows has no text recognition for the display languages set up (Settings > Time & "
+        *error = T("Windows has no text recognition for the display languages set up (Settings > Time & "
                                 "Language > Language: add the language's optional features).");
         return false;
     }
     if (FAILED(RoGetActivationFactory(bitmapClass.h, kSoftwareBitmapFactory, factory.out())) || !factory.p) {
-        *error = QStringLiteral("Windows' imaging isn't available.");
+        *error = T("Windows' imaging isn't available.");
         return false;
     }
     UINT32 maxDim = 0;
@@ -195,7 +196,7 @@ bool recognize(const QImage& img, QVector<core::TextWord>* words, QString* error
 bool recognizeText(const QImage& img, QVector<core::TextWord>* words, QString* error)
 {
     if (img.isNull() || img.width() < 8 || img.height() < 8) {
-        if (error) *error = QStringLiteral("the picture is too small to read.");
+        if (error) *error = T("the picture is too small to read.");
         return false;
     }
     // On a thread of its own in the multithreaded apartment: the caller may be a window's thread (single-threaded

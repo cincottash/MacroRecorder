@@ -1,6 +1,9 @@
 #include "AppData.h"
+#include "Language.h"
 #include "MainWindow.h"
 #include "Settings.h"
+#include "Themes.h"
+#include "core/Tr.h"
 #include "platform/Backend.h"
 
 #include <QApplication>
@@ -13,6 +16,7 @@
 #include <QJsonObject>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <QProcess>
 
 #include <cstdio>
 #include <QMessageBox>
@@ -104,12 +108,20 @@ int main(int argc, char* argv[])
     const QCommandLineOption screenshot(QStringLiteral("screenshot"),
                                         QStringLiteral("Save a picture of the window to this PNG file and exit (for testing; "
                                                        "uses throwaway settings and no hotkeys)."), QStringLiteral("png"));
-    cli.addOptions({play, repeat, minimized, quit, dataFolder, screenshot, record});
+    const QCommandLineOption languageOpt(QStringLiteral("language"),
+                                         QStringLiteral("Show the app in this language for this run only: en (English) or es (Spanish)."),
+                                         QStringLiteral("code"));
+    cli.addOptions({play, repeat, minimized, quit, dataFolder, screenshot, record, languageOpt});
     cli.process(app);
+    if (cli.isSet(languageOpt) && !language::isKnown(cli.value(languageOpt))) {
+        fprintf(stderr, "Unknown language \"%s\": use en or es.\n", qPrintable(cli.value(languageOpt)));
+        return 2;
+    }
 
     if (cli.isSet(screenshot)) {
         QTemporaryDir tmp;
         appdata::resolve(tmp.path(), nullptr);
+        language::install(cli.isSet(languageOpt) ? cli.value(languageOpt) : QStringLiteral("en"));   // never asked here
         Settings settings;
         MainWindow w(settings, false);   // shows the default hotkeys without registering them
         w.setAttribute(Qt::WA_DontShowOnScreen);
@@ -153,11 +165,33 @@ int main(int argc, char* argv[])
         }
     }
 
+    // The language: the one kept in the settings file, or asked now. Asked before the welcome window (which asks
+    // where to keep the settings), so that one shows in the chosen language too. Starts that must not wait for an
+    // answer (--play, --record, --minimized, Start at Login) use the system's language and ask at a normal start.
+    Settings saved;
+    if (const QString known = appdata::knownSettingsFile(cli.value(dataFolder)); !known.isEmpty()) saved.load(known);
+    themes::apply(themes::forChoice(saved.theme));   // the question and the welcome window in the app's theme
+    QString lang = cli.value(languageOpt);
+    if (lang.isEmpty()) lang = saved.language;
+    bool keepLanguage = !cli.isSet(languageOpt);
+    if (!language::isKnown(lang)) {
+        const bool unattended = cli.isSet(play) || cli.isSet(record) || cli.isSet(minimized);
+        lang = unattended ? language::systemDefault() : language::ask(nullptr, language::systemDefault());
+        keepLanguage = !unattended;
+    }
+    language::install(lang);
+
     const QString folder = appdata::resolve(cli.value(dataFolder), nullptr);
     if (folder.isEmpty()) return 0;  // first-run dialog cancelled
     Settings settings;
     settings.load(appdata::settingsFile());
+    if (keepLanguage && settings.language != lang) {   // kept in the app data folder at once
+        settings.language = lang;
+        settings.save(appdata::settingsFile());
+    }
 
+    int rc = 0;
+    {   // the window and the running-copy server end here, before a restart (File > Settings > Language) starts the next copy
     MainWindow w(settings);
     QLocalServer server;
     if (!cli.isSet(record)) {
@@ -188,12 +222,20 @@ int main(int argc, char* argv[])
     }
     if (cli.isSet(play)) {
         if (files.isEmpty()) {
-            QMessageBox::warning(&w, QStringLiteral(APP_NAME), QStringLiteral("--play needs a macro file to play."));
+            QMessageBox::warning(&w, QStringLiteral(APP_NAME), T("--play needs a macro file to play."));
         } else {
             const int n = cli.value(repeat).toInt();
             const bool q = cli.isSet(quit);
             QTimer::singleShot(300, &w, [&w, n, q] { w.playFromCommandLine(qMax(0, n), q); });
         }
     }
-    return app.exec();
+    rc = app.exec();
+    }
+    // A restart asked for while running (a new language): the hotkeys and the running-copy name are free now
+    if (!MainWindow::restartAfterQuit().program.isEmpty()) {
+        const auto& again = MainWindow::restartAfterQuit();
+        if (!QProcess::startDetached(again.program, again.args))
+            fprintf(stderr, "%s couldn't start again by itself: open it again.\n", APP_NAME);
+    }
+    return rc;
 }

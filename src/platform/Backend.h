@@ -3,6 +3,7 @@
 #pragma once
 
 #include "core/Input.h"
+#include "core/Tr.h"   // messages for the user, in the app's language
 #include "System.h"
 
 #include <QKeySequence>

@@ -1,6 +1,7 @@
 #include "ScreenPicker.h"
 
 #include "core/Input.h"
+#include "core/Tr.h"
 
 #include <QApplication>
 #include <QEventLoop>
@@ -72,7 +73,7 @@ protected:
         f.setPointSizeF(f.pointSizeF() * 1.15);
         p.setFont(f);
         const QFontMetrics fm(f);
-        const QString text = m_hint + QStringLiteral("   ·   Esc: Cancel");
+        const QString text = m_hint + QStringLiteral("   ·   ") + T("Esc: Cancel");
         const QRect r(QPoint((width() - fm.horizontalAdvance(text)) / 2 - 16, 24), QSize(fm.horizontalAdvance(text) + 32, fm.height() + 16));
         p.setRenderHint(QPainter::Antialiasing);
         p.setPen(Qt::NoPen);
@@ -154,7 +155,7 @@ bool pick(core::Injector* inj, const QString& hint, QRect* area, QImage* picture
     };
     if (full.isNull() || bounds.isEmpty()) {
         restore();
-        if (error) *error = QStringLiteral("Pictures of the screen can't be taken here.");
+        if (error) *error = T("Pictures of the screen can't be taken here.");
         return false;
     }
     Shared st;

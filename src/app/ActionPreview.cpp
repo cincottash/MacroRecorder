@@ -1,6 +1,7 @@
 #include "ActionPreview.h"
 
 #include "Look.h"
+#include "core/Tr.h"
 
 #include <QGuiApplication>
 #include <QPainter>
@@ -146,7 +147,7 @@ void ActionPreview::paintEvent(QPaintEvent*)
     p.setPen(text);
     const int pad = 10, head = QFontMetrics(f).height() + 6;
     p.drawText(QRect(pad, pad - 2, width() - 2 * pad, head), Qt::AlignLeft | Qt::AlignVCenter,
-               m_a.typeName() + (m_a.relativeToWindow ? QStringLiteral(" (in Window)") : QString()));
+               m_a.relativeToWindow ? T("%1 (in Window)").arg(m_a.typeName()) : m_a.typeName());
     p.setFont(font());
     p.setPen(muted);
     const int foot = QFontMetrics(font()).height() + 4;

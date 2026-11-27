@@ -30,6 +30,10 @@ struct Schedule {
 };
 
 struct Settings {
+    // The app's language ("en", "es"): asked at the first start, changed in File > Settings > Language.
+    // Empty: not asked yet. Kept by both resets (only Start Over asks again).
+    QString language;
+
     // View options (View > Reset view options)
     QString theme = QStringLiteral("dark");
     QStringList foldedCards;
