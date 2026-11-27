@@ -33,8 +33,11 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QKeySequenceEdit>
+#include <QKeyEvent>
 #include <QLabel>
+#include <QMenu>
 #include <QMenuBar>
+#include <QMouseEvent>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QNetworkAccessManager>
@@ -141,6 +144,29 @@ QToolButton* toolButton(const QString& text, const QString& tip)
     b->setToolTip(tip);
     return b;
 }
+
+// A menu of check marks that stays open when one is clicked (or toggled with Space or Enter), so several can be
+// changed in one go. Other items close it as usual.
+class StayOpenMenu : public QMenu
+{
+public:
+    using QMenu::QMenu;
+
+protected:
+    void mouseReleaseEvent(QMouseEvent* e) override
+    {
+        QAction* a = actionAt(e->position().toPoint());
+        if (a && a->isCheckable() && a->isEnabled()) { a->trigger(); return; }
+        QMenu::mouseReleaseEvent(e);
+    }
+    void keyPressEvent(QKeyEvent* e) override
+    {
+        QAction* a = activeAction();
+        const bool toggleKey = e->key() == Qt::Key_Space || e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter;
+        if (toggleKey && a && a->isCheckable() && a->isEnabled()) { a->trigger(); return; }
+        QMenu::keyPressEvent(e);
+    }
+};
 
 QLabel* muted(const QString& text)
 {
@@ -864,7 +890,7 @@ void MainWindow::buildUi()
         {m_mergeTyping, "mergeTyping"}, {m_shortestPause, "shortestPause"}, {m_hideRec, "hideRec"},
         {m_hkRecord, "hkRecord"}, {m_hkPlay, "hkPlay"}, {m_hkStop, "hkStop"}, {m_hkError, "hkError"},
         {m_hkNewRec, "hkNewRec"}, {m_hkPlayFrom, "hkPlayFrom"}, {m_hkPlaySel, "hkPlaySel"}, {m_hkCapture, "hkCapture"},
-        {m_table, "table"}, {m_log, "log"}, {m_pill, "pill"}, {m_fileLabel, "fileLabel"}};
+        {m_table, "table"}, {m_showBtn, "showFilter"}, {m_log, "log"}, {m_pill, "pill"}, {m_fileLabel, "fileLabel"}};
     for (const auto& [o, id] : ids) o->setProperty("testId", QString::fromLatin1(id));
     for (auto it = m_filters.cbegin(); it != m_filters.cend(); ++it) it.value()->setProperty("testId", QStringLiteral("filter_") + it.key());
     for (auto it = m_cards.cbegin(); it != m_cards.cend(); ++it) it.value().toggle->setProperty("testId", QStringLiteral("fold_") + it.key());
@@ -1186,20 +1212,32 @@ QWidget* MainWindow::buildActionsCard()
     m_downBtn = toolButton(QStringLiteral("↓"), T("Move down (Alt+Down)"));
     for (QToolButton* t : {m_addBtn, m_editBtn, m_deleteBtn, m_upBtn, m_downBtn}) bar->addWidget(t);
     bar->addSpacing(12);
-    bar->addWidget(new QLabel(T("Show:")));
+    // One drop-down instead of five check boxes, so the window can be narrower. Its menu stays open while
+    // kinds are ticked on and off.
+    m_showBtn = toolButton(QString(), T("Choose which kinds of steps the list shows. Hidden steps still play."));
+    m_showBtn->setPopupMode(QToolButton::InstantPopup);
+    auto* showMenu = new StayOpenMenu(m_showBtn);
     const QList<QPair<QString, QString>> filters = {{QStringLiteral("moves"), T("Moves", "filter")},
                                                     {QStringLiteral("clicks"), T("Clicks")},
                                                     {QStringLiteral("keys"), T("Keys")},
                                                     {QStringLiteral("waits"), T("Waits")},
                                                     {QStringLiteral("windows"), T("Windows", "filter")}};
     for (const auto& [key, text] : filters) {
-        auto* c = new QCheckBox(text);
-        c->setChecked(true);
-        c->setToolTip(T("Hidden steps still play."));
-        m_filters.insert(key, c);
-        bar->addWidget(c);
-        connect(c, &QCheckBox::toggled, this, [this] { applyFilter(); });
+        QAction* a = showMenu->addAction(text);
+        a->setCheckable(true);
+        a->setChecked(true);
+        m_filters.insert(key, a);
+        m_filterOrder.append(a);
+        connect(a, &QAction::toggled, this, [this] { applyFilter(); updateShowButton(); });
     }
+    showMenu->addSeparator();
+    QAction* all = showMenu->addAction(T("Show All"), this, [this] {
+        for (QAction* a : std::as_const(m_filterOrder)) a->setChecked(true);
+    });
+    all->setProperty("testId", QStringLiteral("filter_all"));
+    m_showBtn->setMenu(showMenu);
+    bar->addWidget(m_showBtn);
+    updateShowButton();
     bar->addStretch();
     b->addLayout(bar);
 
@@ -2107,6 +2145,23 @@ void MainWindow::applyFilter()
             hiddenSelected.select(m_model.index(r, 0), m_model.index(r, ActionModel::ColCount - 1));
     }
     if (!hiddenSelected.isEmpty()) m_table->selectionModel()->select(hiddenSelected, QItemSelectionModel::Deselect);
+}
+
+void MainWindow::updateShowButton()
+{
+    QStringList shown;
+    for (const QAction* a : std::as_const(m_filterOrder)) if (a->isChecked()) shown << a->text();
+    const int all = int(m_filterOrder.size());
+    QString text;
+    if (shown.size() == all) text = T("Show: All");
+    else if (shown.isEmpty()) text = T("Show: None");
+    else if (shown.size() <= 2) text = T("Show: %1").arg(shown.join(QStringLiteral(", ")));
+    else text = T("Show: %1 of %2").arg(shown.size()).arg(all);
+    m_showBtn->setText(text);
+    if (QMenu* m = m_showBtn->menu()) {
+        const QList<QAction*> acts = m->actions();
+        if (!acts.isEmpty()) acts.last()->setEnabled(shown.size() != all);   // Show All
+    }
 }
 
 // ------------------------------------------------------------------------------------------------ record / play

@@ -4061,6 +4061,30 @@
    "context": "QLineEdit",
    "en": "Select All",
    "es": "Seleccionar todo"
+  },
+  {
+   "en": "Choose which kinds of steps the list shows. Hidden steps still play.",
+   "es": "Elige qué tipos de pasos muestra la lista. Los pasos ocultos se siguen reproduciendo."
+  },
+  {
+   "en": "Show All",
+   "es": "Mostrar todos"
+  },
+  {
+   "en": "Show: All",
+   "es": "Mostrar: todos"
+  },
+  {
+   "en": "Show: None",
+   "es": "Mostrar: ninguno"
+  },
+  {
+   "en": "Show: %1",
+   "es": "Mostrar: %1"
+  },
+  {
+   "en": "Show: %1 of %2",
+   "es": "Mostrar: %1 de %2"
   }
  ]
 }
