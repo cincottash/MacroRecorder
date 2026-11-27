@@ -38,8 +38,18 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             version="${GITHUB_REF_NAME#v}"                     # a tag pushed by hand: use it as is
           else
-            latest=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)
-            latest=${latest:-v0.0.0}
+            # The newest release tag in this commit's history, and how many merges came after it. Each merge
+            # counts, also one whose release hasn't been published yet: merges made in quick succession get
+            # v1.1.9 and v1.1.10, never the same number twice (2026-11-27, two merges both worked out v1.1.8
+            # while the release before them was still being made).
+            latest=$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' "$GITHUB_SHA" 2>/dev/null || true)
+            if [[ -n "$latest" ]]; then
+              steps=$(git rev-list --count --first-parent "$latest..$GITHUB_SHA")
+            else
+              latest=v0.0.0
+              steps=1
+            fi
+            (( steps > 0 )) || steps=1
             IFS=. read -r major minor patch <<< "${latest#v}"
             # Only titles, never descriptions: the merged commit's first line and the pull request's title.
             # They can differ: squash-merging a pull request with a single commit keeps that commit's first
@@ -53,12 +63,12 @@ jobs:
             elif grep -qi '\[minor\]' <<< "$message $pr_title"; then
               version="${major}.$((minor + 1)).0"
             else
-              version="${major}.${minor}.$((patch + 1))"
+              version="${major}.${minor}.$((patch + steps))"
             fi
             if [[ "$GITHUB_EVENT_NAME" != "push" ]]; then
               version="${version}-test.${GITHUB_RUN_NUMBER}"   # pull requests and manual runs
             fi
-            echo "Latest release tag: $latest"
+            echo "Latest release tag: $latest, merges since: $steps"
           fi
           echo "Version: $version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
