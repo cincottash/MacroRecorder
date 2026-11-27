@@ -244,5 +244,11 @@ jobs:
           # For a merge this also creates the tag on the merged commit (a tag made this way doesn't start
           # another run).
           gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "MacroRecorder $VERSION" --generate-notes \
+            --title "MacroRecorder $VERSION" --generate-notes --latest=false \
             dist/MacroRecorder.exe dist/MacroRecorder-x86_64.AppImage
+          # "Latest" goes to the highest version, not to the release published last: two quick merges can
+          # finish in either order (2026-11-27, v1.1.12 was published before v1.1.11, which then took the label).
+          highest=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --exclude-drafts --exclude-pre-releases \
+            --json tagName --jq '.[].tagName' | sort -V | tail -n 1)
+          echo "Highest release: $highest"
+          gh release edit "$highest" --repo "$GITHUB_REPOSITORY" --latest
